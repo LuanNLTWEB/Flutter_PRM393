@@ -6,4 +6,10 @@ class ApiEndpoints {
   static const String login = '$baseUrl/auth/login';
   static const String userProfile = '$baseUrl/users/profile';
   static const String changePassword = '$baseUrl/users/change-password';
+
+  // Admin Endpoints
+  static const String adminUsers = '$baseUrl/admin/users';
+  static const String adminCreateStaff = '$baseUrl/admin/users/staff';
+  static String adminUserRole(String id) => '$baseUrl/admin/users/$id/role';
+  static String adminUserStatus(String id) => '$baseUrl/admin/users/$id/status';
 }

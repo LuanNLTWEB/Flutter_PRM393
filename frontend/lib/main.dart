@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
+import 'features/admin/presentation/providers/admin_provider.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/home/presentation/home_screen.dart';
 
@@ -14,8 +15,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AuthProvider()..tryAutoLogin(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()..tryAutoLogin()),
+        ChangeNotifierProvider(create: (_) => AdminProvider()),
+      ],
       child: MaterialApp(
         title: 'HomeFix',
         debugShowCheckedModeBanner: false,

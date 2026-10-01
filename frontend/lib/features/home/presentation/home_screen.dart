@@ -6,6 +6,7 @@ import '../../auth/presentation/providers/auth_provider.dart';
 import '../../auth/presentation/screens/login_screen.dart';
 import '../../auth/presentation/screens/register_screen.dart';
 import '../../profile/presentation/screens/profile_screen.dart';
+import '../../admin/presentation/screens/admin_home_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -15,6 +16,10 @@ class HomeScreen extends StatelessWidget {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
         if (auth.isAuthenticated) {
+          // Admin chỉ xem duy nhất trang Quản trị viên (AdminHomeScreen), không xem trang khác
+          if (auth.currentUser?.role == 'admin') {
+            return const AdminHomeScreen();
+          }
           return _buildLoggedInHome(context, auth);
         }
         return _buildGuestHome(context);
