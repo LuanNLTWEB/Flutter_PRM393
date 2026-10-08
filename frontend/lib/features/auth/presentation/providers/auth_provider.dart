@@ -6,8 +6,10 @@ import '../../data/models/login_request.dart';
 import '../../data/models/register_request.dart';
 import '../../data/models/user_model.dart';
 import '../../../profile/data/datasources/user_remote_datasource.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AuthProvider extends ChangeNotifier {
+
   static const String _prefTokenKey = 'homefix_token';
   static const String _prefUserKey = 'homefix_user';
 
@@ -214,8 +216,46 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Cập nhật ảnh đại diện lên Cloudinary
+  Future<bool> updateAvatar(XFile imageFile) async {
+    if (_token == null) {
+      _errorMessage = 'Bạn chưa đăng nhập';
+      notifyListeners();
+      return false;
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final avatarUrl = await _userDataSource.updateAvatar(
+        token: _token!,
+        imageFile: imageFile,
+      );
+
+      if (_currentUser != null) {
+        _currentUser = _currentUser!.copyWith(avatar: avatarUrl);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_prefUserKey, jsonEncode(_currentUser!.toJson()));
+      }
+
+      _isLoading = false;
+      _successMessage = 'Cập nhật ảnh đại diện thành công';
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Đăng xuất khỏi ứng dụng
   Future<void> logout() async {
+
     _token = null;
     _currentUser = null;
     _errorMessage = null;

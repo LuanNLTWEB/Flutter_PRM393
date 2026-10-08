@@ -21,7 +21,8 @@ class AuthRemoteDataSource {
         body: jsonEncode(request.toJson()),
       );
 
-      final Map<String, dynamic> data = jsonDecode(response.body);
+      final Map<String, dynamic> data =
+          jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 201) {
         return data;
@@ -48,7 +49,9 @@ class AuthRemoteDataSource {
         body: jsonEncode(request.toJson()),
       );
 
-      final Map<String, dynamic> data = jsonDecode(response.body);
+      final Map<String, dynamic> data =
+          jsonDecode(utf8.decode(response.bodyBytes));
+
 
       if (response.statusCode == 200) {
         return data;

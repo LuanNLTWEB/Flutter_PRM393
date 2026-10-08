@@ -7,8 +7,10 @@ import '../../../auth/data/models/user_model.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/admin_provider.dart';
 import 'create_staff_screen.dart';
+import 'admin_technician_approval_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
+
   const AdminHomeScreen({super.key});
 
   @override
@@ -110,6 +112,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         ),
         actions: [
           IconButton(
+            tooltip: 'Duyệt hồ sơ Thợ (KYC)',
+            icon: const Icon(Icons.assignment_ind_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminTechnicianApprovalScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
             tooltip: 'Làm mới danh sách',
             icon: const Icon(Icons.refresh),
             onPressed: _loadUsers,
@@ -123,6 +137,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             onPressed: () => _confirmLogout(context, authProvider),
           ),
         ],
+
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppTheme.primaryColor,

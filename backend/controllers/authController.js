@@ -168,7 +168,31 @@ const login = async (req, res) => {
       });
     }
 
-    // 5. Tạo token và phản hồi
+    // 5. Kiểm tra xét duyệt (KYC) đối với tài khoản Thợ
+    if (user.role === 'technician') {
+      const approvalStatus =
+        user.technicianProfile?.approvalStatus || 'pending';
+
+      if (approvalStatus === 'pending') {
+        return res.status(403).json({
+          success: false,
+          message:
+            'Tài khoản Thợ của bạn đang ở trạng thái CHỜ XÉT DUYỆT (KYC). Vui lòng đợi quản trị viên phê duyệt hồ sơ trước khi đăng nhập.',
+        });
+      }
+
+      if (approvalStatus === 'rejected') {
+        const reason = user.technicianProfile?.rejectionReason
+          ? ` (Lý do: ${user.technicianProfile.rejectionReason})`
+          : '';
+        return res.status(403).json({
+          success: false,
+          message: `Hồ sơ Thợ của bạn đã bị từ chối phê duyệt${reason}. Vui lòng liên hệ hỗ trợ để nộp lại.`,
+        });
+      }
+    }
+
+    // 6. Tạo token và phản hồi
     const token = generateToken(user._id, user.role);
 
     return res.status(200).json({
@@ -179,6 +203,7 @@ const login = async (req, res) => {
         user,
       },
     });
+
   } catch (error) {
     console.error('Lỗi khi đăng nhập:', error);
     return res.status(500).json({

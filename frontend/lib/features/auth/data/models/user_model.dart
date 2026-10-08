@@ -1,3 +1,6 @@
+import '../../../technician/data/models/technician_profile_model.dart';
+
+
 class UserModel {
   final String id;
   final String fullName;
@@ -6,8 +9,10 @@ class UserModel {
   final DateTime dateOfBirth;
   final String gender;
   final String role;
+  final String avatar;
   final bool isActive;
   final DateTime? createdAt;
+  final TechnicianProfileModel? technicianProfile;
 
   const UserModel({
     required this.id,
@@ -17,8 +22,10 @@ class UserModel {
     required this.dateOfBirth,
     required this.gender,
     required this.role,
+    this.avatar = '',
     this.isActive = true,
     this.createdAt,
+    this.technicianProfile,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -32,9 +39,14 @@ class UserModel {
           : DateTime(2000),
       gender: json['gender'] ?? 'male',
       role: json['role'] ?? 'user',
+      avatar: json['avatar'] ?? '',
       isActive: json['isActive'] ?? true,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
+      technicianProfile: json['technicianProfile'] != null
+          ? TechnicianProfileModel.fromJson(
+              json['technicianProfile'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -48,10 +60,13 @@ class UserModel {
       'dateOfBirth': dateOfBirth.toIso8601String(),
       'gender': gender,
       'role': role,
+      'avatar': avatar,
       'isActive': isActive,
       'createdAt': createdAt?.toIso8601String(),
+      'technicianProfile': technicianProfile?.toJson(),
     };
   }
+
 
   UserModel copyWith({
     String? id,
@@ -61,8 +76,10 @@ class UserModel {
     DateTime? dateOfBirth,
     String? gender,
     String? role,
+    String? avatar,
     bool? isActive,
     DateTime? createdAt,
+    TechnicianProfileModel? technicianProfile,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -72,10 +89,14 @@ class UserModel {
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       gender: gender ?? this.gender,
       role: role ?? this.role,
+      avatar: avatar ?? this.avatar,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
+      technicianProfile: technicianProfile ?? this.technicianProfile,
     );
   }
+
+
 
   String get roleDisplay {
     switch (role.toLowerCase()) {

@@ -147,8 +147,64 @@ const changePassword = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Cập nhật ảnh đại diện lên Cloudinary
+ * @route   PUT /api/users/avatar
+ * @access  Private
+ */
+const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn một file ảnh để tải lên',
+      });
+    }
+
+    const { uploadStream } = require('../config/cloudinary');
+
+    // Upload buffer lên Cloudinary trong thư mục homefix/avatars
+    const result = await uploadStream(req.file.buffer, {
+      folder: 'homefix/avatars',
+      transformation: [
+        { width: 500, height: 500, crop: 'fill', gravity: 'face' },
+        { quality: 'auto', fetch_format: 'auto' },
+      ],
+    });
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
+    user.avatar = result.url;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cập nhật ảnh đại diện thành công',
+      data: {
+        avatar: user.avatar,
+        user,
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi khi upload avatar lên Cloudinary:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi tải ảnh lên Cloudinary',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   changePassword,
+  uploadAvatar,
 };
+
