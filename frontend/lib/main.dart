@@ -4,6 +4,7 @@ import 'core/theme/app_theme.dart';
 import 'features/admin/presentation/providers/admin_provider.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/home/presentation/home_screen.dart';
+import 'features/review/presentation/providers/review_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +20,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()..tryAutoLogin()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
+        ChangeNotifierProvider(create: (_) => ReviewProvider()..loadTechnicians()..loadTags()),
       ],
       child: MaterialApp(
         title: 'HomeFix',

@@ -7,6 +7,9 @@ import '../../auth/presentation/screens/login_screen.dart';
 import '../../auth/presentation/screens/register_screen.dart';
 import '../../profile/presentation/screens/profile_screen.dart';
 import '../../admin/presentation/screens/admin_home_screen.dart';
+import '../../review/presentation/providers/review_provider.dart';
+import '../../review/presentation/screens/create_review_screen.dart';
+import '../../review/presentation/screens/technician_reviews_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -257,6 +260,22 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber.shade700,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(42),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            icon: const Icon(Icons.star_rounded, size: 20),
+                            label: const Text('Đánh giá thợ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                            onPressed: () => _openReviewDialog(context),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
                         IconButton(
                           tooltip: 'Đăng xuất',
                           style: IconButton.styleFrom(
@@ -271,6 +290,10 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 24),
+
+              // Phân hệ Đánh giá & Danh sách Thợ (UC-RAT-01)
+              _buildTechnicianReviewSection(context),
               const SizedBox(height: 24),
 
               // Danh mục dịch vụ sửa chữa nổi bật
@@ -485,4 +508,255 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildTechnicianReviewSection(BuildContext context) {
+    return Consumer<ReviewProvider>(
+      builder: (context, reviewProv, _) {
+        final techs = reviewProv.technicians;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.star_rounded, color: Colors.amber, size: 24),
+                    SizedBox(width: 6),
+                    Text(
+                      'Thợ kỹ thuật & Đánh giá',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: () => reviewProv.loadTechnicians(),
+                  child: const Text('Làm mới'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (techs.isEmpty)
+              Card(
+                elevation: 0,
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.grey.shade200),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: Text(
+                      'Chưa có thợ kỹ thuật nào trên hệ thống',
+                      style: TextStyle(color: AppTheme.textSecondaryColor),
+                    ),
+                  ),
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: techs.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final tech = techs[index];
+                  final techId = tech['_id'] ?? '';
+                  final techName = tech['fullName'] ?? 'Thợ sửa chữa';
+                  final rating = (tech['rating'] as num?)?.toDouble() ?? 5.0;
+                  final reviewCount = (tech['reviewCount'] as num?)?.toInt() ?? 0;
+
+                  return Card(
+                    elevation: 0,
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14.0),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                            child: const Icon(
+                              Icons.engineering_rounded,
+                              color: AppTheme.primaryColor,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  techName,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textPrimaryColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      rating.toStringAsFixed(1),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textPrimaryColor,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '($reviewCount đánh giá)',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.textSecondaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            children: [
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size(90, 34),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                  side: const BorderSide(color: AppTheme.primaryColor),
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => TechnicianReviewsScreen(
+                                        technicianId: techId,
+                                        technicianName: techName,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: const Text('Xem review', style: TextStyle(fontSize: 12)),
+                              ),
+                              const SizedBox(height: 6),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber.shade700,
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(90, 34),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                                ),
+                                onPressed: () async {
+                                  final result = await Navigator.push<bool>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => CreateReviewScreen(
+                                        technicianId: techId,
+                                        technicianName: techName,
+                                      ),
+                                    ),
+                                  );
+                                  if (result == true) {
+                                    reviewProv.loadTechnicians();
+                                  }
+                                },
+                                child: const Text('Đánh giá', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _openReviewDialog(BuildContext context) {
+    final reviewProv = context.read<ReviewProvider>();
+    final techs = reviewProv.technicians;
+
+    if (techs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chưa có thợ kỹ thuật nào trên hệ thống để đánh giá'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Chọn thợ kỹ thuật để đánh giá',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ...techs.map((tech) {
+                final techId = tech['_id'] ?? '';
+                final techName = tech['fullName'] ?? 'Thợ sửa chữa';
+                final rating = (tech['rating'] as num?)?.toDouble() ?? 5.0;
+
+                return ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Colors.amber,
+                    child: Icon(Icons.engineering, color: Colors.white),
+                  ),
+                  title: Text(techName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Đánh giá hiện tại: $rating ⭐'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final result = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CreateReviewScreen(
+                          technicianId: techId,
+                          technicianName: techName,
+                        ),
+                      ),
+                    );
+                    if (result == true) {
+                      reviewProv.loadTechnicians();
+                    }
+                  },
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
+

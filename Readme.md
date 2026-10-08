@@ -128,3 +128,16 @@ frontend/lib/
   - Frontend: Tất cả Base URL, Api Endpoint phải định nghĩa trong `lib/core/network/api_endpoints.dart`. Màu sắc và kiểu chữ định nghĩa trong `lib/core/theme/app_theme.dart`.
 - **Xử lý bất đồng bộ:** Luôn dùng `async/await` với khối `try/catch` đầy đủ.
 - **Tính tự làm sạch:** Khi sửa đổi mã nguồn, xóa bỏ các import không dùng (unused imports), các biến thừa và đảm bảo không có cảnh báo nghiêm trọng từ linter (`flutter analyze` đạt 0 issues).
+
+---
+
+### RULE 6: Quy Định Git, Commit & Minh Chứng Đóng Góp (Git & Contribution Rules)
+
+* **Cấm dồn commit (No Code Dump):** Tuyệt đối không chấp nhận việc dồn toàn bộ code vào một commit duy nhất ở giai đoạn cuối dự án. Phải commit chia nhỏ theo từng chức năng/tiến độ rõ ràng.
+* **Code AI / Copy:** Việc đưa các khối code lớn do AI tạo ra hoặc copy về mà không có bằng chứng review, refactor hay test sẽ bị đánh giá là thiếu minh chứng đóng góp.
+* **Định dạng Commit Message khuyến nghị:**
+  ```text
+  [Mã số SV/Tên] [Module/Màn hình] Mô tả ngắn gọn
+  ```
+  * **Ví dụ:** `[SE123456] [Booking] Add validation and submit state`
+  * **Ví dụ thực tế dự án:** `[SE190980] [Review] Hoan thien module danh gia tho rate UC-RAT-01`

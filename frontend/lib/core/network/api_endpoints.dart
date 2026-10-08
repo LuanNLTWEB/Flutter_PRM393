@@ -12,4 +12,12 @@ class ApiEndpoints {
   static const String adminCreateStaff = '$baseUrl/admin/users/staff';
   static String adminUserRole(String id) => '$baseUrl/admin/users/$id/role';
   static String adminUserStatus(String id) => '$baseUrl/admin/users/$id/status';
+
+  // Review Endpoints (UC-RAT-01 & UC-RAT-02)
+  static const String reviewTags = '$baseUrl/reviews/tags';
+  static const String technicians = '$baseUrl/reviews/technicians';
+  static const String createReview = '$baseUrl/reviews';
+  static const String myReviews = '$baseUrl/reviews/my-reviews';
+  static String technicianReviews(String technicianId) => '$baseUrl/reviews/technician/$technicianId';
+  static String replyReview(String reviewId) => '$baseUrl/reviews/$reviewId/reply';
 }
