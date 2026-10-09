@@ -8,13 +8,13 @@ import '../widgets/rating_bar_widget.dart';
 class CreateReviewScreen extends StatefulWidget {
   final String technicianId;
   final String technicianName;
-  final String? bookingId;
+  final String bookingId;
 
   const CreateReviewScreen({
     super.key,
     required this.technicianId,
     required this.technicianName,
-    this.bookingId,
+    required this.bookingId,
   });
 
   @override

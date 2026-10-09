@@ -5,6 +5,7 @@ const {
   getReviewTags,
   getTechnicians,
   createReview,
+  checkOrderReviewStatus,
   getTechnicianReviews,
   getMyReviews,
   replyReview,
@@ -19,7 +20,10 @@ router.get('/technicians', getTechnicians);
 // Xem danh sách đánh giá của 1 thợ kỹ thuật (Public)
 router.get('/technician/:technicianId', getTechnicianReviews);
 
-// Tạo mới đánh giá (Chỉ khách hàng đã đăng nhập)
+// Kiểm tra trạng thái đánh giá của một đơn hàng (Private)
+router.get('/order/:bookingId', protect, checkOrderReviewStatus);
+
+// Tạo mới đánh giá (Chỉ khách hàng đã đăng nhập, đơn phải COMPLETED)
 router.post('/', protect, createReview);
 
 // Xem danh sách đánh giá cá nhân đã gửi (Private)

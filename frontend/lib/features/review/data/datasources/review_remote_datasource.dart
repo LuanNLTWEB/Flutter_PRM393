@@ -59,14 +59,14 @@ class ReviewRemoteDataSource {
     }
   }
 
-  /// Gửi đánh giá cho thợ (UC-RAT-01)
+  /// Gửi đánh giá cho thợ (UC-RAT-01 - Bắt buộc gắn với đơn hàng COMPLETED)
   Future<ReviewModel> createReview({
     required String token,
     required String technicianId,
     required double rating,
     required List<String> tags,
     required String comment,
-    String? bookingId,
+    required String bookingId,
   }) async {
     try {
       final Map<String, dynamic> requestBody = {
@@ -74,10 +74,8 @@ class ReviewRemoteDataSource {
         'rating': rating,
         'tags': tags,
         'comment': comment,
+        'bookingId': bookingId,
       };
-      if (bookingId != null) {
-        requestBody['bookingId'] = bookingId;
-      }
 
       final response = await client.post(
         Uri.parse(ApiEndpoints.createReview),

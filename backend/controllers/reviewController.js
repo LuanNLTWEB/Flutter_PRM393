@@ -1,5 +1,6 @@
 const Review = require('../models/Review');
 const User = require('../models/User');
+const RepairRequest = require('../models/RepairRequest');
 
 // Danh sách các tag đánh giá tiêu chuẩn
 const DEFAULT_REVIEW_TAGS = [
@@ -34,27 +35,62 @@ const getReviewTags = async (req, res) => {
 };
 
 /**
- * @desc    Khách hàng gửi đánh giá cho thợ (UC-RAT-01)
+ * @desc    Khách hàng gửi đánh giá cho thợ (UC-RAT-01 - Nghiệp vụ chuẩn: Bắt buộc đơn COMPLETED)
  * @route   POST /api/reviews
  * @access  Private (Chỉ user/khách hàng)
  */
 const createReview = async (req, res) => {
   try {
     const customerId = req.user.id;
-    const { technicianId, rating, tags, comment, bookingId } = req.body;
+    const { bookingId, rating, tags, comment } = req.body;
 
-    // Kiểm tra dữ liệu đầu vào
-    if (!technicianId) {
+    // 1. Kiểm tra mã đơn hàng
+    if (!bookingId) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng cung cấp mã thợ kỹ thuật (technicianId)',
+        message: 'Vui lòng cung cấp mã đơn hàng sửa chữa (bookingId)',
       });
     }
 
+    // 2. Kiểm tra số sao đánh giá
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({
         success: false,
         message: 'Số sao đánh giá phải từ 1 đến 5 sao',
+      });
+    }
+
+    // 3. Tìm đơn hàng trong hệ thống
+    const repairRequest = await RepairRequest.findById(bookingId);
+    if (!repairRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn hàng yêu cầu sửa chữa này',
+      });
+    }
+
+    // 4. Kiểm tra quyền sở hữu đơn hàng (chỉ khách tạo đơn mới được đánh giá)
+    if (repairRequest.customerId.toString() !== customerId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn chỉ có thể đánh giá cho đơn hàng do chính bạn tạo',
+      });
+    }
+
+    // 5. Kiểm tra trạng thái đơn hàng: BẮT BUỘC PHẢI LÀ COMPLETED
+    if (repairRequest.status !== 'COMPLETED') {
+      return res.status(400).json({
+        success: false,
+        message: `Đơn hàng đang ở trạng thái "${repairRequest.status}", chưa hoàn tất! Chỉ có thể đánh giá khi đơn hàng đã COMPLETED.`,
+      });
+    }
+
+    // 6. Xác định thợ kỹ thuật phụ trách từ chính đơn hàng
+    const technicianId = repairRequest.assignedTechnicianId || req.body.technicianId;
+    if (!technicianId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Đơn hàng này chưa được gán thông tin thợ kỹ thuật phụ trách',
       });
     }
 
@@ -66,24 +102,28 @@ const createReview = async (req, res) => {
       });
     }
 
-    // Kiểm tra thợ có tồn tại không
-    const technician = await User.findById(technicianId);
-    if (!technician || technician.isDeleted) {
-      return res.status(404).json({
+    // 7. Kiểm tra đơn hàng đã từng được đánh giá chưa (mỗi đơn chỉ đánh giá 1 lần)
+    const existingReview = await Review.findOne({ bookingId });
+    if (existingReview) {
+      return res.status(400).json({
         success: false,
-        message: 'Không tìm thấy thợ kỹ thuật trong hệ thống',
+        message: 'Đơn hàng này đã được bạn gửi đánh giá trước đó rồi',
       });
     }
 
-    // Tạo review mới
+    // 8. Tạo review mới
     const review = await Review.create({
       customerId,
       technicianId,
-      bookingId: bookingId || null,
+      bookingId,
       rating: Number(rating),
       tags: Array.isArray(tags) ? tags : [],
       comment: (comment || '').trim(),
     });
+
+    // 9. Cập nhật trạng thái đã đánh giá trên đơn hàng
+    repairRequest.isReviewed = true;
+    await repairRequest.save();
 
     const populatedReview = await Review.findById(review._id)
       .populate('customerId', 'fullName email')
@@ -91,7 +131,7 @@ const createReview = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Gửi đánh giá thợ thành công',
+      message: 'Gửi đánh giá dịch vụ thành công! Cảm ơn bạn đã phản hồi.',
       data: populatedReview,
     });
   } catch (error) {
@@ -99,6 +139,51 @@ const createReview = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Lỗi khi gửi đánh giá',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Kiểm tra trạng thái đánh giá của một đơn hàng
+ * @route   GET /api/reviews/order/:bookingId
+ * @access  Private
+ */
+const checkOrderReviewStatus = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const customerId = req.user.id;
+
+    const repairRequest = await RepairRequest.findById(bookingId)
+      .populate('assignedTechnicianId', 'fullName email rating');
+
+    if (!repairRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn hàng',
+      });
+    }
+
+    const review = await Review.findOne({ bookingId });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        bookingId,
+        orderStatus: repairRequest.status,
+        canReview:
+          repairRequest.status === 'COMPLETED' &&
+          repairRequest.customerId.toString() === customerId.toString() &&
+          !review,
+        hasReviewed: !!review,
+        technician: repairRequest.assignedTechnicianId,
+        review,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi kiểm tra trạng thái đánh giá',
       error: error.message,
     });
   }
@@ -285,6 +370,7 @@ module.exports = {
   getReviewTags,
   getTechnicians,
   createReview,
+  checkOrderReviewStatus,
   getTechnicianReviews,
   getMyReviews,
   replyReview,

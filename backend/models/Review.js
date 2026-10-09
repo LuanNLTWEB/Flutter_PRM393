@@ -14,10 +14,11 @@ const reviewSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Mã thợ kỹ thuật là bắt buộc'],
     },
-    // Đơn hàng / Yêu cầu sửa chữa liên quan (Tùy chọn để có thể test độc lập)
+    // Đơn hàng / Yêu cầu sửa chữa liên quan (Bắt buộc phải có đơn hoàn thành mới được đánh giá)
     bookingId: {
       type: mongoose.Schema.Types.ObjectId,
-      default: null,
+      ref: 'RepairRequest',
+      required: [true, 'Mã đơn hàng sửa chữa (bookingId) là bắt buộc'],
     },
     // Số sao đánh giá (1 đến 5 sao)
     rating: {
@@ -58,6 +59,9 @@ const reviewSchema = new mongoose.Schema(
 
 // Index hỗ trợ tìm kiếm nhanh theo thợ kỹ thuật và thời gian tạo
 reviewSchema.index({ technicianId: 1, createdAt: -1 });
+
+// Mỗi đơn hàng chỉ được đánh giá 1 lần duy nhất
+reviewSchema.index({ bookingId: 1 }, { unique: true });
 
 // Static method tính toán lại điểm rating trung bình của thợ
 reviewSchema.statics.calculateAverageRating = async function (technicianId) {

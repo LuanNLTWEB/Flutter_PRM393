@@ -68,14 +68,14 @@ class ReviewProvider extends ChangeNotifier {
     }
   }
 
-  /// Gửi đánh giá cho thợ (UC-RAT-01)
+  /// Gửi đánh giá cho thợ (UC-RAT-01 - Bắt buộc gắn với đơn hàng COMPLETED)
   Future<bool> submitReview({
     required String token,
     required String technicianId,
     required double rating,
     required List<String> tags,
     required String comment,
-    String? bookingId,
+    required String bookingId,
   }) async {
     _isSubmitting = true;
     _errorMessage = null;

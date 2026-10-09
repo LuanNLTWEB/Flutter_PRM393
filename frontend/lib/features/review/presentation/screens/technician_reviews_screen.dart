@@ -9,11 +9,13 @@ import 'create_review_screen.dart';
 class TechnicianReviewsScreen extends StatefulWidget {
   final String technicianId;
   final String technicianName;
+  final String? bookingId;
 
   const TechnicianReviewsScreen({
     super.key,
     required this.technicianId,
     required this.technicianName,
+    this.bookingId,
   });
 
   @override
@@ -48,28 +50,31 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
       appBar: AppBar(
         title: Text('Đánh giá: ${widget.technicianName}'),
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.rate_review_rounded),
-            label: const Text('Viết đánh giá cho thợ'),
-            onPressed: () async {
-              final result = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(
-                  builder: (_) => CreateReviewScreen(
-                    technicianId: widget.technicianId,
-                    technicianName: widget.technicianName,
-                  ),
+      bottomNavigationBar: widget.bookingId != null
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.rate_review_rounded),
+                  label: const Text('Viết đánh giá cho thợ'),
+                  onPressed: () async {
+                    final result = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => CreateReviewScreen(
+                          technicianId: widget.technicianId,
+                          technicianName: widget.technicianName,
+                          bookingId: widget.bookingId!,
+                        ),
+                      ),
+                    );
+                    if (result == true) {
+                      _loadReviews();
+                    }
+                  },
                 ),
-              );
-              if (result == true) {
-                _loadReviews();
-              }
-            },
-          ),
-        ),
-      ),
+              ),
+            )
+          : null,
       body: reviewProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
