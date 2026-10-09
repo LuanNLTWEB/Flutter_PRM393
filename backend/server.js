@@ -19,6 +19,7 @@ const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const technicianRoutes = require('./routes/technicianRoutes');
 const serviceCategoryRoutes = require('./routes/serviceCategoryRoutes');
+const repairRequestRoutes = require('./routes/repairRequestRoutes');
 
 // Health Check Route
 app.get('/api/health', (req, res) => {
@@ -34,6 +35,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/technicians', technicianRoutes);
 app.use('/api/categories', serviceCategoryRoutes);
+app.use('/api/requests', repairRequestRoutes);
+app.use('/api/repair-requests', repairRequestRoutes);
 
 // Global Error Handler cho Upload và các Middleware
 app.use((err, req, res, next) => {
