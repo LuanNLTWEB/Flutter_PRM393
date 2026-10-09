@@ -67,14 +67,27 @@ const repairRequestSchema = new mongoose.Schema(
       },
     },
 
-    // Trạng thái yêu cầu: OPEN, QUOTED, ACCEPTED, CANCELLED
+    // Trạng thái yêu cầu: OPEN, QUOTED, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED
     status: {
       type: String,
       enum: {
-        values: ['OPEN', 'QUOTED', 'ACCEPTED', 'CANCELLED'],
+        values: ['OPEN', 'QUOTED', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
         message: 'Trạng thái yêu cầu không hợp lệ',
       },
       default: 'OPEN',
+    },
+
+    // Thợ kỹ thuật được chỉ định thực hiện
+    assignedTechnicianId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    // Trạng thái đánh giá dịch vụ
+    isReviewed: {
+      type: Boolean,
+      default: false,
     },
 
     // Số điện thoại liên hệ

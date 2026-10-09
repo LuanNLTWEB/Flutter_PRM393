@@ -17,6 +17,7 @@ app.use(express.json());
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 const technicianRoutes = require('./routes/technicianRoutes');
 const serviceCategoryRoutes = require('./routes/serviceCategoryRoutes');
 const repairRequestRoutes = require('./routes/repairRequestRoutes');
@@ -35,6 +36,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/reviews', reviewRoutes);
 app.use('/api/technicians', technicianRoutes);
 app.use('/api/categories', serviceCategoryRoutes);
 app.use('/api/requests', repairRequestRoutes);

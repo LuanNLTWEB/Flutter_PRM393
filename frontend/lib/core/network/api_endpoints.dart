@@ -24,6 +24,14 @@ class ApiEndpoints {
   static String adminApproveTechnician(String id) => '$baseUrl/admin/technicians/$id/approve';
   static String adminRejectTechnician(String id) => '$baseUrl/admin/technicians/$id/reject';
 
+  // Review Endpoints (UC-RAT-01 & UC-RAT-02)
+  static const String reviewTags = '$baseUrl/reviews/tags';
+  static const String technicians = '$baseUrl/reviews/technicians';
+  static const String createReview = '$baseUrl/reviews';
+  static const String myReviews = '$baseUrl/reviews/my-reviews';
+  static String technicianReviews(String technicianId) => '$baseUrl/reviews/technician/$technicianId';
+  static String replyReview(String reviewId) => '$baseUrl/reviews/$reviewId/reply';
+
   // Danh mục dịch vụ
   static const String serviceCategories = '$baseUrl/categories';
   static String serviceCategoryDetail(String identifier) => '$baseUrl/categories/$identifier';
@@ -39,6 +47,7 @@ class ApiEndpoints {
   static const String myRepairRequests = myRequests;
   static String repairRequestDetail(String id) => requestDetail(id);
   static String cancelRepairRequest(String id) => cancelRequest(id);
+  static const String seedDemoRequest = '$baseUrl/requests/seed-demo';
 
   // Báo giá & Khớp lệnh (UC-QUO)
   static const String quotations = '$baseUrl/quotations';

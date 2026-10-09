@@ -128,6 +128,17 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Đánh giá thợ kỹ thuật
+    rating: {
+      type: Number,
+      default: 5.0,
+      min: 1,
+      max: 5,
+    },
+    reviewCount: {
+      type: Number,
+      default: 0,
+    },
     deletedAt: {
       type: Date,
       default: null,
