@@ -4,6 +4,7 @@ import 'core/theme/app_theme.dart';
 import 'features/admin/presentation/providers/admin_provider.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/home/presentation/home_screen.dart';
+import 'features/quotations/presentation/providers/quotation_provider.dart';
 import 'features/repair_request/presentation/providers/repair_request_provider.dart';
 import 'features/technician/presentation/providers/technician_provider.dart';
 
@@ -23,6 +24,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AdminProvider()),
         ChangeNotifierProvider(create: (_) => TechnicianProvider()),
         ChangeNotifierProvider(create: (_) => RepairRequestProvider()),
+        ChangeNotifierProvider(create: (_) => QuotationProvider()),
       ],
 
       child: MaterialApp(
