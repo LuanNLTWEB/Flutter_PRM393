@@ -8,7 +8,7 @@ import '../../auth/presentation/screens/register_screen.dart';
 import '../../profile/presentation/screens/profile_screen.dart';
 import '../../admin/presentation/screens/admin_home_screen.dart';
 import '../../review/presentation/providers/review_provider.dart';
-import '../../review/presentation/screens/create_review_screen.dart';
+import '../../order_history/presentation/screens/order_history_screen.dart';
 import '../../review/presentation/screens/technician_reviews_screen.dart';
 import '../../technician/presentation/providers/technician_provider.dart';
 import '../../technician/presentation/screens/technician_public_profile_screen.dart';
@@ -311,17 +311,24 @@ class _HomeScreenState extends State<HomeScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.amber.shade700,
+                                backgroundColor: AppTheme.primaryColor,
                                 foregroundColor: Colors.white,
                                 minimumSize: const Size.fromHeight(42),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              icon: const Icon(Icons.star_rounded, size: 18),
-                              label: const Text('Đánh giá thợ',
+                              icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                              label: const Text('Lịch sử đơn',
                                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                              onPressed: () => _openReviewDialog(context),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const OrderHistoryScreen(),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -1025,52 +1032,24 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                           ),
-                          Column(
-                            children: [
-                              OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  minimumSize: const Size(90, 34),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                                  side: const BorderSide(color: AppTheme.primaryColor),
+                          OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(90, 34),
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              side: const BorderSide(color: AppTheme.primaryColor),
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => TechnicianReviewsScreen(
+                                    technicianId: techId,
+                                    technicianName: techName,
+                                  ),
                                 ),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => TechnicianReviewsScreen(
-                                        technicianId: techId,
-                                        technicianName: techName,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: const Text('Xem review', style: TextStyle(fontSize: 12)),
-                              ),
-                              const SizedBox(height: 6),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.amber.shade700,
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size(90, 34),
-                                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                                ),
-                                onPressed: () async {
-                                  final result = await Navigator.push<bool>(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => CreateReviewScreen(
-                                        technicianId: techId,
-                                        technicianName: techName,
-                                      ),
-                                    ),
-                                  );
-                                  if (result == true) {
-                                    reviewProv.loadTechnicians();
-                                  }
-                                },
-                                child: const Text('Đánh giá', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
+                              );
+                            },
+                            child: const Text('Xem review', style: TextStyle(fontSize: 12)),
                           ),
                         ],
                       ),
@@ -1079,75 +1058,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
           ],
-        );
-      },
-    );
-  }
-
-  void _openReviewDialog(BuildContext context) {
-    final reviewProv = context.read<ReviewProvider>();
-    final techs = reviewProv.technicians;
-
-    if (techs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Chưa có thợ kỹ thuật nào trên hệ thống để đánh giá'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Chọn thợ kỹ thuật để đánh giá',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ...techs.map((tech) {
-                final techId = tech['_id'] ?? '';
-                final techName = tech['fullName'] ?? 'Thợ sửa chữa';
-                final rating = (tech['rating'] as num?)?.toDouble() ?? 5.0;
-
-                return ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.amber,
-                    child: Icon(Icons.engineering, color: Colors.white),
-                  ),
-                  title: Text(techName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Đánh giá hiện tại: $rating ⭐'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    final result = await Navigator.push<bool>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CreateReviewScreen(
-                          technicianId: techId,
-                          technicianName: techName,
-                        ),
-                      ),
-                    );
-                    if (result == true) {
-                      reviewProv.loadTechnicians();
-                    }
-                  },
-                );
-              }),
-            ],
-          ),
         );
       },
     );

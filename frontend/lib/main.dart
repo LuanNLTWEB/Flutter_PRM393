@@ -7,6 +7,7 @@ import 'features/home/presentation/home_screen.dart';
 import 'features/review/presentation/providers/review_provider.dart';
 import 'features/repair_request/presentation/providers/repair_request_provider.dart';
 import 'features/technician/presentation/providers/technician_provider.dart';
+import 'features/order_history/presentation/providers/order_history_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +26,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ReviewProvider()..loadTechnicians()..loadTags()),
         ChangeNotifierProvider(create: (_) => TechnicianProvider()),
         ChangeNotifierProvider(create: (_) => RepairRequestProvider()),
+        ChangeNotifierProvider(create: (_) => OrderHistoryProvider()),
       ],
 
       child: MaterialApp(
