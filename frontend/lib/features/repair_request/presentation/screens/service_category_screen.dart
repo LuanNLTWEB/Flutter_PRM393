@@ -4,6 +4,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../data/models/service_category_model.dart';
 import '../providers/repair_request_provider.dart';
 import '../widgets/service_category_card.dart';
+import 'create_repair_request_screen.dart';
 
 class ServiceCategoryScreen extends StatefulWidget {
   const ServiceCategoryScreen({super.key});
@@ -121,12 +122,22 @@ class _ServiceCategoryScreenState extends State<ServiceCategoryScreen> {
               ElevatedButton.icon(
                 icon: const Icon(Icons.post_add_rounded),
                 label: const Text('Tạo yêu cầu cho dịch vụ này'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 onPressed: () {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Đã chọn nhóm dịch vụ: ${category.name}'),
-                      backgroundColor: AppTheme.primaryColor,
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CreateRepairRequestScreen(
+                        preselectedCategory: category,
+                      ),
                     ),
                   );
                 },

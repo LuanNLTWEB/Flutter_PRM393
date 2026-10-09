@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/datasources/repair_request_remote_datasource.dart';
 import '../../data/models/service_category_model.dart';
+import '../../data/models/repair_request_model.dart';
 
 class RepairRequestProvider extends ChangeNotifier {
   final RepairRequestRemoteDataSource _dataSource;
@@ -8,12 +9,19 @@ class RepairRequestProvider extends ChangeNotifier {
   RepairRequestProvider({RepairRequestRemoteDataSource? dataSource})
       : _dataSource = dataSource ?? RepairRequestRemoteDataSource();
 
+  // State danh mục dịch vụ
   List<ServiceCategoryModel> _categories = [];
   bool _isLoading = false;
   String? _errorMessage;
   ServiceCategoryModel? _selectedCategory;
   String _searchKeyword = '';
 
+  // State yêu cầu sửa chữa
+  bool _isSubmitting = false;
+  String? _submitError;
+  RepairRequestModel? _lastCreatedRequest;
+
+  // Danh sách danh mục
   List<ServiceCategoryModel> get categories {
     if (_searchKeyword.trim().isEmpty) {
       return _categories;
@@ -33,7 +41,12 @@ class RepairRequestProvider extends ChangeNotifier {
   ServiceCategoryModel? get selectedCategory => _selectedCategory;
   String get searchKeyword => _searchKeyword;
 
-  /// Tải danh mục dịch vụ sửa chữa từ API (UC-REQ-01)
+  // Getters tạo yêu cầu
+  bool get isSubmitting => _isSubmitting;
+  String? get submitError => _submitError;
+  RepairRequestModel? get lastCreatedRequest => _lastCreatedRequest;
+
+  // Tải danh sách danh mục từ API
   Future<void> fetchCategories({bool refresh = false}) async {
     if (_categories.isNotEmpty && !refresh) return;
 
@@ -53,21 +66,53 @@ class RepairRequestProvider extends ChangeNotifier {
     }
   }
 
-  /// Cập nhật từ khóa tìm kiếm dịch vụ
+  // Cập nhật từ khóa tìm kiếm
   void setSearchKeyword(String keyword) {
     _searchKeyword = keyword;
     notifyListeners();
   }
 
-  /// Chọn danh mục dịch vụ
+  // Chọn danh mục dịch vụ
   void selectCategory(ServiceCategoryModel? category) {
     _selectedCategory = category;
     notifyListeners();
   }
 
-  /// Xóa thông báo lỗi
-  void clearError() {
-    _errorMessage = null;
+  // Tạo yêu cầu sửa chữa mới
+  Future<RepairRequestModel?> createRepairRequest({
+    required String token,
+    required String serviceCategoryId,
+    required String title,
+    required String description,
+    String urgency = 'medium',
+  }) async {
+    _isSubmitting = true;
+    _submitError = null;
+    notifyListeners();
+
+    try {
+      final result = await _dataSource.createRepairRequest(
+        token: token,
+        serviceCategoryId: serviceCategoryId,
+        title: title,
+        description: description,
+        urgency: urgency,
+      );
+      _lastCreatedRequest = result;
+      _isSubmitting = false;
+      notifyListeners();
+      return result;
+    } catch (e) {
+      _isSubmitting = false;
+      _submitError = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return null;
+    }
+  }
+
+  // Reset lỗi gửi yêu cầu
+  void clearSubmitError() {
+    _submitError = null;
     notifyListeners();
   }
 }

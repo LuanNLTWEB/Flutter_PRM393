@@ -56,4 +56,11 @@ class ServiceCategoryModel {
       'sortOrder': sortOrder,
     };
   }
+
+  String get basePriceFormatted {
+    final str = basePrice.toStringAsFixed(0);
+    final reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    final formatted = str.replaceAllMapped(reg, (Match m) => '${m[1]}.');
+    return '$formatted đ';
+  }
 }

@@ -24,8 +24,20 @@ class ApiEndpoints {
   static String adminApproveTechnician(String id) => '$baseUrl/admin/technicians/$id/approve';
   static String adminRejectTechnician(String id) => '$baseUrl/admin/technicians/$id/reject';
 
-  // Service Categories Endpoints (Dev 2 - UC-REQ-01)
+  // Danh mục dịch vụ
   static const String serviceCategories = '$baseUrl/categories';
   static String serviceCategoryDetail(String identifier) => '$baseUrl/categories/$identifier';
+  static String searchServiceCategories(String keyword) => '$baseUrl/categories/search?keyword=$keyword';
+
+  // Yêu cầu sửa chữa
+  static const String requests = '$baseUrl/requests';
+  static const String myRequests = '$baseUrl/requests/my-requests';
+  static String requestDetail(String id) => '$baseUrl/requests/$id';
+  static String cancelRequest(String id) => '$baseUrl/requests/$id/cancel';
+
+  static const String repairRequests = requests;
+  static const String myRepairRequests = myRequests;
+  static String repairRequestDetail(String id) => requestDetail(id);
+  static String cancelRepairRequest(String id) => cancelRequest(id);
 }
 
