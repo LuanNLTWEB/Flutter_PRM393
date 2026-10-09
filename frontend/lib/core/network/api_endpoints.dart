@@ -23,5 +23,9 @@ class ApiEndpoints {
   static const String adminKYCTechnicians = '$baseUrl/admin/technicians/kyc';
   static String adminApproveTechnician(String id) => '$baseUrl/admin/technicians/$id/approve';
   static String adminRejectTechnician(String id) => '$baseUrl/admin/technicians/$id/reject';
+
+  // Service Categories Endpoints (Dev 2 - UC-REQ-01)
+  static const String serviceCategories = '$baseUrl/categories';
+  static String serviceCategoryDetail(String identifier) => '$baseUrl/categories/$identifier';
 }
 
