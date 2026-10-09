@@ -47,7 +47,6 @@ class ApiEndpoints {
   static const String myRepairRequests = myRequests;
   static String repairRequestDetail(String id) => requestDetail(id);
   static String cancelRepairRequest(String id) => cancelRequest(id);
-  static const String seedDemoRequest = '$baseUrl/requests/seed-demo';
 
   // Báo giá & Khớp lệnh (UC-QUO)
   static const String quotations = '$baseUrl/quotations';

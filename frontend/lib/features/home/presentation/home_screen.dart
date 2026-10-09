@@ -7,9 +7,7 @@ import '../../auth/presentation/screens/login_screen.dart';
 import '../../auth/presentation/screens/register_screen.dart';
 import '../../profile/presentation/screens/profile_screen.dart';
 import '../../admin/presentation/screens/admin_home_screen.dart';
-import '../../review/presentation/providers/review_provider.dart';
 import '../../order_history/presentation/screens/order_history_screen.dart';
-import '../../review/presentation/screens/technician_reviews_screen.dart';
 import '../../technician/presentation/providers/technician_provider.dart';
 import '../../technician/presentation/screens/technician_public_profile_screen.dart';
 import '../../technician/presentation/screens/technician_register_screen.dart';
@@ -427,10 +425,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // Section Đội ngũ Thợ uy tín (Public Profiles)
                 _buildPublicTechniciansSection(context),
-                const SizedBox(height: 24),
-
-                // Phân hệ Đánh giá & Danh sách Thợ (UC-RAT-01)
-                _buildTechnicianReviewSection(context),
                 const SizedBox(height: 24),
               ],
             ),
@@ -922,158 +916,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  Widget _buildTechnicianReviewSection(BuildContext context) {
-    return Consumer<ReviewProvider>(
-      builder: (context, reviewProv, _) {
-        final techs = reviewProv.technicians;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.star_rounded, color: Colors.amber, size: 24),
-                    SizedBox(width: 6),
-                    Text(
-                      'Thợ kỹ thuật & Đánh giá',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimaryColor,
-                      ),
-                    ),
-                  ],
-                ),
-                TextButton(
-                  onPressed: () => reviewProv.loadTechnicians(),
-                  child: const Text('Làm mới'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (techs.isEmpty)
-              Card(
-                elevation: 0,
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.shade200),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Center(
-                    child: Text(
-                      'Chưa có thợ kỹ thuật nào trên hệ thống',
-                      style: TextStyle(color: AppTheme.textSecondaryColor),
-                    ),
-                  ),
-                ),
-              )
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: techs.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final tech = techs[index];
-                  final techId = tech['_id'] ?? '';
-                  final techName = tech['fullName'] ?? 'Thợ sửa chữa';
-                  final rating = (tech['rating'] as num?)?.toDouble() ?? 5.0;
-                  final reviewCount = (tech['reviewCount'] as num?)?.toInt() ?? 0;
-
-                  return Card(
-                    elevation: 0,
-                    color: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14.0),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                            child: const Icon(
-                              Icons.engineering_rounded,
-                              color: AppTheme.primaryColor,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  techName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.textPrimaryColor,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      rating.toStringAsFixed(1),
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.textPrimaryColor,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '($reviewCount đánh giá)',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppTheme.textSecondaryColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size(90, 34),
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
-                              side: const BorderSide(color: AppTheme.primaryColor),
-                            ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => TechnicianReviewsScreen(
-                                    technicianId: techId,
-                                    technicianName: techName,
-                                  ),
-                                ),
-                              );
-                            },
-                            child: const Text('Xem review', style: TextStyle(fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-          ],
-        );
-      },
-    );
-  }
 }
-

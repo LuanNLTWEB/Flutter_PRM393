@@ -49,32 +49,4 @@ class OrderHistoryRemoteDataSource {
       throw Exception('Lỗi kết nối máy chủ: $e');
     }
   }
-
-  /// Tạo đơn hàng hoàn tất mẫu để kiểm thử đánh giá
-  Future<OrderHistoryModel> seedDemoCompletedOrder({
-    required String token,
-  }) async {
-    try {
-      final response = await client.post(
-        Uri.parse(ApiEndpoints.seedDemoRequest),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      final Map<String, dynamic> data = jsonDecode(response.body);
-
-      if (response.statusCode == 201 && data['data'] != null) {
-        return OrderHistoryModel.fromJson(data['data']);
-      } else {
-        final message = data['message'] ?? 'Không thể tạo đơn hàng mẫu';
-        throw Exception(message);
-      }
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Lỗi kết nối máy chủ: $e');
-    }
-  }
 }
