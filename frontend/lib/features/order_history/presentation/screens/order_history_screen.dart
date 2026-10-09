@@ -7,6 +7,7 @@ import '../../../review/presentation/screens/create_review_screen.dart';
 import '../../../review/presentation/screens/technician_reviews_screen.dart';
 import '../../data/models/order_history_model.dart';
 import '../providers/order_history_provider.dart';
+import '../../../repair_request/presentation/screens/service_category_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -73,33 +74,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
     final historyProv = context.watch<OrderHistoryProvider>();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lịch sử đơn hàng'),
-        actions: [
-          IconButton(
-            tooltip: 'Tạo đơn mẫu để thử đánh giá',
-            icon: const Icon(Icons.playlist_add_rounded),
-            onPressed: () async {
-              if (auth.token == null) return;
-              final ok = await historyProv.seedDemoOrder(auth.token!);
-              if (!context.mounted) return;
-              if (ok) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Đã tạo 1 đơn hàng đã hoàn tất (COMPLETED)! Bạn có thể đánh giá thợ ngay bây giờ.',
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-          ),
-        ],
+        
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -115,7 +95,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
           : RefreshIndicator(
               onRefresh: () async => _fetchCurrentTabOrders(),
               child: historyProv.orders.isEmpty
-                  ? _buildEmptyState(context, auth, historyProv)
+                  ? _buildEmptyState(context)
                   : ListView.separated(
                       padding: const EdgeInsets.all(16.0),
                       itemCount: historyProv.orders.length,
@@ -400,11 +380,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     );
   }
 
-  Widget _buildEmptyState(
-    BuildContext context,
-    AuthProvider auth,
-    OrderHistoryProvider historyProv,
-  ) {
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(32.0),
@@ -424,29 +400,30 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
             ),
             const SizedBox(height: 8),
             const Text(
-              'Để kiểm tra luồng đánh giá thợ chuẩn nghiệp vụ, bạn có thể bấm nút bên dưới để tạo 1 đơn hàng mẫu đã hoàn tất (COMPLETED).',
+              'Các yêu cầu sửa chữa và dịch vụ bạn đã sử dụng sẽ được hiển thị và cập nhật liên tục tại đây.',
               textAlign: TextAlign.center,
               style:
                   TextStyle(fontSize: 13, color: AppTheme.textSecondaryColor),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.add_task_rounded),
-              label: const Text('Tạo 1 đơn hàng hoàn tất mẫu (Demo)'),
-              onPressed: () async {
-                if (auth.token == null) return;
-                final ok = await historyProv.seedDemoOrder(auth.token!);
-                if (!context.mounted) return;
-                if (ok) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Đã tạo đơn hàng hoàn tất mẫu! Bạn có thể bấm Đánh giá thợ ngay bây giờ.',
-                      ),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
+            OutlinedButton.icon(
+              icon: const Icon(Icons.handyman_outlined, size: 18),
+              label: const Text('Xem danh mục dịch vụ'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+                side: const BorderSide(color: AppTheme.primaryColor),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ServiceCategoryScreen(),
+                  ),
+                );
               },
             ),
           ],

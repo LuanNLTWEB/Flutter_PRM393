@@ -3,7 +3,6 @@ const router = express.Router();
 const {
   createRepairRequest,
   getMyRepairRequests,
-  seedDemoCompletedRequest,
 } = require('../controllers/repairRequestController');
 const { protect, authorize } = require('../middlewares/auth');
 
@@ -17,6 +16,5 @@ router.get('/my-requests', getMyRepairRequests);
 router.post('/', authorize('user'), createRepairRequest);
 
 // Tạo đơn hàng hoàn tất mẫu để kiểm thử đánh giá
-router.post('/seed-demo', authorize('user'), seedDemoCompletedRequest);
 
 module.exports = router;

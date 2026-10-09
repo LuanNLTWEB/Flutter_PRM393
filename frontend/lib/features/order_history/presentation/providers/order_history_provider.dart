@@ -11,7 +11,6 @@ class OrderHistoryProvider extends ChangeNotifier {
   List<OrderHistoryModel> _orders = [];
   Map<String, dynamic> _counts = {};
   bool _isLoading = false;
-  bool _isSeeding = false;
   String? _errorMessage;
   String? _successMessage;
   String _currentTab = 'ALL';
@@ -19,7 +18,6 @@ class OrderHistoryProvider extends ChangeNotifier {
   List<OrderHistoryModel> get orders => _orders;
   Map<String, dynamic> get counts => _counts;
   bool get isLoading => _isLoading;
-  bool get isSeeding => _isSeeding;
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
   String get currentTab => _currentTab;
@@ -45,28 +43,6 @@ class OrderHistoryProvider extends ChangeNotifier {
       _isLoading = false;
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
-    }
-  }
-
-  /// Tạo đơn hàng hoàn tất mẫu để thử nghiệm đánh giá
-  Future<bool> seedDemoOrder(String token) async {
-    _isSeeding = true;
-    _errorMessage = null;
-    _successMessage = null;
-    notifyListeners();
-
-    try {
-      final newOrder = await _dataSource.seedDemoCompletedOrder(token: token);
-      _orders.insert(0, newOrder);
-      _isSeeding = false;
-      _successMessage = 'Đã tạo thành công đơn hàng hoàn tất mẫu để bạn đánh giá!';
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _isSeeding = false;
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      notifyListeners();
-      return false;
     }
   }
 
