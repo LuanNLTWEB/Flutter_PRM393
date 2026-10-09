@@ -51,6 +51,73 @@ const userSchema = new mongoose.Schema(
       enum: ['user', 'technician', 'staff', 'admin'],
       default: 'user',
     },
+    // Đường dẫn ảnh đại diện (Cloudinary URL)
+    avatar: {
+      type: String,
+      default: '',
+    },
+    // Hồ sơ chuyên môn dành riêng cho thợ (Technician Profile & KYC)
+    technicianProfile: {
+      skills: {
+        type: [String],
+        default: [],
+      },
+      experienceYears: {
+        type: Number,
+        default: 0,
+      },
+      bio: {
+        type: String,
+        default: '',
+        trim: true,
+      },
+      idCardFront: {
+        type: String,
+        default: '',
+      },
+      idCardBack: {
+        type: String,
+        default: '',
+      },
+      certificates: {
+        type: [String],
+        default: [],
+      },
+      approvalStatus: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending',
+      },
+      rejectionReason: {
+        type: String,
+        default: '',
+      },
+      approvedAt: {
+        type: Date,
+        default: null,
+      },
+      approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+      },
+      isAvailable: {
+        type: Boolean,
+        default: false,
+      },
+      completedJobsCount: {
+        type: Number,
+        default: 0,
+      },
+      rating: {
+        type: Number,
+        default: 5.0,
+      },
+      reviewCount: {
+        type: Number,
+        default: 0,
+      },
+    },
     // Trạng thái tài khoản (Admin có thể khóa / kích hoạt lại tài khoản)
     isActive: {
       type: Boolean,

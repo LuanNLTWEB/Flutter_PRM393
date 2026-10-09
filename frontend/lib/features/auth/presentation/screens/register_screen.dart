@@ -5,8 +5,10 @@ import '../../../../core/theme/app_theme.dart';
 import '../../data/models/register_request.dart';
 import '../providers/register_provider.dart';
 import 'login_screen.dart';
+import '../../../technician/presentation/screens/technician_register_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
+
   const RegisterScreen({super.key});
 
   @override
@@ -347,6 +349,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 20),
 
+                      // Chuyển sang màn hình Đăng ký Thợ
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          side: const BorderSide(color: AppTheme.primaryColor),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                        icon: const Icon(Icons.handyman_outlined),
+                        label: const Text('Đăng ký trở thành Thợ kỹ thuật'),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TechnicianRegisterScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
                       // Chuyển sang màn hình Đăng nhập
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -375,6 +400,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
+
                     ],
                   ),
                 ),

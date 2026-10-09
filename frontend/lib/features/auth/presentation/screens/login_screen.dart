@@ -48,14 +48,55 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(auth.errorMessage ?? 'Đăng nhập thất bại'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      final errorMsg = auth.errorMessage ?? 'Đăng nhập thất bại';
+
+      // Nếu tài khoản Thợ đang chờ duyệt hoặc bị từ chối KYC, hiển thị Dialog thông báo rõ ràng
+      if (errorMsg.contains('CHỜ XÉT DUYỆT') ||
+          errorMsg.contains('từ chối phê duyệt')) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            icon: Icon(
+              errorMsg.contains('từ chối')
+                  ? Icons.cancel_outlined
+                  : Icons.hourglass_top_rounded,
+              color:
+                  errorMsg.contains('từ chối') ? Colors.red : Colors.orange,
+              size: 48,
+            ),
+            title: Text(
+              errorMsg.contains('từ chối')
+                  ? 'Hồ Sơ Bị Từ Chối'
+                  : 'Hồ Sơ Đang Chờ Xét Duyệt',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: Text(
+              errorMsg,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, height: 1.4),
+            ),
+            actions: [
+              Center(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Đã hiểu'),
+                ),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

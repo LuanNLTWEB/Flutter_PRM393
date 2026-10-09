@@ -271,9 +271,147 @@ const toggleUserStatus = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Lấy danh sách hồ sơ Thợ cần duyệt KYC
+ * @route   GET /api/admin/technicians/kyc
+ * @access  Private (Admin hoặc Staff)
+ */
+const getTechniciansForKYC = async (req, res) => {
+  try {
+    const { status = 'pending', page = 1, limit = 20 } = req.query;
+
+    const query = {
+      role: 'technician',
+    };
+
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      query['technicianProfile.approvalStatus'] = status;
+    }
+
+    const pageNumber = Math.max(1, parseInt(page, 10) || 1);
+    const pageSize = Math.max(1, parseInt(limit, 10) || 20);
+    const skip = (pageNumber - 1) * pageSize;
+
+    const [total, technicians] = await Promise.all([
+      User.countDocuments(query),
+      User.find(query)
+        .select('-password')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageSize),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy danh sách duyệt hồ sơ thợ thành công',
+      data: {
+        technicians,
+        total,
+        page: pageNumber,
+        totalPages: Math.ceil(total / pageSize) || 1,
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách duyệt hồ sơ thợ:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi lấy danh sách duyệt hồ sơ thợ',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Phê duyệt hồ sơ Thợ (KYC Approval)
+ * @route   PUT /api/admin/technicians/:id/approve
+ * @access  Private (Admin hoặc Staff)
+ */
+const approveTechnician = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findOne({ _id: id, role: 'technician' });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy hồ sơ thợ tương ứng',
+      });
+    }
+
+    user.technicianProfile.approvalStatus = 'approved';
+    user.technicianProfile.rejectionReason = '';
+    user.technicianProfile.approvedAt = new Date();
+    user.technicianProfile.approvedBy = req.user._id;
+    user.technicianProfile.isAvailable = true; // Cho phép nhận việc sau khi duyệt
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Đã phê duyệt hồ sơ cho thợ "${user.fullName}" thành công`,
+      data: user,
+    });
+  } catch (error) {
+    console.error('Lỗi khi phê duyệt hồ sơ thợ:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi phê duyệt hồ sơ thợ',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Từ chối hồ sơ Thợ (KYC Rejection kèm lý do)
+ * @route   PUT /api/admin/technicians/:id/reject
+ * @access  Private (Admin hoặc Staff)
+ */
+const rejectTechnician = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason || reason.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp lý do từ chối hồ sơ',
+      });
+    }
+
+    const user = await User.findOne({ _id: id, role: 'technician' });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy hồ sơ thợ tương ứng',
+      });
+    }
+
+    user.technicianProfile.approvalStatus = 'rejected';
+    user.technicianProfile.rejectionReason = reason.trim();
+    user.technicianProfile.isAvailable = false;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Đã từ chối hồ sơ thợ "${user.fullName}" với lý do: ${reason}`,
+      data: user,
+    });
+  } catch (error) {
+    console.error('Lỗi khi từ chối hồ sơ thợ:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi từ chối hồ sơ thợ',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getUsers,
   createStaff,
   updateUserRole,
   toggleUserStatus,
+  getTechniciansForKYC,
+  approveTechnician,
+  rejectTechnician,
 };
+

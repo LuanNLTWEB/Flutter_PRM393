@@ -1,9 +1,7 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
-
 // Xử lý lỗi querySrv ECONNREFUSED trên Windows bằng cách chỉ định DNS Google/Cloudflare
 dns.setServers(['8.8.8.8', '1.1.1.1']);
-
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI);
