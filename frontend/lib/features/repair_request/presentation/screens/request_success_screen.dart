@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/repair_request_model.dart';
 import '../../../home/presentation/home_screen.dart';
+import '../../../quotations/presentation/screens/request_quotations_screen.dart';
 
 /// Màn hình thông báo gửi yêu cầu thành công
 class RequestSuccessScreen extends StatelessWidget {
@@ -108,6 +109,28 @@ class RequestSuccessScreen extends StatelessWidget {
                 ),
               ),
               const Spacer(),
+
+              // ── Nút theo dõi báo giá (UC-QUO-06) ──
+              OutlinedButton.icon(
+                key: const Key('request_success_quotes_btn'),
+                icon: const Icon(Icons.request_quote_outlined),
+                label: const Text(
+                  'Theo dõi báo giá',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RequestQuotationsScreen(
+                        requestId: request.id,
+                        request: request,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
 
               // ── Nút Về trang chủ ──
               ElevatedButton.icon(

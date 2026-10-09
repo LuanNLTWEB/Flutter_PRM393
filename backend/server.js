@@ -21,6 +21,8 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const technicianRoutes = require('./routes/technicianRoutes');
 const serviceCategoryRoutes = require('./routes/serviceCategoryRoutes');
 const repairRequestRoutes = require('./routes/repairRequestRoutes');
+const quotationRoutes = require('./routes/quotationRoutes');
+const requestReadRoutes = require('./routes/requestReadRoutes');
 
 // Health Check Route
 app.get('/api/health', (req, res) => {
@@ -39,6 +41,10 @@ app.use('/api/technicians', technicianRoutes);
 app.use('/api/categories', serviceCategoryRoutes);
 app.use('/api/requests', repairRequestRoutes);
 app.use('/api/repair-requests', repairRequestRoutes);
+// Đọc dữ liệu yêu cầu dành cho Thợ (feed gần đây, chi tiết) - Dev 3
+// Đặt SAU repairRequestRoutes để route của Dev 2 luôn được ưu tiên
+app.use('/api/requests', requestReadRoutes);
+app.use('/api/quotations', quotationRoutes);
 
 // Global Error Handler cho Upload và các Middleware
 app.use((err, req, res, next) => {

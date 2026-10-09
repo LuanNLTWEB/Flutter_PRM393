@@ -14,6 +14,7 @@ import '../../technician/presentation/providers/technician_provider.dart';
 import '../../technician/presentation/screens/technician_public_profile_screen.dart';
 import '../../technician/presentation/screens/technician_register_screen.dart';
 import '../../repair_request/presentation/screens/service_category_screen.dart';
+import '../../quotations/presentation/screens/nearby_requests_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -195,6 +196,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Card đặc thù cho Thợ: Trạng thái duyệt KYC & Bật/Tắt nhận việc
                 if (isTech) ...[
                   _buildTechnicianStatusCard(context, auth, techProfile),
+                  const SizedBox(height: 12),
+                  // Feed yêu cầu sửa chữa đang mở (UC-QUO-01 / UC-QUO-02)
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NearbyRequestsScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.radar_outlined),
+                    label: const Text('Xem yêu cầu quanh đây'),
+                  ),
                   const SizedBox(height: 18),
                 ],
 

@@ -48,5 +48,15 @@ class ApiEndpoints {
   static String repairRequestDetail(String id) => requestDetail(id);
   static String cancelRepairRequest(String id) => cancelRequest(id);
   static const String seedDemoRequest = '$baseUrl/requests/seed-demo';
+
+  // Báo giá & Khớp lệnh (UC-QUO)
+  static const String quotations = '$baseUrl/quotations';
+  static const String myQuotations = '$baseUrl/quotations/my-quotes';
+  static String quotationDetail(String id) => '$baseUrl/quotations/$id';
+  static String quotationAccept(String id) => '$baseUrl/quotations/$id/accept';
+  static String quotationReject(String id) => '$baseUrl/quotations/$id/reject';
+  static String quotationRetract(String id) =>
+      '$baseUrl/quotations/$id/retract';
+  static const String nearbyRequests = '$baseUrl/requests/nearby';
 }
 
