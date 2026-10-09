@@ -85,6 +85,7 @@ class RepairRequestProvider extends ChangeNotifier {
     required String title,
     required String description,
     String urgency = 'medium',
+    DateTime? preferredTime,
   }) async {
     _isSubmitting = true;
     _submitError = null;
@@ -97,6 +98,7 @@ class RepairRequestProvider extends ChangeNotifier {
         title: title,
         description: description,
         urgency: urgency,
+        preferredTime: preferredTime,
       );
       _lastCreatedRequest = result;
       _isSubmitting = false;

@@ -4,6 +4,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/service_category_model.dart';
 import '../providers/repair_request_provider.dart';
+import '../widgets/schedule_time_slot_picker.dart';
 import 'request_success_screen.dart';
 
 /// Màn hình tạo yêu cầu sửa chữa (Mô tả triệu chứng & Mức độ khẩn cấp)
@@ -26,6 +27,7 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
   final _descriptionController = TextEditingController();
 
   String _urgency = 'medium'; // low, medium, high, emergency
+  DateTime? _preferredTime; // Khung giờ hẹn thợ đến nhà
 
   static const List<Map<String, dynamic>> _urgencyOptions = [
     {
@@ -74,6 +76,16 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
   Future<void> _submitRequest() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_preferredTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn ngày và giờ hẹn thợ đến nhà'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final auth = context.read<AuthProvider>();
     final token = auth.token ?? '';
     if (token.isEmpty) {
@@ -93,6 +105,7 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
       urgency: _urgency,
+      preferredTime: _preferredTime,
     );
 
     if (!mounted) return;
@@ -236,6 +249,21 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
                     ),
                   );
                 }).toList(),
+              ),
+              const SizedBox(height: 20),
+
+              // Chọn lịch hẹn: ngày & khung giờ thợ đến nhà
+              _buildSectionLabel('Lịch hẹn thợ đến nhà *', Icons.event_available_outlined),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  'Chọn ngày và giờ thuận tiện để thợ đến kiểm tra, sửa chữa',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ),
+              ScheduleTimeSlotPicker(
+                onScheduleChanged: (schedule) => _preferredTime = schedule,
               ),
               const SizedBox(height: 28),
 
