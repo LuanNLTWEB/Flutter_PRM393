@@ -69,13 +69,14 @@ class RepairRequestRemoteDataSource {
     }
   }
 
-  // Tạo yêu cầu sửa chữa mới
+  // Tạo yêu cầu sửa chữa mới (kèm khung giờ hẹn thợ đến nhà)
   Future<RepairRequestModel> createRepairRequest({
     required String token,
     required String serviceCategoryId,
     required String title,
     required String description,
     String urgency = 'medium',
+    DateTime? preferredTime,
   }) async {
     try {
       final body = jsonEncode({
@@ -83,6 +84,7 @@ class RepairRequestRemoteDataSource {
         'title': title,
         'description': description,
         'urgency': urgency,
+        if (preferredTime != null) 'preferredTime': preferredTime.toIso8601String(),
       });
 
       final response = await client.post(
