@@ -84,16 +84,29 @@ class RequestSuccessScreen extends StatelessWidget {
                       value: request.serviceCategory?.name ?? 'Dịch vụ sửa chữa',
                       color: AppTheme.primaryColor,
                     ),
+                    _buildInfoRow(
+                      icon: Icons.title_rounded,
+                      label: 'Tiêu đề',
+                      value: request.title,
+                    ),
                     const Divider(height: 20),
                     _buildInfoRow(
-                      icon: Icons.location_on_outlined,
-                      label: 'Địa chỉ',
-                      value: request.location.address,
+                      icon: Icons.speed_rounded,
+                      label: 'Mức độ',
+                      value: request.urgencyDisplay,
                     ),
+                    if (request.location.address.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildInfoRow(
+                        icon: Icons.location_on_outlined,
+                        label: 'Địa chỉ',
+                        value: request.location.address,
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     _buildInfoRow(
                       icon: Icons.event_available_rounded,
-                      label: 'Thời gian',
+                      label: 'Thời gian hẹn',
                       value: request.preferredTime != null
                           ? _formatDateTime(request.preferredTime!)
                           : 'Sớm nhất có thể',
