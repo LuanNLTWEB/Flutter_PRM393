@@ -1,6 +1,19 @@
 const RepairRequest = require('../models/RepairRequest');
 const ServiceCategory = require('../models/ServiceCategory');
 
+// Hàm kiểm tra văn bản spam hoặc ký tự vô nghĩa lặp lại
+const isSpamText = (text) => {
+  if (!text) return true;
+  const clean = text.replace(/\s+/g, '');
+  if (clean.length === 0) return true;
+  // Ký tự lặp lại 5 lần liên tiếp: vd aaaaa, 11111
+  if (/(.)\1{4,}/i.test(clean)) return true;
+  // Chuỗi có quá ít ký tự phân biệt (dưới 3 ký tự khác nhau)
+  const uniqueChars = new Set(clean.toLowerCase().split(''));
+  if (clean.length >= 8 && uniqueChars.size < 3) return true;
+  return false;
+};
+
 // Tạo yêu cầu sửa chữa mới
 const createRepairRequest = async (req, res) => {
   try {
@@ -9,6 +22,7 @@ const createRepairRequest = async (req, res) => {
       title,
       description,
       urgency,
+      preferredTime,
     } = req.body;
 
     const category = await ServiceCategory.findById(serviceCategoryId);
@@ -19,13 +33,69 @@ const createRepairRequest = async (req, res) => {
       });
     }
 
-    const reqTitle = (title || category.name || 'Yêu cầu sửa chữa').trim();
-    const reqDesc = (description || '').trim();
-
-    if (!reqDesc || reqDesc.length < 10) {
+    const reqTitle = (title || '').trim();
+    if (!reqTitle) {
       return res.status(400).json({
         success: false,
-        message: 'Mô tả triệu chứng hỏng hóc phải có ít nhất 10 ký tự',
+        message: 'Vui lòng nhập tiêu đề yêu cầu sửa chữa',
+      });
+    }
+
+    if (reqTitle.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tiêu đề sự cố quá ngắn (tối thiểu 6 ký tự)',
+      });
+    }
+
+    if (reqTitle.length > 150) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tiêu đề không được vượt quá 150 ký tự',
+      });
+    }
+
+    if (isSpamText(reqTitle)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tiêu đề không hợp lệ, vui lòng không nhập ký tự lặp hoặc từ vô nghĩa',
+      });
+    }
+
+    const reqDesc = (description || '').trim();
+    if (!reqDesc) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng mô tả chi tiết sự cố hỏng hóc',
+      });
+    }
+
+    if (reqDesc.length < 15) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mô tả triệu chứng hỏng hóc quá ngắn. Vui lòng nhập tối thiểu 15 ký tự để thợ có thể nắm được tình trạng',
+      });
+    }
+
+    if (reqDesc.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mô tả không được vượt quá 1000 ký tự',
+      });
+    }
+
+    const wordCount = reqDesc.split(/\s+/).filter(Boolean).length;
+    if (wordCount < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng mô tả rõ ràng hơn (ít nhất 3 từ) để thợ có thể hình dung sự cố',
+      });
+    }
+
+    if (isSpamText(reqDesc)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mô tả chứa ký tự lặp hoặc chuỗi vô nghĩa. Vui lòng mô tả sự cố thực tế',
       });
     }
 
@@ -35,12 +105,21 @@ const createRepairRequest = async (req, res) => {
       normalizedUrgency = rawUrgency;
     }
 
+    let parsedPreferredTime = null;
+    if (preferredTime) {
+      const dt = new Date(preferredTime);
+      if (!isNaN(dt.getTime())) {
+        parsedPreferredTime = dt;
+      }
+    }
+
     const newRequest = await RepairRequest.create({
       customerId: req.user._id,
       serviceCategoryId,
       title: reqTitle,
       description: reqDesc,
       urgency: normalizedUrgency,
+      preferredTime: parsedPreferredTime,
       status: 'OPEN',
       contactPhone: req.user.phoneNumber || '',
     });

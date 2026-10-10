@@ -63,7 +63,8 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
   @override
   void initState() {
     super.initState();
-    _titleController.text = 'Sửa chữa ${widget.preselectedCategory.name.toLowerCase()}';
+    // Để trống ô tiêu đề để người dùng tự nhập sự cố cụ thể của mình
+    _titleController.text = '';
   }
 
   @override
@@ -73,8 +74,26 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
     super.dispose();
   }
 
+  /// Kiểm tra chuỗi spam, lặp ký tự liên tiếp hoặc quá ít ký tự phân biệt
+  bool _isSpamContent(String text) {
+    final clean = text.replaceAll(RegExp(r'\s+'), '');
+    if (clean.isEmpty) return true;
+
+    // Ký tự lặp lại liên tiếp từ 4 lần trở lên (vd: aaaa, 1111)
+    if (RegExp(r'(.)\1{3,}').hasMatch(clean)) return true;
+
+    // Chuỗi dài từ 6 ký tự trở lên nhưng chỉ có dưới 3 ký tự khác nhau
+    final uniqueLetters = clean.toLowerCase().split('').toSet();
+    if (clean.length >= 6 && uniqueLetters.length < 3) return true;
+
+    return false;
+  }
+
+  /// Gửi trực tiếp yêu cầu sửa chữa lên hệ thống
   Future<void> _submitRequest() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     if (_preferredTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -127,6 +146,10 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final defaultIssueHint = widget.preselectedCategory.commonIssues.isNotEmpty
+        ? widget.preselectedCategory.commonIssues.first
+        : 'Mô tả ngắn sự cố cần sửa chữa';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -150,12 +173,26 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
               TextFormField(
                 key: const Key('create_request_title_field'),
                 controller: _titleController,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 decoration: _inputDecoration(
-                  hint: 'VD: Sửa chập điện aptomat phòng khách...',
+                  hint: 'VD: $defaultIssueHint...',
                 ),
-                validator: (val) => (val == null || val.trim().isEmpty)
-                    ? 'Vui lòng nhập tiêu đề yêu cầu'
-                    : null,
+                validator: (val) {
+                  final text = val?.trim() ?? '';
+                  if (text.isEmpty) {
+                    return 'Vui lòng nhập tiêu đề sự cố cần sửa chữa';
+                  }
+                  if (text.length < 6) {
+                    return 'Tiêu đề quá ngắn (tối thiểu 6 ký tự)';
+                  }
+                  if (text.length > 150) {
+                    return 'Tiêu đề không được vượt quá 150 ký tự';
+                  }
+                  if (_isSpamContent(text)) {
+                    return 'Tiêu đề không hợp lệ, vui lòng không nhập ký tự lặp hoặc từ vô nghĩa';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 20),
 
@@ -165,14 +202,29 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
               TextFormField(
                 key: const Key('create_request_problem_field'),
                 controller: _descriptionController,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 maxLines: 5,
                 maxLength: 1000,
                 decoration: _inputDecoration(
                   hint: 'Mô tả chi tiết sự cố bạn đang gặp phải (triệu chứng, hiện tượng bất thường, thời điểm xuất hiện sự cố)...',
                 ),
                 validator: (val) {
-                  if (val == null || val.trim().length < 10) {
-                    return 'Mô tả phải có ít nhất 10 ký tự';
+                  final text = val?.trim() ?? '';
+                  if (text.isEmpty) {
+                    return 'Vui lòng mô tả chi tiết sự cố hỏng hóc';
+                  }
+                  if (text.length < 15) {
+                    return 'Mô tả sự cố quá ngắn. Vui lòng nhập tối thiểu 15 ký tự để thợ hiểu rõ vấn đề';
+                  }
+                  if (text.length > 1000) {
+                    return 'Mô tả không được vượt quá 1000 ký tự';
+                  }
+                  final wordCount = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+                  if (wordCount < 3) {
+                    return 'Vui lòng mô tả rõ ràng hơn (tối thiểu 3 từ) để thợ có thể hình dung sự cố';
+                  }
+                  if (_isSpamContent(text)) {
+                    return 'Mô tả chứa ký tự lặp hoặc chuỗi vô nghĩa. Vui lòng mô tả sự cố thực tế';
                   }
                   return null;
                 },
@@ -267,7 +319,7 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
               ),
               const SizedBox(height: 28),
 
-              // Nút Gửi yêu cầu
+              // Nút Gửi yêu cầu sửa chữa
               Consumer<RepairRequestProvider>(
                 builder: (context, provider, child) {
                   return SizedBox(

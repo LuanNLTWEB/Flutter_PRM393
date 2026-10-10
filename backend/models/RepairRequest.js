@@ -22,7 +22,8 @@ const repairRequestSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Tiêu đề sự cố là bắt buộc'],
       trim: true,
-      maxlength: [200, 'Tiêu đề không được vượt quá 200 ký tự'],
+      minlength: [6, 'Tiêu đề phải có ít nhất 6 ký tự'],
+      maxlength: [150, 'Tiêu đề không được vượt quá 150 ký tự'],
     },
 
     // Mô tả chi tiết triệu chứng
@@ -30,7 +31,7 @@ const repairRequestSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Mô tả triệu chứng hỏng hóc là bắt buộc'],
       trim: true,
-      minlength: [10, 'Mô tả phải có ít nhất 10 ký tự'],
+      minlength: [15, 'Mô tả triệu chứng phải có ít nhất 15 ký tự'],
       maxlength: [1000, 'Mô tả không được vượt quá 1000 ký tự'],
     },
 
