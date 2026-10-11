@@ -69,6 +69,32 @@ class RepairRequestRemoteDataSource {
     }
   }
 
+  // Tìm kiếm danh mục dịch vụ theo từ khóa
+  Future<List<ServiceCategoryModel>> searchCategories(String keyword) async {
+    try {
+      final response = await client.get(
+        Uri.parse(ApiEndpoints.searchServiceCategories(Uri.encodeComponent(keyword))),
+        headers: _headers(),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        final List<dynamic> list = data['data']?['categories'] ?? [];
+        return list
+            .map((item) => ServiceCategoryModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } else {
+        throw Exception(
+          data['message'] ?? 'Không thể tìm kiếm danh mục dịch vụ',
+        );
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
   // Tạo yêu cầu sửa chữa mới (kèm khung giờ hẹn thợ đến nhà)
   Future<RepairRequestModel> createRepairRequest({
     required String token,

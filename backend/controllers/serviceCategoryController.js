@@ -154,7 +154,50 @@ const getCategoryByIdentifier = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Tìm kiếm danh mục dịch vụ theo từ khóa
+ * @route   GET /api/categories/search?keyword=...
+ * @access  Public
+ */
+const searchCategories = async (req, res) => {
+  try {
+    const { keyword = '' } = req.query;
+    const trimmed = (keyword || '').trim();
+
+    let query = { isActive: true };
+    if (trimmed) {
+      const regex = new RegExp(trimmed, 'i');
+      query.$or = [
+        { name: regex },
+        { description: regex },
+        { commonIssues: regex },
+        { slug: regex },
+      ];
+    }
+
+    const categories = await ServiceCategory.find(query).sort({ sortOrder: 1, createdAt: 1 });
+
+    return res.status(200).json({
+      success: true,
+      message: `Tìm thấy ${categories.length} danh mục dịch vụ phù hợp`,
+      data: {
+        total: categories.length,
+        keyword: trimmed,
+        categories,
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi khi tìm kiếm danh mục dịch vụ:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể tìm kiếm danh mục dịch vụ',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getCategories,
   getCategoryByIdentifier,
+  searchCategories,
 };

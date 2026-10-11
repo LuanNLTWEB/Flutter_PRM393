@@ -106,6 +106,17 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
     }
 
     final auth = context.read<AuthProvider>();
+    if (auth.isAuthenticated && auth.currentUser != null && auth.currentUser!.role != 'user') {
+      final roleName = auth.currentUser!.roleDisplay;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Tài khoản $roleName không thể tạo yêu cầu sửa chữa. Vui lòng đăng nhập tài khoản Khách hàng.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final token = auth.token ?? '';
     if (token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,6 +157,10 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final isNotCustomer = auth.isAuthenticated && auth.currentUser != null && auth.currentUser!.role != 'user';
+    final roleName = auth.currentUser?.roleDisplay ?? 'Người dùng';
+
     final defaultIssueHint = widget.preselectedCategory.commonIssues.isNotEmpty
         ? widget.preselectedCategory.commonIssues.first
         : 'Mô tả ngắn sự cố cần sửa chữa';
@@ -163,6 +178,9 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              // Cảnh báo nếu tài khoản không phải Khách hàng (Thợ, Staff, Admin)
+              if (isNotCustomer) _buildRoleRestrictionBanner(roleName),
+
               // Thông tin dịch vụ đã chọn
               _buildSelectedServiceCard(),
               const SizedBox(height: 24),
@@ -326,9 +344,9 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
                     height: 52,
                     child: ElevatedButton(
                       key: const Key('create_request_submit_button'),
-                      onPressed: provider.isSubmitting ? null : _submitRequest,
+                      onPressed: (provider.isSubmitting || isNotCustomer) ? null : _submitRequest,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
+                        backgroundColor: isNotCustomer ? Colors.grey.shade400 : AppTheme.primaryColor,
                         foregroundColor: Colors.white,
                         elevation: 2,
                         shape: RoundedRectangleBorder(
@@ -344,15 +362,15 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Row(
+                          : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.send_rounded, size: 20),
-                                SizedBox(width: 8),
+                                Icon(isNotCustomer ? Icons.block : Icons.send_rounded, size: 20),
+                                const SizedBox(width: 8),
                                 Text(
-                                  'Gửi phiếu yêu cầu sửa chữa',
-                                  style: TextStyle(
-                                    fontSize: 16,
+                                  isNotCustomer ? 'Tài khoản $roleName không thể tạo đơn' : 'Gửi phiếu yêu cầu sửa chữa',
+                                  style: const TextStyle(
+                                    fontSize: 15,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -366,6 +384,45 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRoleRestrictionBanner(String roleName) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.amber.shade400),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Quyền hạn tài khoản: $roleName',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.brown,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Tài khoản $roleName không thể gửi phiếu yêu cầu sửa chữa. Tính năng đặt đơn sửa chữa chỉ dành riêng cho Khách hàng.',
+                  style: const TextStyle(fontSize: 12.5, color: Colors.brown, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
