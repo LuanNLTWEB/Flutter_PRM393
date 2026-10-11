@@ -330,7 +330,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       ),
                     ),
                     icon: const Icon(Icons.rate_review_outlined, size: 18),
-                    label: const Text('Xem đánh giá của bạn'),
+                    label: const Text('Xem & chỉnh sửa đánh giá'),
                     onPressed: () {
                       Navigator.push(
                         context,

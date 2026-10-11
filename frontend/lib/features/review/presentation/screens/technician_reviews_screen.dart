@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/review_model.dart';
 import '../providers/review_provider.dart';
 import 'create_review_screen.dart';
@@ -45,25 +46,68 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
   Widget build(BuildContext context) {
     final reviewProvider = context.watch<ReviewProvider>();
     final summary = reviewProvider.summary;
+    final currentUserId = context.watch<AuthProvider>().currentUser?.id ?? '';
+
+    // Tìm đánh giá của chính người dùng hiện tại (nếu có)
+    ReviewModel? myReview;
+    for (final r in reviewProvider.reviews) {
+      if ((widget.bookingId != null && r.bookingId == widget.bookingId) ||
+          (currentUserId.isNotEmpty && r.customerId == currentUserId)) {
+        myReview = r;
+        break;
+      }
+    }
+
+    final hasBooking = widget.bookingId != null || (myReview != null && (myReview.bookingId?.isNotEmpty ?? false));
+    final targetBookingId = widget.bookingId ?? myReview?.bookingId ?? '';
+    final isEditing = myReview != null;
 
     return Scaffold(
       appBar: AppBar(
         title: Text('Đánh giá: ${widget.technicianName}'),
       ),
-      bottomNavigationBar: widget.bookingId != null
+      bottomNavigationBar: (hasBooking && targetBookingId.isNotEmpty)
           ? SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.rate_review_rounded),
-                  label: const Text('Viết đánh giá cho thợ'),
+                  style: isEditing
+                      ? ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        )
+                      : ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                  icon: Icon(
+                    isEditing ? Icons.edit_note_rounded : Icons.rate_review_rounded,
+                  ),
+                  label: Text(
+                    isEditing ? 'Chỉnh sửa đánh giá của bạn' : 'Viết đánh giá cho thợ',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   onPressed: () async {
                     final result = await Navigator.of(context).push<bool>(
                       MaterialPageRoute(
                         builder: (_) => CreateReviewScreen(
                           technicianId: widget.technicianId,
                           technicianName: widget.technicianName,
-                          bookingId: widget.bookingId!,
+                          bookingId: targetBookingId,
+                          initialRating: myReview?.rating,
+                          initialTags: myReview?.tags,
+                          initialComment: myReview?.comment,
                         ),
                       ),
                     );
@@ -107,7 +151,9 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
                         separatorBuilder: (context, index) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final review = reviewProvider.reviews[index];
-                          return _buildReviewCard(review);
+                          final isMyReview = (currentUserId.isNotEmpty && review.customerId == currentUserId) ||
+                              (widget.bookingId != null && review.bookingId == widget.bookingId);
+                          return _buildReviewCard(review, isMyReview: isMyReview);
                         },
                       ),
                   ],
@@ -267,7 +313,7 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
     );
   }
 
-  Widget _buildReviewCard(ReviewModel review) {
+  Widget _buildReviewCard(ReviewModel review, {bool isMyReview = false}) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final formattedDate = review.createdAt != null
         ? dateFormat.format(review.createdAt!)
@@ -278,7 +324,10 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(
+          color: isMyReview ? Colors.amber.shade300 : Colors.grey.shade200,
+          width: isMyReview ? 1.5 : 1.0,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14.0),
@@ -290,13 +339,15 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  backgroundColor: isMyReview
+                      ? Colors.amber.shade100
+                      : AppTheme.primaryColor.withValues(alpha: 0.1),
                   child: Text(
                     review.customerName.isNotEmpty
                         ? review.customerName[0].toUpperCase()
                         : 'U',
-                    style: const TextStyle(
-                      color: AppTheme.primaryColor,
+                    style: TextStyle(
+                      color: isMyReview ? Colors.amber.shade900 : AppTheme.primaryColor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -306,13 +357,42 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        review.customerName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimaryColor,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              review.customerName,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimaryColor,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isMyReview) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.amber.shade200),
+                              ),
+                              child: Text(
+                                'Bạn',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber.shade900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       Text(
                         formattedDate,
@@ -325,6 +405,7 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
                   ),
                 ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: List.generate(5, (index) {
                     return Icon(
                       index < review.rating.round()
@@ -335,6 +416,39 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
                     );
                   }),
                 ),
+                if (isMyReview) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_note_rounded,
+                      size: 22,
+                      color: Colors.amber.shade800,
+                    ),
+                    tooltip: 'Chỉnh sửa đánh giá',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () async {
+                      final targetBookingId =
+                          widget.bookingId ?? review.bookingId ?? '';
+                      if (targetBookingId.isEmpty) return;
+                      final result = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                          builder: (_) => CreateReviewScreen(
+                            technicianId: widget.technicianId,
+                            technicianName: widget.technicianName,
+                            bookingId: targetBookingId,
+                            initialRating: review.rating,
+                            initialTags: review.tags,
+                            initialComment: review.comment,
+                          ),
+                        ),
+                      );
+                      if (result == true) {
+                        _loadReviews();
+                      }
+                    },
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
