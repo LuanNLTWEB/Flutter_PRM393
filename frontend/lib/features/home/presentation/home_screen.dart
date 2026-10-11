@@ -12,6 +12,9 @@ import '../../technician/presentation/providers/technician_provider.dart';
 import '../../technician/presentation/screens/technician_public_profile_screen.dart';
 import '../../technician/presentation/screens/technician_register_screen.dart';
 import '../../repair_request/presentation/screens/service_category_screen.dart';
+import '../../repair_request/presentation/screens/create_repair_request_screen.dart';
+import '../../repair_request/data/models/service_category_model.dart';
+import '../../repair_request/presentation/providers/repair_request_provider.dart';
 import '../../quotations/presentation/screens/nearby_requests_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -27,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TechnicianProvider>().fetchPublicTechnicians();
+      context.read<RepairRequestProvider>().fetchCategories();
     });
   }
 
@@ -138,7 +142,10 @@ class _HomeScreenState extends State<HomeScreen> {
           onRefresh: () async {
             await auth.refreshProfile();
             if (context.mounted) {
-              await context.read<TechnicianProvider>().fetchPublicTechnicians();
+              await Future.wait([
+                context.read<TechnicianProvider>().fetchPublicTechnicians(),
+                context.read<RepairRequestProvider>().fetchCategories(refresh: true),
+              ]);
             }
           },
           child: SingleChildScrollView(
@@ -387,40 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.3,
-                  children: [
-                    _buildServiceCard(
-                      icon: Icons.electric_bolt_rounded,
-                      color: Colors.amber.shade700,
-                      title: 'Sửa điện',
-                      desc: 'Chập cháy, ổ cắm, đèn',
-                    ),
-                    _buildServiceCard(
-                      icon: Icons.water_drop_rounded,
-                      color: Colors.blue.shade600,
-                      title: 'Sửa nước',
-                      desc: 'Rò rỉ, vòi sen, máy bơm',
-                    ),
-                    _buildServiceCard(
-                      icon: Icons.ac_unit_rounded,
-                      color: Colors.cyan.shade600,
-                      title: 'Điện lạnh',
-                      desc: 'Điều hòa, tủ lạnh, giặt',
-                    ),
-                    _buildServiceCard(
-                      icon: Icons.home_repair_service_rounded,
-                      color: Colors.deepOrange.shade600,
-                      title: 'Bảo trì nhà',
-                      desc: 'Sơn sửa, khóa, cửa',
-                    ),
-                  ],
-                ),
+                _buildServicesGrid(context),
                 const SizedBox(height: 28),
 
                 // Section Đội ngũ Thợ uy tín (Public Profiles)
@@ -730,69 +704,333 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildServiceCard({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String desc,
-  }) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const ServiceCategoryScreen(),
-          ),
-        );
+  Widget _buildServicesGrid(BuildContext context) {
+    final repairProvider = context.watch<RepairRequestProvider>();
+    final rawCats = repairProvider.rawCategories;
+
+    // Lấy tối đa 4 danh mục nổi bật từ backend nếu có, nếu chưa thì dùng fallback chuẩn
+    final List<ServiceCategoryModel> displayCategories = rawCats.isNotEmpty
+        ? rawCats.take(4).toList()
+        : _fallbackCategories;
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Trên màn hình rộng (tablet/web) chia 4 cột, trên mobile chia 2 cột
+    final crossAxisCount = screenWidth > 600 ? 4 : 2;
+    final childAspectRatio = screenWidth > 600 ? 1.6 : 1.45;
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: displayCategories.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: childAspectRatio,
+      ),
+      itemBuilder: (ctx, index) {
+        final cat = displayCategories[index];
+        return _buildServiceCard(context, cat, repairProvider);
       },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
+    );
+  }
+
+  Widget _buildServiceCard(
+    BuildContext context,
+    ServiceCategoryModel category,
+    RepairRequestProvider provider,
+  ) {
+    final color = _parseServiceColor(category.color);
+    final icon = _getServiceIcon(category.icon);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _onCategoryTap(context, category, provider),
+        borderRadius: BorderRadius.circular(16),
+        splashColor: color.withValues(alpha: 0.15),
+        highlightColor: color.withValues(alpha: 0.08),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: color.withValues(alpha: 0.25),
+              width: 1.2,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
-              child: Icon(icon, color: color, size: 22),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Hàng trên: Icon + Badge giá/đặt thợ
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, color: color, size: 22),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: color.withValues(alpha: 0.25),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            category.basePrice > 0
+                                ? 'Từ ${(category.basePrice / 1000).round()}k'
+                                : 'Đặt ngay',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 9,
+                            color: color,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                // Hàng dưới: Tên dịch vụ + Mô tả ngắn
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      category.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimaryColor,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      category.commonIssues.isNotEmpty
+                          ? category.commonIssues.take(2).join(', ')
+                          : category.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimaryColor,
-              ),
-            ),
-            Text(
-              desc,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppTheme.textSecondaryColor,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  void _onCategoryTap(
+    BuildContext context,
+    ServiceCategoryModel category,
+    RepairRequestProvider provider,
+  ) async {
+    final auth = context.read<AuthProvider>();
+    if (auth.isAuthenticated && auth.currentUser != null && auth.currentUser!.role != 'user') {
+      final roleName = auth.currentUser!.roleDisplay;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Tài khoản $roleName không thể tạo đơn sửa chữa. Tính năng này chỉ dành cho Khách hàng.',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Mở form nếu danh mục đã sẵn sàng
+    if (category.id.isNotEmpty && !category.id.startsWith('fallback_')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CreateRepairRequestScreen(
+            preselectedCategory: category,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Khớp danh mục với dữ liệu từ máy chủ
+    ServiceCategoryModel? matched;
+    if (provider.rawCategories.isNotEmpty) {
+      try {
+        matched = provider.rawCategories.firstWhere(
+          (c) => c.slug == category.slug || c.name.toLowerCase().contains(category.name.toLowerCase()),
+        );
+      } catch (_) {}
+    }
+
+    final selected = matched;
+    if (selected != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CreateRepairRequestScreen(
+            preselectedCategory: selected,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Tải dữ liệu danh mục từ máy chủ nếu chưa có
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      ),
+    );
+
+    await provider.fetchCategories();
+
+    if (context.mounted) {
+      Navigator.pop(context); // Tắt dialog loading
+
+      ServiceCategoryModel target = category;
+      if (provider.rawCategories.isNotEmpty) {
+        try {
+          target = provider.rawCategories.firstWhere(
+            (c) => c.slug == category.slug || c.name.toLowerCase().contains(category.name.toLowerCase()),
+            orElse: () => provider.rawCategories.first,
+          );
+        } catch (_) {
+          target = provider.rawCategories.first;
+        }
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CreateRepairRequestScreen(
+            preselectedCategory: target,
+          ),
+        ),
+      );
+    }
+  }
+
+  IconData _getServiceIcon(String iconName) {
+    switch (iconName) {
+      case 'electric_bolt':
+        return Icons.electric_bolt_rounded;
+      case 'water_drop':
+        return Icons.water_drop_rounded;
+      case 'ac_unit':
+        return Icons.ac_unit_rounded;
+      case 'laptop_chromebook':
+      case 'laptop':
+        return Icons.laptop_chromebook_rounded;
+      case 'home_repair_service':
+      default:
+        return Icons.home_repair_service_rounded;
+    }
+  }
+
+  Color _parseServiceColor(String hexColor) {
+    try {
+      final hex = hexColor.replaceAll('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return AppTheme.primaryColor;
+    }
+  }
+
+  static const List<ServiceCategoryModel> _fallbackCategories = [
+    ServiceCategoryModel(
+      id: 'fallback_electric',
+      name: 'Sửa điện',
+      slug: 'sua-chua-dien',
+      description: 'Chập cháy, ổ cắm, đèn',
+      icon: 'electric_bolt',
+      color: '#D97706',
+      basePrice: 150000,
+      commonIssues: ['Chập cháy', 'Ổ cắm, đèn'],
+    ),
+    ServiceCategoryModel(
+      id: 'fallback_water',
+      name: 'Sửa nước',
+      slug: 'sua-chua-nuoc',
+      description: 'Rò rỉ, vòi sen, máy bơm',
+      icon: 'water_drop',
+      color: '#2563EB',
+      basePrice: 150000,
+      commonIssues: ['Rò rỉ nước', 'Vòi sen, bơm'],
+    ),
+    ServiceCategoryModel(
+      id: 'fallback_ac',
+      name: 'Điện lạnh',
+      slug: 'dien-lanh-dieu-hoa',
+      description: 'Điều hòa, tủ lạnh, giặt',
+      icon: 'ac_unit',
+      color: '#0891B2',
+      basePrice: 200000,
+      commonIssues: ['Điều hòa, gas', 'Tủ lạnh, giặt'],
+    ),
+    ServiceCategoryModel(
+      id: 'fallback_pc',
+      name: 'Sửa máy tính',
+      slug: 'sua-laptop-may-tinh',
+      description: 'Laptop, cài win, nâng cấp',
+      icon: 'laptop_chromebook',
+      color: '#7C3AED',
+      basePrice: 180000,
+      commonIssues: ['Mất nguồn', 'Cài Win, SSD'],
+    ),
+  ];
 
   /// Giao diện trang chủ khi chưa đăng nhập (Khách)
   Widget _buildGuestHome(BuildContext context) {
