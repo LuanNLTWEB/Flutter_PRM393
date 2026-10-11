@@ -17,6 +17,18 @@ const isSpamText = (text) => {
 // Tạo yêu cầu sửa chữa mới
 const createRepairRequest = async (req, res) => {
   try {
+    if (req.user && req.user.role !== 'user') {
+      let roleLabel = 'nội bộ';
+      if (req.user.role === 'technician') roleLabel = 'Kỹ thuật viên (Thợ)';
+      else if (req.user.role === 'staff') roleLabel = 'Nhân viên vận hành (Staff)';
+      else if (req.user.role === 'admin') roleLabel = 'Quản trị viên (Admin)';
+
+      return res.status(403).json({
+        success: false,
+        message: `Tài khoản ${roleLabel} không thể tạo yêu cầu sửa chữa. Tính năng này chỉ dành riêng cho Khách hàng.`,
+      });
+    }
+
     const {
       serviceCategoryId,
       title,

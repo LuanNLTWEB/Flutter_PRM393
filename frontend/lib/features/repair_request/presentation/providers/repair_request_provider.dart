@@ -66,10 +66,40 @@ class RepairRequestProvider extends ChangeNotifier {
     }
   }
 
-  // Cập nhật từ khóa tìm kiếm
+  // Lọc danh mục theo từ khóa tìm kiếm
   void setSearchKeyword(String keyword) {
     _searchKeyword = keyword;
     notifyListeners();
+  }
+
+  // Xóa bộ lọc tìm kiếm
+  void clearSearch() {
+    _searchKeyword = '';
+    notifyListeners();
+  }
+
+  // Tìm kiếm danh mục từ máy chủ API
+  Future<void> searchCategoriesFromApi(String keyword) async {
+    _searchKeyword = keyword;
+    if (keyword.trim().isEmpty) {
+      await fetchCategories(refresh: true);
+      return;
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final results = await _dataSource.searchCategories(keyword.trim());
+      _categories = results;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
   }
 
   // Chọn danh mục dịch vụ
