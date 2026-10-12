@@ -42,6 +42,12 @@ class ApiEndpoints {
   static const String myRequests = '$baseUrl/requests/my-requests';
   static String requestDetail(String id) => '$baseUrl/requests/$id';
   static String cancelRequest(String id) => '$baseUrl/requests/$id/cancel';
+  static String confirmAppointment(String id) =>
+      '$baseUrl/requests/$id/appointment/confirm';
+  static String proposeAppointment(String id) =>
+      '$baseUrl/requests/$id/appointment/propose';
+  static String respondAppointment(String id) =>
+      '$baseUrl/requests/$id/appointment/respond';
 
   static const String repairRequests = requests;
   static const String myRepairRequests = myRequests;

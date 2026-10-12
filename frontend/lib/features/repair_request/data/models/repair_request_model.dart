@@ -14,6 +14,10 @@ class RepairRequestModel {
   final String status; // 'OPEN', 'QUOTED', 'ACCEPTED', 'CANCELLED'
   final String contactPhone;
   final DateTime? preferredTime;
+  final String appointmentStatus; // 'PENDING', 'CONFIRMED', 'RESCHEDULED'
+  final DateTime? proposedTime;
+  final String rescheduleNote;
+  final String rescheduleRejectNote;
   final String customerNote;
   final DateTime? cancelledAt;
   final String cancellationReason;
@@ -33,6 +37,10 @@ class RepairRequestModel {
     this.status = 'OPEN',
     required this.contactPhone,
     this.preferredTime,
+    this.appointmentStatus = 'PENDING',
+    this.proposedTime,
+    this.rescheduleNote = '',
+    this.rescheduleRejectNote = '',
     this.customerNote = '',
     this.cancelledAt,
     this.cancellationReason = '',
@@ -111,15 +119,23 @@ class RepairRequestModel {
       status: status,
       contactPhone: json['contactPhone'] ?? '',
       preferredTime: json['preferredTime'] != null
-          ? DateTime.tryParse(json['preferredTime'])
+          ? DateTime.tryParse(json['preferredTime'])?.toLocal()
           : null,
+      appointmentStatus: json['appointmentStatus'] ?? 'PENDING',
+      proposedTime: json['proposedTime'] != null
+          ? DateTime.tryParse(json['proposedTime'])?.toLocal()
+          : null,
+      rescheduleNote: json['rescheduleNote'] ?? '',
+      rescheduleRejectNote: json['rescheduleRejectNote'] ?? '',
       customerNote: json['customerNote'] ?? '',
       cancelledAt: json['cancelledAt'] != null
-          ? DateTime.tryParse(json['cancelledAt'])
+          ? DateTime.tryParse(json['cancelledAt'])?.toLocal()
           : null,
       cancellationReason: json['cancellationReason'] ?? '',
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(json['updatedAt'] ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(json['createdAt'] ?? '')?.toLocal() ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updatedAt'] ?? '')?.toLocal() ??
+          DateTime.now(),
     );
   }
 
@@ -132,7 +148,8 @@ class RepairRequestModel {
       'urgency': urgency,
       'location': location.toJson(),
       'contactPhone': contactPhone,
-      if (preferredTime != null) 'preferredTime': preferredTime!.toIso8601String(),
+      if (preferredTime != null)
+        'preferredTime': preferredTime!.toUtc().toIso8601String(),
       'customerNote': customerNote,
     };
   }
@@ -172,6 +189,51 @@ class RepairRequestModel {
       default:
         return urgency;
     }
+  }
+
+  /// Hiển thị trạng thái lịch hẹn
+  String get appointmentStatusDisplay {
+    switch (appointmentStatus) {
+      case 'CONFIRMED':
+        return 'Đã xác nhận lịch hẹn';
+      case 'RESCHEDULED':
+        return 'Đang chờ đổi lịch';
+      default:
+        return 'Chờ thợ xác nhận lịch';
+    }
+  }
+
+  RepairRequestModel copyWith({
+    String? status,
+    String? appointmentStatus,
+    DateTime? preferredTime,
+    DateTime? proposedTime,
+    String? rescheduleNote,
+    String? rescheduleRejectNote,
+  }) {
+    return RepairRequestModel(
+      id: id,
+      customerId: customerId,
+      serviceCategoryId: serviceCategoryId,
+      serviceCategory: serviceCategory,
+      title: title,
+      description: description,
+      images: images,
+      urgency: urgency,
+      location: location,
+      status: status ?? this.status,
+      contactPhone: contactPhone,
+      preferredTime: preferredTime ?? this.preferredTime,
+      appointmentStatus: appointmentStatus ?? this.appointmentStatus,
+      proposedTime: proposedTime ?? this.proposedTime,
+      rescheduleNote: rescheduleNote ?? this.rescheduleNote,
+      rescheduleRejectNote: rescheduleRejectNote ?? this.rescheduleRejectNote,
+      customerNote: customerNote,
+      cancelledAt: cancelledAt,
+      cancellationReason: cancellationReason,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
   }
 }
 

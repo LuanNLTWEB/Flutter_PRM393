@@ -105,4 +105,43 @@ class NearbyRequestRemoteDataSource {
     }
     throw Exception(data['message'] ?? 'Không thể tải chi tiết yêu cầu');
   }
+
+  /// Thợ xác nhận giờ hẹn (UC-LIC-01)
+  Future<void> confirmAppointment({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.confirmAppointment(requestId)),
+      headers: _headers(token),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Xác nhận lịch hẹn thất bại');
+    }
+  }
+
+  /// Thợ đề xuất khung giờ mới (UC-LIC-01)
+  Future<void> proposeAppointment({
+    required String token,
+    required String requestId,
+    required DateTime proposedTime,
+    String note = '',
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.proposeAppointment(requestId)),
+      headers: _headers(token),
+      body: json.encode({
+        // toUtc() để gửi kèm offset, tránh server hiểu nhầm là UTC
+        'proposedTime': proposedTime.toUtc().toIso8601String(),
+        if (note.isNotEmpty) 'note': note,
+      }),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Đề xuất khung giờ mới thất bại');
+    }
+  }
 }

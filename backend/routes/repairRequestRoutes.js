@@ -3,6 +3,9 @@ const router = express.Router();
 const {
   createRepairRequest,
   getMyRepairRequests,
+  confirmAppointment,
+  proposeAppointment,
+  respondAppointment,
 } = require('../controllers/repairRequestController');
 const { protect, authorize } = require('../middlewares/auth');
 
@@ -14,6 +17,25 @@ router.get('/my-requests', getMyRepairRequests);
 
 // Tạo yêu cầu sửa chữa mới
 router.post('/', authorize('user'), createRepairRequest);
+
+// Thợ xác nhận / đổi lịch hẹn (UC-LIC-01)
+router.patch(
+  '/:id/appointment/confirm',
+  authorize('technician'),
+  confirmAppointment
+);
+router.patch(
+  '/:id/appointment/propose',
+  authorize('technician'),
+  proposeAppointment
+);
+
+// Khách đồng ý / từ chối khung giờ thợ đề xuất (UC-LIC-01)
+router.patch(
+  '/:id/appointment/respond',
+  authorize('user'),
+  respondAppointment
+);
 
 // Tạo đơn hàng hoàn tất mẫu để kiểm thử đánh giá
 

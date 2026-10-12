@@ -401,6 +401,13 @@ const acceptQuotation = async (req, res) => {
     );
 
     request.status = 'ACCEPTED';
+    // Gán thợ được chốt + reset trạng thái lịch hẹn về chờ thợ xác nhận
+    request.assignedTechnicianId = quotation.technicianId;
+    request.appointmentStatus = 'PENDING';
+    request.proposedTime = null;
+    request.rescheduleNote = '';
+    request.rescheduleRejectNote = '';
+    request.appointmentConfirmedAt = null;
     await request.save();
 
     const populated = await populateTechnician(
@@ -504,7 +511,7 @@ const getMyQuotations = async (req, res) => {
       .limit(200)
       .populate(
         'requestId',
-        'title description urgency status images location contactPhone serviceCategoryId createdAt updatedAt'
+        'title description urgency status images location contactPhone serviceCategoryId preferredTime appointmentStatus proposedTime rescheduleNote rescheduleRejectNote createdAt updatedAt'
       )
       .lean();
 

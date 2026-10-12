@@ -104,6 +104,44 @@ const repairRequestSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Trạng thái lịch hẹn: PENDING (chờ thợ xác nhận), CONFIRMED (đã xác nhận), RESCHEDULED (thợ đề xuất giờ mới)
+    appointmentStatus: {
+      type: String,
+      enum: {
+        values: ['PENDING', 'CONFIRMED', 'RESCHEDULED'],
+        message: 'Trạng thái lịch hẹn không hợp lệ',
+      },
+      default: 'PENDING',
+    },
+
+    // Giờ mới do Thợ đề xuất (khi appointmentStatus = RESCHEDULED)
+    proposedTime: {
+      type: Date,
+      default: null,
+    },
+
+    // Lý do Thợ đổi lịch (tùy chọn)
+    rescheduleNote: {
+      type: String,
+      trim: true,
+      maxlength: [300, 'Lý do đổi lịch không được vượt quá 300 ký tự'],
+      default: '',
+    },
+
+    // Lý do Khách từ chối khung giờ thợ đề xuất (tùy chọn)
+    rescheduleRejectNote: {
+      type: String,
+      trim: true,
+      maxlength: [300, 'Lý do từ chối không được vượt quá 300 ký tự'],
+      default: '',
+    },
+
+    // Thời điểm Thợ xác nhận lịch hẹn
+    appointmentConfirmedAt: {
+      type: Date,
+      default: null,
+    },
+
     // Ghi chú của khách hàng
     customerNote: {
       type: String,

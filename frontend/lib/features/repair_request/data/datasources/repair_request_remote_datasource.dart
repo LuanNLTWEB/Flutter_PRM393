@@ -110,7 +110,9 @@ class RepairRequestRemoteDataSource {
         'title': title,
         'description': description,
         'urgency': urgency,
-        if (preferredTime != null) 'preferredTime': preferredTime.toIso8601String(),
+        if (preferredTime != null)
+          // toUtc() để gửi kèm offset, tránh server hiểu nhầm là UTC
+          'preferredTime': preferredTime.toUtc().toIso8601String(),
       });
 
       final response = await client.post(

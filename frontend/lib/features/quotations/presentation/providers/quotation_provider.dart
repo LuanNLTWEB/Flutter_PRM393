@@ -355,6 +355,85 @@ class QuotationProvider extends ChangeNotifier {
     }
   }
 
+  /// Thợ xác nhận giờ hẹn (UC-LIC-01)
+  Future<bool> confirmAppointment({
+    required String token,
+    required String requestId,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await _requestDataSource.confirmAppointment(
+        token: token,
+        requestId: requestId,
+      );
+      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
+            appointmentStatus: 'CONFIRMED',
+            proposedTime: null,
+          ));
+      _successMessage = 'Xác nhận lịch hẹn thành công';
+      _isSubmitting = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isSubmitting = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Thợ đề xuất khung giờ mới (UC-LIC-01)
+  Future<bool> proposeAppointment({
+    required String token,
+    required String requestId,
+    required DateTime proposedTime,
+    String note = '',
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await _requestDataSource.proposeAppointment(
+        token: token,
+        requestId: requestId,
+        proposedTime: proposedTime,
+        note: note,
+      );
+      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
+            appointmentStatus: 'RESCHEDULED',
+            proposedTime: proposedTime,
+            rescheduleNote: note,
+            rescheduleRejectNote: '',
+          ));
+      _successMessage = 'Đề xuất khung giờ mới thành công';
+      _isSubmitting = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isSubmitting = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void _updateMyQuoteRequest(
+    String requestId,
+    RepairRequestModel Function(RepairRequestModel) update,
+  ) {
+    _myQuotes = _myQuotes
+        .map((item) => item.request.id == requestId
+            ? MyQuotationItem(quote: item.quote, request: update(item.request))
+            : item)
+        .toList();
+  }
+
   QuotationModel _copyWithStatus(QuotationModel q, String status) {
     return QuotationModel(
       id: q.id,

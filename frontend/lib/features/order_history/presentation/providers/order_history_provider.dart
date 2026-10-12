@@ -65,8 +65,94 @@ class OrderHistoryProvider extends ChangeNotifier {
         assignedTechnicianRating: old.assignedTechnicianRating,
         createdAt: old.createdAt,
         locationAddress: old.locationAddress,
+        preferredTime: old.preferredTime,
+        appointmentStatus: old.appointmentStatus,
+        proposedTime: old.proposedTime,
+        rescheduleNote: old.rescheduleNote,
+        rescheduleRejectNote: old.rescheduleRejectNote,
       );
       notifyListeners();
+    }
+  }
+
+  /// Khách đồng ý / từ chối khung giờ thợ đề xuất (UC-LIC-01)
+  Future<bool> respondAppointment(
+    String token,
+    String orderId, {
+    required String action, // 'accept' | 'reject'
+    String reason = '',
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await _dataSource.respondAppointment(
+        token: token,
+        requestId: orderId,
+        action: action,
+        reason: reason,
+      );
+
+      final index = _orders.indexWhere((o) => o.id == orderId);
+      if (index != -1) {
+        final old = _orders[index];
+        if (action == 'accept') {
+          _orders[index] = OrderHistoryModel(
+            id: old.id,
+            title: old.title,
+            description: old.description,
+            urgency: old.urgency,
+            status: old.status,
+            isReviewed: old.isReviewed,
+            serviceCategoryName: old.serviceCategoryName,
+            serviceCategoryIcon: old.serviceCategoryIcon,
+            assignedTechnicianId: old.assignedTechnicianId,
+            assignedTechnicianName: old.assignedTechnicianName,
+            assignedTechnicianRating: old.assignedTechnicianRating,
+            createdAt: old.createdAt,
+            locationAddress: old.locationAddress,
+            preferredTime: old.proposedTime ?? old.preferredTime,
+            appointmentStatus: 'CONFIRMED',
+            proposedTime: null,
+            rescheduleNote: '',
+            rescheduleRejectNote: '',
+          );
+          _successMessage = 'Đã đồng ý khung giờ mới với thợ';
+        } else {
+          _orders[index] = OrderHistoryModel(
+            id: old.id,
+            title: old.title,
+            description: old.description,
+            urgency: old.urgency,
+            status: old.status,
+            isReviewed: old.isReviewed,
+            serviceCategoryName: old.serviceCategoryName,
+            serviceCategoryIcon: old.serviceCategoryIcon,
+            assignedTechnicianId: old.assignedTechnicianId,
+            assignedTechnicianName: old.assignedTechnicianName,
+            assignedTechnicianRating: old.assignedTechnicianRating,
+            createdAt: old.createdAt,
+            locationAddress: old.locationAddress,
+            preferredTime: old.preferredTime,
+            appointmentStatus: 'PENDING',
+            proposedTime: null,
+            rescheduleNote: '',
+            rescheduleRejectNote: reason.trim(),
+          );
+          _successMessage = 'Đã từ chối khung giờ mới';
+        }
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
     }
   }
 

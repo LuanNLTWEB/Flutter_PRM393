@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../review/presentation/screens/create_review_screen.dart';
 import '../../../review/presentation/screens/technician_reviews_screen.dart';
+import '../../../quotations/presentation/screens/request_quotations_screen.dart';
 import '../../data/models/order_history_model.dart';
 import '../providers/order_history_provider.dart';
 import '../../../repair_request/presentation/screens/service_category_screen.dart';
@@ -70,6 +71,114 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
       default:
         return Colors.orange.shade800;
     }
+  }
+
+  Widget _buildTimeRow({
+    required IconData icon,
+    required String label,
+    required String value,
+    bool highlight = false,
+  }) {
+    return Row(
+      children: [
+        Icon(icon,
+            size: 14,
+            color: highlight ? Colors.orange.shade800 : Colors.grey.shade600),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            color: highlight ? Colors.orange.shade900 : AppTheme.textSecondaryColor,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.bold,
+            color: highlight ? Colors.orange.shade900 : AppTheme.textPrimaryColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _respondAppointment(
+    OrderHistoryModel order,
+    String action,
+  ) async {
+    final isAccept = action == 'accept';
+    final reasonController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(isAccept ? 'Đồng ý khung giờ mới?' : 'Giữ nguyên giờ cũ?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isAccept
+                  ? 'Bạn đồng ý với thợ vào ${order.proposedTime != null ? DateFormat('dd/MM/yyyy HH:mm').format(order.proposedTime!) : 'khung giờ mới'}?'
+                  : 'Thợ sẽ phải đề xuất khung giờ khác. Giờ hẹn cũ được giữ nguyên.',
+            ),
+            if (!isAccept) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                maxLength: 300,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Lý do từ chối (không bắt buộc)',
+                  hintText: 'VD: Khung giờ đó tôi đi làm chưa về',
+                  border: OutlineInputBorder(),
+                  counterText: '',
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isAccept ? Colors.green.shade600 : Colors.red.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isAccept ? 'Đồng ý' : 'Từ chối'),
+          ),
+        ],
+      ),
+    );
+    if (result != true || !mounted) return;
+
+    final token = context.read<AuthProvider>().token ?? '';
+    final prov = context.read<OrderHistoryProvider>();
+    final ok = await prov.respondAppointment(
+      token,
+      order.id,
+      action: action,
+      reason: isAccept ? '' : reasonController.text.trim(),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (prov.successMessage ?? 'Phản hồi thành công')
+              : (prov.errorMessage ?? 'Phản hồi thất bại'),
+        ),
+        backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade600,
+      ),
+    );
   }
 
   @override
@@ -348,31 +457,246 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 ),
               ],
             ] else if (!order.isCompleted) ...[
-              // Đơn chưa hoàn tất: Hiển thị ghi chú trạng thái
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 16, color: Colors.grey),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Đơn hàng đang trong tiến trình sửa chữa, bạn có thể đánh giá sau khi hoàn tất nghiệm thu.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textSecondaryColor,
-                        ),
+              // Đơn OPEN/QUOTED: cho phép khách xem báo giá & chọn thợ (UC-QUO-06/08)
+              if (order.status == 'OPEN' || order.status == 'QUOTED') ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                  ],
+                    icon: const Icon(Icons.request_quote_outlined, size: 18),
+                    label: Text(
+                      order.status == 'QUOTED'
+                          ? 'Xem báo giá & chọn thợ'
+                          : 'Theo dõi báo giá',
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RequestQuotationsScreen(
+                            requestId: order.id,
+                          ),
+                        ),
+                      );
+                      // Tải lại để cập nhật trạng thái (đã chốt thợ / hủy...)
+                      if (context.mounted) _fetchCurrentTabOrders();
+                    },
+                  ),
                 ),
-              ),
+                const SizedBox(height: 10),
+              ],
+              // Đơn ACCEPTED/IN_PROGRESS: hiển thị thông tin lịch hẹn
+              if (order.status == 'ACCEPTED' || order.status == 'IN_PROGRESS') ...[
+                if (order.appointmentStatus == 'RESCHEDULED') ...[
+                  // Thợ đề xuất khung giờ mới — khách phản hồi (UC-LIC-01)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.35)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.swap_horiz,
+                                size: 16, color: Colors.orange.shade800),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Thợ đề xuất đổi lịch hẹn',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTimeRow(
+                          icon: Icons.schedule,
+                          label: 'Giờ cũ:',
+                          value: order.preferredTime != null
+                              ? dateFormat.format(order.preferredTime!)
+                              : 'Không rõ',
+                        ),
+                        const SizedBox(height: 4),
+                        _buildTimeRow(
+                          icon: Icons.event_available,
+                          label: 'Giờ mới thợ đề xuất:',
+                          value: order.proposedTime != null
+                              ? dateFormat.format(order.proposedTime!)
+                              : 'Không rõ',
+                          highlight: true,
+                        ),
+                        if (order.rescheduleNote.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Lý do: ${order.rescheduleNote}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red.shade700,
+                                  side: BorderSide(color: Colors.red.shade300),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.close, size: 16),
+                                label: const Text(
+                                  'Giữ giờ cũ',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                onPressed: () =>
+                                    _respondAppointment(order, 'reject'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade600,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.check, size: 16),
+                                label: const Text(
+                                  'Đồng ý giờ mới',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                onPressed: () =>
+                                    _respondAppointment(order, 'accept'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (order.appointmentStatus == 'CONFIRMED') ...[
+                  // Thợ ĐÃ xác nhận — xanh lá, icon tick, chữ đậm
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade400),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle,
+                            size: 18, color: Colors.green.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Lịch hẹn ${order.preferredTime != null ? dateFormat.format(order.preferredTime!) : ''} — THỢ ĐÃ XÁC NHẬN',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  // Chờ thợ xác nhận — xanh dương nhạt, icon đồng hồ cát
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.blue.shade300,
+                        style: BorderStyle.solid,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.hourglass_top,
+                            size: 16, color: Colors.blue.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Đã chốt thợ — CHỜ THỢ XÁC NHẬN lịch hẹn',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ] else if (order.status != 'OPEN' && order.status != 'QUOTED') ...[
+                // Đơn chưa hoàn tất khác: Hiển thị ghi chú trạng thái
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Đơn hàng đang trong tiến trình sửa chữa, bạn có thể đánh giá sau khi hoàn tất nghiệm thu.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ],
         ),

@@ -86,10 +86,11 @@ class QuotationModel {
       total: (json['total'] as num?)?.toDouble() ?? 0,
       note: json['note']?.toString() ?? '',
       status: json['status']?.toString() ?? 'SENT',
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '')
+              ?.toLocal() ??
           DateTime.now(),
       resolvedAt: json['resolvedAt'] != null
-          ? DateTime.tryParse(json['resolvedAt'].toString())
+          ? DateTime.tryParse(json['resolvedAt'].toString())?.toLocal()
           : null,
       technicianName: techName,
       technicianAvatar: techAvatar,

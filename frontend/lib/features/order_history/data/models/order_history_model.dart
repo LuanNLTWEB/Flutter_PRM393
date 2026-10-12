@@ -12,6 +12,11 @@ class OrderHistoryModel {
   final double? assignedTechnicianRating;
   final DateTime? createdAt;
   final String locationAddress;
+  final DateTime? preferredTime;
+  final String appointmentStatus; // PENDING, CONFIRMED, RESCHEDULED
+  final DateTime? proposedTime;
+  final String rescheduleNote;
+  final String rescheduleRejectNote;
 
   OrderHistoryModel({
     required this.id,
@@ -27,6 +32,11 @@ class OrderHistoryModel {
     this.assignedTechnicianRating,
     this.createdAt,
     required this.locationAddress,
+    this.preferredTime,
+    this.appointmentStatus = 'PENDING',
+    this.proposedTime,
+    this.rescheduleNote = '',
+    this.rescheduleRejectNote = '',
   });
 
   factory OrderHistoryModel.fromJson(Map<String, dynamic> json) {
@@ -68,9 +78,19 @@ class OrderHistoryModel {
       assignedTechnicianName: techName,
       assignedTechnicianRating: techRating,
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString())
+          ? DateTime.tryParse(json['createdAt'].toString())?.toLocal()
           : null,
       locationAddress: address,
+      preferredTime: json['preferredTime'] != null
+          ? DateTime.tryParse(json['preferredTime'].toString())?.toLocal()
+          : null,
+      appointmentStatus:
+          (json['appointmentStatus'] ?? 'PENDING').toString().toUpperCase(),
+      proposedTime: json['proposedTime'] != null
+          ? DateTime.tryParse(json['proposedTime'].toString())?.toLocal()
+          : null,
+      rescheduleNote: (json['rescheduleNote'] ?? '').toString(),
+      rescheduleRejectNote: (json['rescheduleRejectNote'] ?? '').toString(),
     );
   }
 
