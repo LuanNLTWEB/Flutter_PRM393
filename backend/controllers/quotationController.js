@@ -401,6 +401,8 @@ const acceptQuotation = async (req, res) => {
     );
 
     request.status = 'ACCEPTED';
+    // Gán thợ thắng báo giá để thợ xem được đơn và thực hiện nghiệm thu.
+    request.assignedTechnicianId = quotation.technicianId;
     await request.save();
 
     const populated = await populateTechnician(

@@ -47,6 +47,7 @@ class ApiEndpoints {
   static const String myRepairRequests = myRequests;
   static String repairRequestDetail(String id) => requestDetail(id);
   static String cancelRepairRequest(String id) => cancelRequest(id);
+  static String completionImages(String id) => '$baseUrl/requests/$id/completion-images';
 
   // Báo giá & Khớp lệnh (UC-QUO)
   static const String quotations = '$baseUrl/quotations';
@@ -57,5 +58,11 @@ class ApiEndpoints {
   static String quotationRetract(String id) =>
       '$baseUrl/quotations/$id/retract';
   static const String nearbyRequests = '$baseUrl/requests/nearby';
+
+  // Hóa đơn & phương thức thanh toán (UC-PAY-01, UC-PAY-02)
+  static String invoice(String requestId) =>
+      '$baseUrl/payments/requests/$requestId/invoice';
+  static String paymentMethod(String requestId) =>
+      '$baseUrl/payments/requests/$requestId/method';
 }
 

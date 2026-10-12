@@ -41,6 +41,12 @@ const repairRequestSchema = new mongoose.Schema(
       default: [],
     },
 
+    // Ảnh sau khi thợ hoàn tất sửa chữa (UC-CFM-01)
+    completionImages: {
+      type: [String],
+      default: [],
+    },
+
     // Mức độ khẩn cấp: low, medium, high, emergency
     urgency: {
       type: String,
@@ -82,6 +88,18 @@ const repairRequestSchema = new mongoose.Schema(
     assignedTechnicianId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+      default: null,
+    },
+
+    // Phương thức thanh toán khách hàng đã chọn (UC-PAY-02)
+    paymentMethod: {
+      type: String,
+      enum: ['CASH', 'BANK_TRANSFER'],
+      default: null,
+    },
+
+    paymentMethodSelectedAt: {
+      type: Date,
       default: null,
     },
 

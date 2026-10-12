@@ -65,6 +65,8 @@ class OrderHistoryProvider extends ChangeNotifier {
         assignedTechnicianRating: old.assignedTechnicianRating,
         createdAt: old.createdAt,
         locationAddress: old.locationAddress,
+        completionImages: old.completionImages,
+        paymentMethod: old.paymentMethod,
       );
       notifyListeners();
     }

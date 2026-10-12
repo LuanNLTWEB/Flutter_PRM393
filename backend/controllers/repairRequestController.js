@@ -1,5 +1,7 @@
 const RepairRequest = require('../models/RepairRequest');
 const ServiceCategory = require('../models/ServiceCategory');
+const Quotation = require('../models/Quotation');
+const { uploadStream, deleteImage } = require('../config/cloudinary');
 
 // Hàm kiểm tra văn bản spam hoặc ký tự vô nghĩa lặp lại
 const isSpamText = (text) => {
@@ -218,7 +220,121 @@ const getMyRepairRequests = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Thợ upload ảnh sau khi hoàn tất sửa chữa (UC-CFM-01)
+ * @route   POST /api/requests/:id/completion-images
+ * @access  Private (technician - thợ được gán cho đơn)
+ */
+const uploadCompletionImages = async (req, res) => {
+  const uploadedPublicIds = [];
+
+  try {
+    const request = await RepairRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu sửa chữa',
+      });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn ít nhất một ảnh sau khi sửa',
+      });
+    }
+
+    if (req.files.length > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mỗi lần chỉ được tải tối đa 5 ảnh sau khi sửa',
+      });
+    }
+
+    if (request.status !== 'ACCEPTED' && request.status !== 'IN_PROGRESS') {
+      return res.status(400).json({
+        success: false,
+        message: 'Đơn hàng không ở trạng thái có thể nghiệm thu',
+      });
+    }
+
+    // Tương thích với các đơn cũ chưa được gán assignedTechnicianId khi chốt báo giá.
+    let isAssignedTechnician =
+      request.assignedTechnicianId?.toString() === req.user._id.toString();
+
+    if (!isAssignedTechnician) {
+      const acceptedQuotation = await Quotation.findOne({
+        requestId: request._id,
+        technicianId: req.user._id,
+        status: 'ACCEPTED',
+      });
+      isAssignedTechnician = Boolean(acceptedQuotation);
+
+      if (isAssignedTechnician && !request.assignedTechnicianId) {
+        request.assignedTechnicianId = req.user._id;
+      }
+    }
+
+    if (!isAssignedTechnician) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thợ được gán cho đơn hàng này',
+      });
+    }
+
+    if (request.completionImages.length + req.files.length > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mỗi đơn hàng chỉ được lưu tối đa 5 ảnh sau khi sửa',
+      });
+    }
+
+    const uploadedUrls = [];
+    for (const file of req.files) {
+      const result = await uploadStream(file.buffer, {
+        folder: 'homefix/completion-images',
+        transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+      });
+      uploadedUrls.push(result.url);
+      uploadedPublicIds.push(result.publicId);
+    }
+
+    request.completionImages.push(...uploadedUrls);
+    if (request.status === 'ACCEPTED') {
+      request.status = 'IN_PROGRESS';
+    }
+    await request.save();
+
+    const populated = await RepairRequest.findById(request._id)
+      .populate('serviceCategoryId', 'name slug icon color basePrice')
+      .populate('assignedTechnicianId', 'fullName email phoneNumber avatar');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã tải ảnh sau khi sửa thành công',
+      data: { repairRequest: populated },
+    });
+  } catch (error) {
+    await Promise.all(uploadedPublicIds.map((publicId) => deleteImage(publicId)));
+    console.error('uploadCompletionImages error:', error.message);
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã phiếu yêu cầu không hợp lệ',
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tải ảnh sau khi sửa',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createRepairRequest,
   getMyRepairRequests,
+  uploadCompletionImages,
 };

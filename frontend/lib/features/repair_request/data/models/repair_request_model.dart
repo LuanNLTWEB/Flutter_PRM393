@@ -9,10 +9,12 @@ class RepairRequestModel {
   final String title;
   final String description;
   final List<String> images;
+  final List<String> completionImages;
   final String urgency; // 'low', 'medium', 'high', 'emergency'
   final RepairLocationModel location;
   final String status; // 'OPEN', 'QUOTED', 'ACCEPTED', 'CANCELLED'
   final String contactPhone;
+  final String? paymentMethod;
   final DateTime? preferredTime;
   final String customerNote;
   final DateTime? cancelledAt;
@@ -28,10 +30,12 @@ class RepairRequestModel {
     required this.title,
     required this.description,
     this.images = const [],
+    this.completionImages = const [],
     this.urgency = 'medium',
     required this.location,
     this.status = 'OPEN',
     required this.contactPhone,
+    this.paymentMethod,
     this.preferredTime,
     this.customerNote = '',
     this.cancelledAt,
@@ -106,10 +110,14 @@ class RepairRequestModel {
       title: title,
       description: desc,
       images: json['images'] != null ? List<String>.from(json['images']) : const [],
+      completionImages: json['completionImages'] != null
+          ? List<String>.from(json['completionImages'])
+          : const [],
       urgency: urgency,
       location: loc,
       status: status,
       contactPhone: json['contactPhone'] ?? '',
+      paymentMethod: json['paymentMethod']?.toString(),
       preferredTime: json['preferredTime'] != null
           ? DateTime.tryParse(json['preferredTime'])
           : null,
@@ -129,9 +137,11 @@ class RepairRequestModel {
       'title': title,
       'description': description,
       'images': images,
+      'completionImages': completionImages,
       'urgency': urgency,
       'location': location.toJson(),
       'contactPhone': contactPhone,
+      if (paymentMethod != null) 'paymentMethod': paymentMethod,
       if (preferredTime != null) 'preferredTime': preferredTime!.toIso8601String(),
       'customerNote': customerNote,
     };

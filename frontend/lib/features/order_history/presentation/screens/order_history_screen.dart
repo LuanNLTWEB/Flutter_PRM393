@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../review/presentation/screens/create_review_screen.dart';
@@ -8,6 +9,9 @@ import '../../../review/presentation/screens/technician_reviews_screen.dart';
 import '../../data/models/order_history_model.dart';
 import '../providers/order_history_provider.dart';
 import '../../../repair_request/presentation/screens/service_category_screen.dart';
+import '../../../completion/presentation/screens/upload_completion_images_screen.dart';
+import '../../../payment/presentation/screens/invoice_screen.dart';
+import '../../../quotations/presentation/screens/request_detail_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -25,7 +29,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     'Tất cả',
     'Đang xử lý',
     'Đã hoàn tất',
-    'Đã hủy'
+    'Đã hủy',
   ];
 
   @override
@@ -79,7 +83,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lịch sử đơn hàng'),
-        
+
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -116,9 +120,23 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     OrderHistoryProvider historyProv,
   ) {
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-    final formattedDate =
-        order.createdAt != null ? dateFormat.format(order.createdAt!) : '';
+    final formattedDate = order.createdAt != null
+        ? dateFormat.format(order.createdAt!)
+        : '';
     final statusColor = _getStatusColor(order.status);
+    final currentUser = context.read<AuthProvider>().currentUser;
+    final canUploadCompletion =
+        currentUser?.role == 'technician' &&
+        currentUser?.id == order.assignedTechnicianId &&
+        (order.status == 'ACCEPTED' || order.status == 'IN_PROGRESS');
+    final canViewInvoice =
+        currentUser?.role == 'user' &&
+        (order.status == 'ACCEPTED' ||
+            order.status == 'IN_PROGRESS' ||
+            order.status == 'COMPLETED') &&
+        (order.completionImages.isNotEmpty || order.status == 'COMPLETED');
+    final canViewDetails =
+        currentUser?.role == 'user' || currentUser?.role == 'technician';
 
     return Card(
       elevation: 0,
@@ -147,8 +165,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -197,8 +217,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
             // Địa chỉ & Thời gian
             Row(
               children: [
-                const Icon(Icons.location_on_outlined,
-                    size: 14, color: AppTheme.textSecondaryColor),
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 14,
+                  color: AppTheme.textSecondaryColor,
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -233,8 +256,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor:
-                        AppTheme.primaryColor.withValues(alpha: 0.1),
+                    backgroundColor: AppTheme.primaryColor.withValues(
+                      alpha: 0.1,
+                    ),
                     child: const Icon(
                       Icons.engineering_rounded,
                       color: AppTheme.primaryColor,
@@ -257,8 +281,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                         if (order.assignedTechnicianRating != null)
                           Row(
                             children: [
-                              const Icon(Icons.star_rounded,
-                                  color: Colors.amber, size: 14),
+                              const Icon(
+                                Icons.star_rounded,
+                                color: Colors.amber,
+                                size: 14,
+                              ),
                               const SizedBox(width: 2),
                               Text(
                                 '${order.assignedTechnicianRating!.toStringAsFixed(1)} ⭐',
@@ -295,8 +322,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                     icon: const Icon(Icons.star_rounded, size: 20),
                     label: const Text(
                       'Đánh giá thợ kỹ thuật',
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     onPressed: () async {
                       final result = await Navigator.push<bool>(
@@ -304,8 +333,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                         MaterialPageRoute(
                           builder: (context) => CreateReviewScreen(
                             technicianId: order.assignedTechnicianId!,
-                            technicianName: order.assignedTechnicianName ??
-                                'Thợ kỹ thuật',
+                            technicianName:
+                                order.assignedTechnicianName ?? 'Thợ kỹ thuật',
                             bookingId: order.id,
                           ),
                         ),
@@ -337,8 +366,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                         MaterialPageRoute(
                           builder: (context) => TechnicianReviewsScreen(
                             technicianId: order.assignedTechnicianId!,
-                            technicianName: order.assignedTechnicianName ??
-                                'Thợ kỹ thuật',
+                            technicianName:
+                                order.assignedTechnicianName ?? 'Thợ kỹ thuật',
                             bookingId: order.id,
                           ),
                         ),
@@ -347,7 +376,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                   ),
                 ),
               ],
-            ] else if (!order.isCompleted) ...[
+            ] else if (order.status != 'COMPLETED') ...[
               // Đơn chưa hoàn tất: Hiển thị ghi chú trạng thái
               Container(
                 width: double.infinity,
@@ -357,13 +386,13 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.grey.shade200),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Icon(Icons.info_outline, size: 16, color: Colors.grey),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Đơn hàng đang trong tiến trình sửa chữa, bạn có thể đánh giá sau khi hoàn tất nghiệm thu.',
+                        _getStatusHint(order),
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.textSecondaryColor,
@@ -374,10 +403,97 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 ),
               ),
             ],
+            if (canViewDetails) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.open_in_new_outlined, size: 18),
+                  label: Text(
+                    currentUser?.role == 'user'
+                        ? 'Xem chi tiết & báo giá'
+                        : 'Xem chi tiết đơn',
+                  ),
+                  onPressed: () => _openRequestDetails(order),
+                ),
+              ),
+            ],
+            if (canUploadCompletion || canViewInvoice) ...[
+              const SizedBox(height: 12),
+              if (canUploadCompletion)
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.camera_alt_outlined),
+                    label: const Text('Chụp ảnh sau khi sửa'),
+                    onPressed: () async {
+                      final result = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => UploadCompletionImagesScreen(
+                            requestId: order.id,
+                            title: order.title,
+                            existingImageCount: order.completionImages.length,
+                          ),
+                        ),
+                      );
+                      if (result == true && context.mounted) {
+                        _fetchCurrentTabOrders();
+                      }
+                    },
+                  ),
+                ),
+              if (canViewInvoice)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.receipt_long_outlined),
+                    label: const Text('Xem hóa đơn & thanh toán'),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => InvoiceScreen(requestId: order.id),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  String _getStatusHint(OrderHistoryModel order) {
+    switch (order.status) {
+      case 'OPEN':
+        return 'Đơn đang chờ thợ gửi báo giá.';
+      case 'QUOTED':
+        return 'Đã có báo giá. Hãy mở chi tiết để xem và chọn thợ.';
+      case 'ACCEPTED':
+        return 'Bạn đã chọn thợ. Thợ có thể bắt đầu sửa chữa.';
+      case 'IN_PROGRESS':
+        return order.completionImages.isNotEmpty
+            ? 'Thợ đã gửi ảnh sau khi sửa. Bạn có thể mở hóa đơn để kiểm tra.'
+            : 'Thợ đang trong quá trình sửa chữa.';
+      case 'CANCELLED':
+        return 'Đơn hàng đã bị hủy.';
+      default:
+        return 'Trạng thái đơn hàng đã được cập nhật.';
+    }
+  }
+
+  Future<void> _openRequestDetails(OrderHistoryModel order) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RequestDetailScreen(requestId: order.id),
+      ),
+    );
+
+    if (mounted) {
+      _fetchCurrentTabOrders();
+    }
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -387,8 +503,11 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.assignment_outlined,
-                size: 64, color: Colors.grey.shade400),
+            Icon(
+              Icons.assignment_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 16),
             const Text(
               'Chưa có đơn hàng nào trong mục này',
@@ -402,8 +521,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
             const Text(
               'Các yêu cầu sửa chữa và dịch vụ bạn đã sử dụng sẽ được hiển thị và cập nhật liên tục tại đây.',
               textAlign: TextAlign.center,
-              style:
-                  TextStyle(fontSize: 13, color: AppTheme.textSecondaryColor),
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.textSecondaryColor,
+              ),
             ),
             const SizedBox(height: 24),
             OutlinedButton.icon(
@@ -412,7 +533,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppTheme.primaryColor,
                 side: const BorderSide(color: AppTheme.primaryColor),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),

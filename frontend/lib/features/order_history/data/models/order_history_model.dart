@@ -12,6 +12,8 @@ class OrderHistoryModel {
   final double? assignedTechnicianRating;
   final DateTime? createdAt;
   final String locationAddress;
+  final List<String> completionImages;
+  final String? paymentMethod;
 
   OrderHistoryModel({
     required this.id,
@@ -27,6 +29,8 @@ class OrderHistoryModel {
     this.assignedTechnicianRating,
     this.createdAt,
     required this.locationAddress,
+    this.completionImages = const [],
+    this.paymentMethod,
   });
 
   factory OrderHistoryModel.fromJson(Map<String, dynamic> json) {
@@ -71,6 +75,10 @@ class OrderHistoryModel {
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
       locationAddress: address,
+      completionImages: json['completionImages'] != null
+          ? List<String>.from(json['completionImages'])
+          : const [],
+      paymentMethod: json['paymentMethod']?.toString(),
     );
   }
 
