@@ -771,6 +771,61 @@ class _MyQuoteCard extends StatelessWidget {
                   ),
                 ],
               ),
+          ] else if (request.status == 'ACCEPTED') ...[
+            // Lịch hẹn đã xác nhận — thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.navigation, size: 16),
+                label: const Text(
+                  'Đang trên đường đến nhà khách',
+                  style: TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                onPressed: provider.isSubmitting
+                    ? null
+                    : () => _markOnTheWay(context),
+              ),
+            ),
+          ] else if (request.status == 'ON_THE_WAY') ...[
+            // Đã bấm di chuyển — hiển thị trạng thái
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.navigation,
+                      size: 14, color: Colors.blue.shade700),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Bạn đang trên đường đến nhà khách',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ],
       ),
@@ -834,6 +889,54 @@ class _MyQuoteCard extends StatelessWidget {
               : (provider.errorMessage ?? 'Xác nhận lịch hẹn thất bại'),
         ),
         backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
+  Future<void> _markOnTheWay(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Bắt đầu di chuyển?'),
+        content: const Text(
+          'Bạn xác nhận đang trên đường đến nhà khách? Khách sẽ thấy trạng thái mới của đơn.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.markOnTheWay(
+      token: token,
+      requestId: item.request.id,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đã cập nhật trạng thái di chuyển')
+              : (provider.errorMessage ?? 'Cập nhật trạng thái di chuyển thất bại'),
+        ),
+        backgroundColor: ok ? Colors.blue.shade700 : Colors.red.shade600,
       ),
     );
   }

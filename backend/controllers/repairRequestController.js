@@ -183,7 +183,7 @@ const getMyRepairRequests = async (req, res) => {
     let statusFilter = {};
 
     if (tab === 'PROCESSING') {
-      statusFilter = { status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'IN_PROGRESS'] } };
+      statusFilter = { status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'] } };
     } else if (tab === 'COMPLETED') {
       statusFilter = { status: 'COMPLETED' };
     } else if (tab === 'CANCELLED') {
@@ -202,7 +202,7 @@ const getMyRepairRequests = async (req, res) => {
     const [processingCount, completedCount, cancelledCount] = await Promise.all([
       RepairRequest.countDocuments({
         ...baseFilter,
-        status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'IN_PROGRESS'] },
+        status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'] },
       }),
       RepairRequest.countDocuments({ ...baseFilter, status: 'COMPLETED' }),
       RepairRequest.countDocuments({ ...baseFilter, status: 'CANCELLED' }),
@@ -494,10 +494,72 @@ const respondAppointment = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+ *          Chuyển status từ ACCEPTED sang ON_THE_WAY — chỉ khi lịch hẹn đã CONFIRMED
+ * @route   PATCH /api/requests/:id/on-the-way
+ * @access  Private (technician - thợ được chốt)
+ */
+const updateOnTheWay = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.status !== 'ACCEPTED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể cập nhật trạng thái di chuyển khi yêu cầu đã được chốt thợ',
+      });
+    }
+
+    if (!(await isAssignedTechnician(request, req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thợ được chốt cho yêu cầu này',
+      });
+    }
+
+    if (request.appointmentStatus !== 'CONFIRMED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cần xác nhận lịch hẹn trước khi bắt đầu di chuyển đến nhà khách',
+      });
+    }
+
+    request.status = 'ON_THE_WAY';
+    request.onTheWayAt = new Date();
+    await request.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã cập nhật: đang trên đường đến nhà khách',
+      data: {
+        status: request.status,
+        onTheWayAt: request.onTheWayAt,
+      },
+    });
+  } catch (error) {
+    console.error('updateOnTheWay error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi cập nhật trạng thái di chuyển',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createRepairRequest,
   getMyRepairRequests,
   confirmAppointment,
   proposeAppointment,
   respondAppointment,
+  updateOnTheWay,
 };

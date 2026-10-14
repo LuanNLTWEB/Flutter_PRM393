@@ -6,6 +6,7 @@ const {
   confirmAppointment,
   proposeAppointment,
   respondAppointment,
+  updateOnTheWay,
 } = require('../controllers/repairRequestController');
 const { protect, authorize } = require('../middlewares/auth');
 
@@ -35,6 +36,13 @@ router.patch(
   '/:id/appointment/respond',
   authorize('user'),
   respondAppointment
+);
+
+// Thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+router.patch(
+  '/:id/on-the-way',
+  authorize('technician'),
+  updateOnTheWay
 );
 
 // Tạo đơn hàng hoàn tất mẫu để kiểm thử đánh giá

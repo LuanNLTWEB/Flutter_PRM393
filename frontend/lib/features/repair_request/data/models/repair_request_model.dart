@@ -21,6 +21,7 @@ class RepairRequestModel {
   final String customerNote;
   final DateTime? cancelledAt;
   final String cancellationReason;
+  final DateTime? onTheWayAt; // thời điểm thợ bấm "Đang trên đường"
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -44,6 +45,7 @@ class RepairRequestModel {
     this.customerNote = '',
     this.cancelledAt,
     this.cancellationReason = '',
+    this.onTheWayAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -132,6 +134,9 @@ class RepairRequestModel {
           ? DateTime.tryParse(json['cancelledAt'])?.toLocal()
           : null,
       cancellationReason: json['cancellationReason'] ?? '',
+      onTheWayAt: json['onTheWayAt'] != null
+          ? DateTime.tryParse(json['onTheWayAt'])?.toLocal()
+          : null,
       createdAt: DateTime.tryParse(json['createdAt'] ?? '')?.toLocal() ??
           DateTime.now(),
       updatedAt: DateTime.tryParse(json['updatedAt'] ?? '')?.toLocal() ??
@@ -168,6 +173,12 @@ class RepairRequestModel {
         return 'Đã có báo giá';
       case 'ACCEPTED':
         return 'Đã chốt thợ';
+      case 'ON_THE_WAY':
+        return 'Đang trên đường';
+      case 'IN_PROGRESS':
+        return 'Đang sửa chữa';
+      case 'COMPLETED':
+        return 'Đã hoàn tất';
       case 'CANCELLED':
         return 'Đã hủy';
       default:
@@ -210,6 +221,7 @@ class RepairRequestModel {
     DateTime? proposedTime,
     String? rescheduleNote,
     String? rescheduleRejectNote,
+    DateTime? onTheWayAt,
   }) {
     return RepairRequestModel(
       id: id,
@@ -231,6 +243,7 @@ class RepairRequestModel {
       customerNote: customerNote,
       cancelledAt: cancelledAt,
       cancellationReason: cancellationReason,
+      onTheWayAt: onTheWayAt ?? this.onTheWayAt,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

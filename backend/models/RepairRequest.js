@@ -68,11 +68,11 @@ const repairRequestSchema = new mongoose.Schema(
       },
     },
 
-    // Trạng thái yêu cầu: OPEN, QUOTED, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED
+    // Trạng thái yêu cầu: OPEN, QUOTED, ACCEPTED, ON_THE_WAY, IN_PROGRESS, COMPLETED, CANCELLED
     status: {
       type: String,
       enum: {
-        values: ['OPEN', 'QUOTED', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+        values: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
         message: 'Trạng thái yêu cầu không hợp lệ',
       },
       default: 'OPEN',
@@ -138,6 +138,12 @@ const repairRequestSchema = new mongoose.Schema(
 
     // Thời điểm Thợ xác nhận lịch hẹn
     appointmentConfirmedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Thời điểm Thợ bấm "Đang trên đường đến nhà khách"
+    onTheWayAt: {
       type: Date,
       default: null,
     },

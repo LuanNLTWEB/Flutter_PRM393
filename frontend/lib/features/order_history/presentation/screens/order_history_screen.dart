@@ -66,6 +66,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
         return Colors.red.shade700;
       case 'IN_PROGRESS':
         return Colors.blue.shade700;
+      case 'ON_THE_WAY':
+        return Colors.teal.shade700;
       case 'ACCEPTED':
         return Colors.teal.shade700;
       default:
@@ -495,9 +497,41 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 ),
                 const SizedBox(height: 10),
               ],
-              // Đơn ACCEPTED/IN_PROGRESS: hiển thị thông tin lịch hẹn
-              if (order.status == 'ACCEPTED' || order.status == 'IN_PROGRESS') ...[
-                if (order.appointmentStatus == 'RESCHEDULED') ...[
+              // Đơn ACCEPTED/ON_THE_WAY/IN_PROGRESS: hiển thị thông tin lịch hẹn
+              if (order.status == 'ACCEPTED' ||
+                  order.status == 'ON_THE_WAY' ||
+                  order.status == 'IN_PROGRESS') ...[
+                if (order.status == 'ON_THE_WAY') ...[
+                  // Thợ đang trên đường đến nhà khách (UC-DI-01)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.teal.shade400),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.navigation,
+                            size: 18, color: Colors.teal.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            order.preferredTime != null
+                                ? 'Thợ đang trên đường đến (lịch hẹn ${dateFormat.format(order.preferredTime!)})'
+                                : 'Thợ đang trên đường đến nhà khách',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (order.appointmentStatus == 'RESCHEDULED') ...[
                   // Thợ đề xuất khung giờ mới — khách phản hồi (UC-LIC-01)
                   Container(
                     width: double.infinity,

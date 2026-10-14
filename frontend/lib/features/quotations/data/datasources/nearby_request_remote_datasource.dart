@@ -144,4 +144,20 @@ class NearbyRequestRemoteDataSource {
       throw Exception(data['message'] ?? 'Đề xuất khung giờ mới thất bại');
     }
   }
+
+  /// Thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+  Future<void> markOnTheWay({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.onTheWay(requestId)),
+      headers: _headers(token),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Cập nhật trạng thái di chuyển thất bại');
+    }
+  }
 }

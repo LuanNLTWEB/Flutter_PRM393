@@ -423,6 +423,36 @@ class QuotationProvider extends ChangeNotifier {
     }
   }
 
+  /// Thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+  Future<bool> markOnTheWay({
+    required String token,
+    required String requestId,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await _requestDataSource.markOnTheWay(
+        token: token,
+        requestId: requestId,
+      );
+      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
+            status: 'ON_THE_WAY',
+          ));
+      _successMessage = 'Đã cập nhật: đang trên đường đến nhà khách';
+      _isSubmitting = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isSubmitting = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   void _updateMyQuoteRequest(
     String requestId,
     RepairRequestModel Function(RepairRequestModel) update,

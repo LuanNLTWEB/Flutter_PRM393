@@ -511,7 +511,7 @@ const getMyQuotations = async (req, res) => {
       .limit(200)
       .populate(
         'requestId',
-        'title description urgency status images location contactPhone serviceCategoryId preferredTime appointmentStatus proposedTime rescheduleNote rescheduleRejectNote createdAt updatedAt'
+        'title description urgency status images location contactPhone serviceCategoryId preferredTime appointmentStatus proposedTime rescheduleNote rescheduleRejectNote onTheWayAt createdAt updatedAt'
       )
       .lean();
 
