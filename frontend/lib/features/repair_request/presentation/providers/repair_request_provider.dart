@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../data/datasources/repair_request_remote_datasource.dart';
 import '../../data/models/service_category_model.dart';
 import '../../data/models/repair_request_model.dart';
@@ -108,7 +109,7 @@ class RepairRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Tạo yêu cầu sửa chữa mới
+  // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường
   Future<RepairRequestModel?> createRepairRequest({
     required String token,
     required String serviceCategoryId,
@@ -116,6 +117,7 @@ class RepairRequestProvider extends ChangeNotifier {
     required String description,
     String urgency = 'medium',
     DateTime? preferredTime,
+    List<XFile> images = const [],
   }) async {
     _isSubmitting = true;
     _submitError = null;
@@ -129,6 +131,7 @@ class RepairRequestProvider extends ChangeNotifier {
         description: description,
         urgency: urgency,
         preferredTime: preferredTime,
+        images: images,
       );
       _lastCreatedRequest = result;
       _isSubmitting = false;
