@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../models/service_category_model.dart';
 import '../models/repair_request_model.dart';
@@ -95,7 +97,7 @@ class RepairRequestRemoteDataSource {
     }
   }
 
-  // Tạo yêu cầu sửa chữa mới (kèm khung giờ hẹn thợ đến nhà)
+  // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường
   Future<RepairRequestModel> createRepairRequest({
     required String token,
     required String serviceCategoryId,
@@ -103,36 +105,81 @@ class RepairRequestRemoteDataSource {
     required String description,
     String urgency = 'medium',
     DateTime? preferredTime,
+    List<XFile> images = const [],
   }) async {
     try {
-      final body = jsonEncode({
-        'serviceCategoryId': serviceCategoryId,
-        'title': title,
-        'description': description,
-        'urgency': urgency,
-        if (preferredTime != null)
-          // toUtc() để gửi kèm offset, tránh server hiểu nhầm là UTC
-          'preferredTime': preferredTime.toUtc().toIso8601String(),
-      });
-
-      final response = await client.post(
-        Uri.parse(ApiEndpoints.requests),
-        headers: _headers(token),
-        body: body,
-      );
-
-      final Map<String, dynamic> data = jsonDecode(response.body);
-
-      if (response.statusCode == 201 && data['success'] == true) {
-        final requestData = data['data']?['repairRequest'];
-        if (requestData != null) {
-          return RepairRequestModel.fromJson(requestData as Map<String, dynamic>);
+      if (images.isNotEmpty) {
+        final request = http.MultipartRequest('POST', Uri.parse(ApiEndpoints.requests));
+        request.headers['Authorization'] = 'Bearer $token';
+        request.fields['serviceCategoryId'] = serviceCategoryId;
+        request.fields['title'] = title;
+        request.fields['description'] = description;
+        request.fields['urgency'] = urgency;
+        if (preferredTime != null) {
+          request.fields['preferredTime'] = preferredTime.toUtc().toIso8601String();
         }
-        throw Exception('Dữ liệu yêu cầu không hợp lệ');
+
+        for (final file in images) {
+          final bytes = await file.readAsBytes();
+          final ext = file.name.split('.').last.toLowerCase();
+          final mediaType = ext == 'png'
+              ? MediaType('image', 'png')
+              : ext == 'webp'
+                  ? MediaType('image', 'webp')
+                  : MediaType('image', 'jpeg');
+          final fileName = file.name.contains('.') ? file.name : '${file.name}.jpg';
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'images',
+              bytes,
+              filename: fileName,
+              contentType: mediaType,
+            ),
+          );
+        }
+
+        final streamedResponse = await request.send();
+        final response = await http.Response.fromStream(streamedResponse);
+        final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (response.statusCode == 201 && data['success'] == true) {
+          final requestData = data['data']?['repairRequest'];
+          if (requestData != null) {
+            return RepairRequestModel.fromJson(requestData as Map<String, dynamic>);
+          }
+          throw Exception('Dữ liệu yêu cầu không hợp lệ');
+        } else {
+          throw Exception(data['message'] ?? 'Không thể tạo yêu cầu sửa chữa');
+        }
       } else {
-        throw Exception(
-          data['message'] ?? 'Không thể tạo yêu cầu sửa chữa',
+        final body = jsonEncode({
+          'serviceCategoryId': serviceCategoryId,
+          'title': title,
+          'description': description,
+          'urgency': urgency,
+          if (preferredTime != null)
+            'preferredTime': preferredTime.toUtc().toIso8601String(),
+        });
+
+        final response = await client.post(
+          Uri.parse(ApiEndpoints.requests),
+          headers: _headers(token),
+          body: body,
         );
+
+        final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (response.statusCode == 201 && data['success'] == true) {
+          final requestData = data['data']?['repairRequest'];
+          if (requestData != null) {
+            return RepairRequestModel.fromJson(requestData as Map<String, dynamic>);
+          }
+          throw Exception('Dữ liệu yêu cầu không hợp lệ');
+        } else {
+          throw Exception(
+            data['message'] ?? 'Không thể tạo yêu cầu sửa chữa',
+          );
+        }
       }
     } catch (e) {
       if (e is Exception) rethrow;

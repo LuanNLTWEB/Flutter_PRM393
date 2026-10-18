@@ -1,6 +1,7 @@
 const RepairRequest = require('../models/RepairRequest');
 const ServiceCategory = require('../models/ServiceCategory');
 const Quotation = require('../models/Quotation');
+const { uploadStream } = require('../config/cloudinary');
 
 // Hàm kiểm tra văn bản spam hoặc ký tự vô nghĩa lặp lại
 const isSpamText = (text) => {
@@ -126,11 +127,38 @@ const createRepairRequest = async (req, res) => {
       }
     }
 
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map((file) =>
+        uploadStream(file.buffer, {
+          folder: 'homefix/repair_requests',
+        })
+      );
+      const results = await Promise.all(uploadPromises);
+      imageUrls = results.map((res) => res.url);
+    } else if (req.body.images) {
+      if (Array.isArray(req.body.images)) {
+        imageUrls = req.body.images;
+      } else if (typeof req.body.images === 'string') {
+        try {
+          const parsed = JSON.parse(req.body.images);
+          if (Array.isArray(parsed)) {
+            imageUrls = parsed;
+          } else {
+            imageUrls = [req.body.images];
+          }
+        } catch (_) {
+          imageUrls = [req.body.images];
+        }
+      }
+    }
+
     const newRequest = await RepairRequest.create({
       customerId: req.user._id,
       serviceCategoryId,
       title: reqTitle,
       description: reqDesc,
+      images: imageUrls,
       urgency: normalizedUrgency,
       preferredTime: parsedPreferredTime,
       status: 'OPEN',

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/service_category_model.dart';
 import '../providers/repair_request_provider.dart';
+import '../widgets/image_picker_box_widget.dart';
 import '../widgets/schedule_time_slot_picker.dart';
 import 'request_success_screen.dart';
 
@@ -26,8 +28,9 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  String _urgency = 'medium'; // low, medium, high, emergency
-  DateTime? _preferredTime; // Khung giờ hẹn thợ đến nhà
+  String _urgency = 'medium';
+  DateTime? _preferredTime;
+  List<XFile> _selectedImages = [];
 
   static const List<Map<String, dynamic>> _urgencyOptions = [
     {
@@ -136,6 +139,7 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
       description: _descriptionController.text.trim(),
       urgency: _urgency,
       preferredTime: _preferredTime,
+      images: _selectedImages,
     );
 
     if (!mounted) return;
@@ -246,6 +250,13 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 20),
+
+              // Đính kèm ảnh hiện trường sự cố
+              ImagePickerBoxWidget(
+                selectedImages: _selectedImages,
+                onImagesChanged: (images) => setState(() => _selectedImages = images),
               ),
               const SizedBox(height: 20),
 

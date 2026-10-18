@@ -9,6 +9,7 @@ const {
   updateOnTheWay,
 } = require('../controllers/repairRequestController');
 const { protect, authorize } = require('../middlewares/auth');
+const upload = require('../middlewares/upload');
 
 // Yêu cầu đăng nhập cho tất cả các routes bên dưới
 router.use(protect);
@@ -16,8 +17,8 @@ router.use(protect);
 // Lịch sử đơn hàng của tôi (UC-HIS-01)
 router.get('/my-requests', getMyRepairRequests);
 
-// Tạo yêu cầu sửa chữa mới
-router.post('/', authorize('user'), createRepairRequest);
+// Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường
+router.post('/', authorize('user'), upload.array('images', 5), createRepairRequest);
 
 // Thợ xác nhận / đổi lịch hẹn (UC-LIC-01)
 router.patch(
