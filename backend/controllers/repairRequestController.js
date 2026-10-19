@@ -153,6 +153,37 @@ const createRepairRequest = async (req, res) => {
       }
     }
 
+    let locationData = {
+      address: 'Chưa cập nhật địa chỉ',
+      latitude: null,
+      longitude: null,
+    };
+
+    if (req.body.location) {
+      if (typeof req.body.location === 'string') {
+        try {
+          const parsed = JSON.parse(req.body.location);
+          locationData = {
+            address: (parsed.address || '').trim() || 'Chưa cập nhật địa chỉ',
+            latitude: parsed.latitude != null ? Number(parsed.latitude) : null,
+            longitude: parsed.longitude != null ? Number(parsed.longitude) : null,
+          };
+        } catch (_) {
+          locationData.address = req.body.location.trim();
+        }
+      } else if (typeof req.body.location === 'object') {
+        locationData = {
+          address: (req.body.location.address || '').trim() || 'Chưa cập nhật địa chỉ',
+          latitude: req.body.location.latitude != null ? Number(req.body.location.latitude) : null,
+          longitude: req.body.location.longitude != null ? Number(req.body.location.longitude) : null,
+        };
+      }
+    } else if (req.body.address) {
+      locationData.address = req.body.address.trim();
+      if (req.body.latitude != null) locationData.latitude = Number(req.body.latitude);
+      if (req.body.longitude != null) locationData.longitude = Number(req.body.longitude);
+    }
+
     const newRequest = await RepairRequest.create({
       customerId: req.user._id,
       serviceCategoryId,
@@ -161,8 +192,9 @@ const createRepairRequest = async (req, res) => {
       images: imageUrls,
       urgency: normalizedUrgency,
       preferredTime: parsedPreferredTime,
+      location: locationData,
       status: 'OPEN',
-      contactPhone: req.user.phoneNumber || '',
+      contactPhone: (req.body.contactPhone || '').trim() || req.user.phoneNumber || '',
     });
 
     const populated = await RepairRequest.findById(newRequest._id)

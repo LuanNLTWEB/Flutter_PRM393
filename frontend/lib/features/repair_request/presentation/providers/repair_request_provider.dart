@@ -109,7 +109,7 @@ class RepairRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường
+  // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường và địa chỉ định vị
   Future<RepairRequestModel?> createRepairRequest({
     required String token,
     required String serviceCategoryId,
@@ -118,6 +118,9 @@ class RepairRequestProvider extends ChangeNotifier {
     String urgency = 'medium',
     DateTime? preferredTime,
     List<XFile> images = const [],
+    String? address,
+    double? latitude,
+    double? longitude,
   }) async {
     _isSubmitting = true;
     _submitError = null;
@@ -132,6 +135,9 @@ class RepairRequestProvider extends ChangeNotifier {
         urgency: urgency,
         preferredTime: preferredTime,
         images: images,
+        address: address,
+        latitude: latitude,
+        longitude: longitude,
       );
       _lastCreatedRequest = result;
       _isSubmitting = false;
