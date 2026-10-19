@@ -7,7 +7,6 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../technician/presentation/providers/technician_provider.dart';
 
 class AdminTechnicianApprovalScreen extends StatefulWidget {
-
   const AdminTechnicianApprovalScreen({super.key});
 
   @override
@@ -20,6 +19,16 @@ class _AdminTechnicianApprovalScreenState
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _reasonController = TextEditingController();
+  final _searchController = TextEditingController();
+  bool _isSearching = false;
+
+  final List<String> _quickRejectReasons = const [
+    'Ảnh CCCD bị mờ/lóa sáng',
+    'Thiếu ảnh CCCD mặt sau',
+    'Thông tin không khớp CCCD',
+    'Chứng chỉ nghề không hợp lệ',
+    'Ảnh chân dung không đạt yêu cầu',
+  ];
 
   @override
   void initState() {
@@ -40,6 +49,7 @@ class _AdminTechnicianApprovalScreenState
   void dispose() {
     _tabController.dispose();
     _reasonController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -49,30 +59,72 @@ class _AdminTechnicianApprovalScreenState
 
     final statuses = ['pending', 'approved', 'rejected'];
     final currentStatus = statuses[_tabController.index];
-    context
-        .read<TechnicianProvider>()
-        .fetchKYCTechnicians(token, status: currentStatus);
+    final search = _searchController.text.trim();
+    context.read<TechnicianProvider>().fetchKYCTechnicians(
+          token,
+          status: currentStatus,
+          search: search.isNotEmpty ? search : null,
+        );
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<TechnicianProvider>();
     final token = context.watch<AuthProvider>().token ?? '';
+    final counts = provider.kycCounts;
+
+    final pendingCount = counts['pending'] ?? 0;
+    final approvedCount = counts['approved'] ?? 0;
+    final rejectedCount = counts['rejected'] ?? 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
-        title: const Text('Duyệt Hồ Sơ Thợ (KYC)'),
-        centerTitle: true,
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(fontSize: 16),
+                decoration: const InputDecoration(
+                  hintText: 'Tìm theo tên, SĐT, chuyên môn...',
+                  border: InputBorder.none,
+                ),
+                onSubmitted: (_) => _loadCurrentTab(),
+              )
+            : const Text('Duyệt Hồ Sơ Thợ (KYC)'),
+        centerTitle: !_isSearching,
+        actions: [
+          IconButton(
+            tooltip: _isSearching ? 'Đóng tìm kiếm' : 'Tìm kiếm thợ',
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                if (_isSearching) {
+                  _isSearching = false;
+                  _searchController.clear();
+                  _loadCurrentTab();
+                } else {
+                  _isSearching = true;
+                }
+              });
+            },
+          ),
+          IconButton(
+            tooltip: 'Làm mới',
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadCurrentTab,
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppTheme.primaryColor,
           unselectedLabelColor: AppTheme.textSecondaryColor,
           indicatorColor: AppTheme.primaryColor,
-          tabs: const [
-            Tab(text: 'Chờ duyệt'),
-            Tab(text: 'Đã duyệt'),
-            Tab(text: 'Từ chối'),
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          tabs: [
+            Tab(text: 'Chờ duyệt ($pendingCount)'),
+            Tab(text: 'Đã duyệt ($approvedCount)'),
+            Tab(text: 'Từ chối ($rejectedCount)'),
           ],
         ),
       ),
@@ -82,27 +134,44 @@ class _AdminTechnicianApprovalScreenState
               onRefresh: () async => _loadCurrentTab(),
               child: provider.kycTechnicians.isEmpty
                   ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.inbox_outlined,
-                              size: 64, color: Colors.grey.shade400),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Không có hồ sơ nào trong mục này',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.grey.shade600,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.assignment_turned_in_outlined,
+                              size: 64,
+                              color: Colors.grey.shade400,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 12),
+                            Text(
+                              _searchController.text.isNotEmpty
+                                  ? 'Không tìm thấy thợ phù hợp với từ khóa'
+                                  : 'Không có hồ sơ nào trong mục này',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            if (_searchController.text.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _loadCurrentTab();
+                                },
+                                child: const Text('Xóa bộ lọc tìm kiếm'),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     )
                   : ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: provider.kycTechnicians.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 12),
-
                       itemBuilder: (ctx, idx) {
                         final tech = provider.kycTechnicians[idx];
                         return _buildTechnicianCard(context, tech, token);
@@ -122,20 +191,28 @@ class _AdminTechnicianApprovalScreenState
 
     Color statusColor;
     String statusText;
+    IconData statusIcon;
     switch (status) {
       case 'approved':
         statusColor = Colors.green;
         statusText = 'Đã duyệt';
+        statusIcon = Icons.check_circle_outline;
         break;
       case 'rejected':
         statusColor = Colors.red;
         statusText = 'Đã từ chối';
+        statusIcon = Icons.cancel_outlined;
         break;
       case 'pending':
       default:
         statusColor = Colors.orange;
         statusText = 'Chờ duyệt';
+        statusIcon = Icons.hourglass_top_outlined;
     }
+
+    final hasFront = profile?.idCardFront.isNotEmpty == true;
+    final hasBack = profile?.idCardBack.isNotEmpty == true;
+    final certCount = profile?.certificates.length ?? 0;
 
     return Card(
       elevation: 0,
@@ -196,13 +273,20 @@ class _AdminTechnicianApprovalScreenState
                                 color: statusColor.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: Text(
-                                statusText,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: statusColor,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(statusIcon, size: 12, color: statusColor),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    statusText,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: statusColor,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             const Spacer(),
@@ -223,14 +307,115 @@ class _AdminTechnicianApprovalScreenState
               const SizedBox(height: 12),
               const Divider(height: 1),
               const SizedBox(height: 10),
+
+              // Huy hiệu giấy tờ đính kèm
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: (hasFront && hasBack)
+                          ? Colors.green.shade50
+                          : Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: (hasFront && hasBack)
+                            ? Colors.green.shade200
+                            : Colors.amber.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.badge_outlined,
+                          size: 13,
+                          color: (hasFront && hasBack)
+                              ? Colors.green.shade700
+                              : Colors.amber.shade900,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          hasFront && hasBack
+                              ? 'CCCD 2 mặt'
+                              : (!hasFront && !hasBack)
+                                  ? 'Chưa có CCCD'
+                                  : 'Thiếu 1 mặt CCCD',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: (hasFront && hasBack)
+                                ? Colors.green.shade700
+                                : Colors.amber.shade900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: certCount > 0
+                          ? Colors.blue.shade50
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: certCount > 0
+                            ? Colors.blue.shade200
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.workspace_premium_outlined,
+                          size: 13,
+                          color: certCount > 0
+                              ? Colors.blue.shade700
+                              : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          certCount > 0
+                              ? '$certCount chứng chỉ'
+                              : '0 chứng chỉ',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: certCount > 0
+                                ? Colors.blue.shade700
+                                : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${profile?.experienceYears ?? 0} năm KN',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textSecondaryColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Danh sách kỹ năng
               Row(
                 children: [
                   const Icon(Icons.handyman_outlined,
-                      size: 16, color: AppTheme.textSecondaryColor),
+                      size: 15, color: AppTheme.textSecondaryColor),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Kỹ năng: ${(profile?.skills ?? []).join(', ')}',
+                      'Kỹ năng: ${(profile?.skills ?? []).isNotEmpty ? profile!.skills.join(', ') : "Chưa cập nhật"}',
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.textPrimaryColor,
@@ -287,12 +472,25 @@ class _AdminTechnicianApprovalScreenState
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      'Hồ Sơ KYC: ${tech.fullName}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hồ Sơ KYC: ${tech.fullName}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Đăng ký: ${tech.createdAt != null ? DateFormat('dd/MM/yyyy HH:mm').format(tech.createdAt!) : "N/A"}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -305,9 +503,22 @@ class _AdminTechnicianApprovalScreenState
               const SizedBox(height: 12),
 
               // 1. Giấy tờ CCCD 2 mặt
-              const Text(
-                'Ảnh CCCD / CMND 2 Mặt:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              Row(
+                children: [
+                  const Text(
+                    'Ảnh CCCD / CMND 2 Mặt:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Chạm ảnh để phóng to & soi chi tiết',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               Row(
@@ -317,6 +528,7 @@ class _AdminTechnicianApprovalScreenState
                       ctx,
                       title: 'Mặt trước',
                       imageUrl: profile?.idCardFront ?? '',
+                      fullName: tech.fullName,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -325,6 +537,7 @@ class _AdminTechnicianApprovalScreenState
                       ctx,
                       title: 'Mặt sau',
                       imageUrl: profile?.idCardBack ?? '',
+                      fullName: tech.fullName,
                     ),
                   ),
                 ],
@@ -332,9 +545,29 @@ class _AdminTechnicianApprovalScreenState
               const SizedBox(height: 20),
 
               // 2. Bằng cấp & Chứng chỉ
-              const Text(
-                'Chứng chỉ nghề & Bằng cấp:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              Row(
+                children: [
+                  const Text(
+                    'Chứng chỉ nghề & Bằng cấp:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${profile?.certificates.length ?? 0}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade800,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               if ((profile?.certificates ?? []).isEmpty)
@@ -344,42 +577,102 @@ class _AdminTechnicianApprovalScreenState
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'Thợ không đính kèm chứng chỉ bổ sung',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: AppTheme.textSecondaryColor),
+                      SizedBox(width: 8),
+                      Text(
+                        'Thợ không đính kèm chứng chỉ bổ sung',
+                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor),
+                      ),
+                    ],
                   ),
                 )
               else
                 SizedBox(
-                  height: 100,
+                  height: 110,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: profile!.certificates.length,
                     separatorBuilder: (_, _) => const SizedBox(width: 10),
-
                     itemBuilder: (_, i) => _buildCertificateThumbnail(
                       ctx,
                       profile.certificates[i],
+                      i + 1,
+                      tech.fullName,
                     ),
                   ),
                 ),
               const SizedBox(height: 20),
 
-              // 3. Thông tin nghề nghiệp
+              // 3. Thông tin cá nhân & nghề nghiệp
               const Text(
-                'Kinh nghiệm & Giới thiệu:',
+                'Thông tin cá nhân & chuyên môn:',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
-              const SizedBox(height: 6),
-              Text(
-                '• Kinh nghiệm: ${profile?.experienceYears ?? 0} năm',
-                style: const TextStyle(fontSize: 13),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoRow('Số điện thoại', tech.phoneNumber),
+                    _buildInfoRow('Email', tech.email),
+                    _buildInfoRow('Giới tính', tech.genderDisplay),
+                    _buildInfoRow(
+                      'Ngày sinh',
+                      DateFormat('dd/MM/yyyy').format(tech.dateOfBirth),
+                    ),
+                    _buildInfoRow(
+                      'Kinh nghiệm',
+                      '${profile?.experienceYears ?? 0} năm trong nghề',
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Chuyên môn:',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: (profile?.skills ?? []).map((skill) {
+                        return Chip(
+                          label: Text(
+                            skill,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          backgroundColor: Colors.blue.shade50,
+                          padding: EdgeInsets.zero,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Giới thiệu bản thân:',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      (profile?.bio.isNotEmpty == true)
+                          ? profile!.bio
+                          : 'Chưa cập nhật phần giới thiệu.',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                '• Giới thiệu: ${profile?.bio.isNotEmpty == true ? profile!.bio : "Không có"}',
-                style: const TextStyle(fontSize: 13, color: AppTheme.textPrimaryColor),
-              ),
+
+              // Hiển thị lý do từ chối nếu có
               if (profile?.rejectionReason.isNotEmpty == true) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -389,19 +682,76 @@ class _AdminTechnicianApprovalScreenState
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.red.shade200),
                   ),
-                  child: Text(
-                    'Lý do từ chối: ${profile!.rejectionReason}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.red,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
+                          SizedBox(width: 6),
+                          Text(
+                            'Lý do từ chối trước đó:',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        profile!.rejectionReason,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (profile.rejectedAt != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Thời gian từ chối: ${DateFormat('dd/MM/yyyy HH:mm').format(profile.rejectedAt!)}',
+                          style: TextStyle(fontSize: 11, color: Colors.red.shade700),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ],
+
+              // Hiển thị thông tin duyệt nếu đã approved
+              if (profile?.approvalStatus == 'approved') ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.verified, size: 18, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Đã phê duyệt${profile?.approvedAt != null ? " vào lúc ${DateFormat('dd/MM/yyyy HH:mm').format(profile!.approvedAt!)}" : ""}${profile?.approvedByName != null ? " bởi ${profile!.approvedByName}" : ""}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green.shade900,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 28),
 
-              // 4. Các nút thao tác Phê duyệt / Từ chối (Nếu là Pending)
+              // 4. Các nút thao tác Phê duyệt / Từ chối (Nếu là Pending hoặc Rejected cần duyệt lại)
               if (isPending)
                 Row(
                   children: [
@@ -449,6 +799,26 @@ class _AdminTechnicianApprovalScreenState
                       ),
                     ),
                   ],
+                )
+              else if (profile?.approvalStatus == 'rejected')
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.restart_alt),
+                  label: const Text(
+                    'Xem xét & Phê duyệt lại',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _confirmApprove(context, tech, token);
+                  },
                 ),
               const SizedBox(height: 16),
             ],
@@ -458,22 +828,60 @@ class _AdminTechnicianApprovalScreenState
     );
   }
 
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondaryColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimaryColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildImagePreviewCard(
-      BuildContext context, {
-      required String title,
-      required String imageUrl,
+    BuildContext context, {
+    required String title,
+    required String imageUrl,
+    required String fullName,
   }) {
+    final hasImage = imageUrl.isNotEmpty;
     return InkWell(
-      onTap: imageUrl.isNotEmpty ? () => _zoomImage(context, imageUrl) : null,
+      onTap: hasImage
+          ? () => _zoomImage(context, imageUrl, title: 'CCCD $title - $fullName')
+          : null,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        height: 110,
+        height: 120,
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(
+            color: hasImage ? Colors.grey.shade300 : Colors.red.shade200,
+          ),
         ),
-        child: imageUrl.isNotEmpty
+        child: hasImage
             ? ClipRRect(
                 borderRadius: BorderRadius.circular(9),
                 child: Stack(
@@ -482,10 +890,35 @@ class _AdminTechnicianApprovalScreenState
                     Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      },
                       errorBuilder: (_, _, _) => const Center(
-                        child: Icon(Icons.broken_image),
+                        child: Icon(Icons.broken_image, color: Colors.grey),
                       ),
-
+                    ),
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(
+                          Icons.zoom_in,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
                     ),
                     Positioned(
                       bottom: 0,
@@ -509,56 +942,188 @@ class _AdminTechnicianApprovalScreenState
                 ),
               )
             : Center(
-                child: Text(
-                  'Không có ảnh $title',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.no_photography_outlined,
+                        size: 28, color: Colors.red.shade300),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Thiếu $title',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
       ),
     );
   }
 
-  Widget _buildCertificateThumbnail(BuildContext context, String imageUrl) {
+  Widget _buildCertificateThumbnail(
+    BuildContext context,
+    String imageUrl,
+    int index,
+    String fullName,
+  ) {
     return GestureDetector(
-      onTap: () => _zoomImage(context, imageUrl),
+      onTap: () => _zoomImage(
+        context,
+        imageUrl,
+        title: 'Chứng chỉ $index - $fullName',
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          imageUrl,
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => Container(
-            width: 100,
-            height: 100,
-            color: Colors.grey.shade200,
-            child: const Icon(Icons.broken_image),
-          ),
-
+        child: Stack(
+          children: [
+            Image.network(
+              imageUrl,
+              width: 100,
+              height: 100,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return Container(
+                  width: 100,
+                  height: 100,
+                  color: Colors.grey.shade100,
+                  child: const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (_, _, _) => Container(
+                width: 100,
+                height: 100,
+                color: Colors.grey.shade200,
+                child: const Icon(Icons.broken_image),
+              ),
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.zoom_in, color: Colors.white, size: 14),
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.black54,
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(
+                  'Chứng chỉ $index',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  void _zoomImage(BuildContext context, String imageUrl) {
+  void _zoomImage(
+    BuildContext context,
+    String imageUrl, {
+    String title = 'Ảnh tài liệu',
+  }) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(12),
-        child: Stack(
-          alignment: Alignment.topRight,
+        backgroundColor: Colors.black.withValues(alpha: 0.9),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(imageUrl, fit: BoxFit.contain),
-            ),
-            IconButton(
-              icon: const CircleAvatar(
-                backgroundColor: Colors.black54,
-                child: Icon(Icons.close, color: Colors.white),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Colors.white24,
+                      child: Icon(Icons.close, color: Colors.white, size: 16),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
               ),
-              onPressed: () => Navigator.pop(ctx),
+            ),
+            Flexible(
+              child: InteractiveViewer(
+                panEnabled: true,
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 250,
+                      alignment: Alignment.center,
+                      child: const CircularProgressIndicator(color: Colors.white),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 200,
+                    alignment: Alignment.center,
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.broken_image, color: Colors.white70, size: 48),
+                        SizedBox(height: 8),
+                        Text(
+                          'Không thể tải hình ảnh này',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Text(
+                'Dùng 2 ngón tay thu phóng để soi rõ thông tin CCCD/Chứng chỉ',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 12,
+                ),
+              ),
             ),
           ],
         ),
@@ -567,12 +1132,47 @@ class _AdminTechnicianApprovalScreenState
   }
 
   void _confirmApprove(BuildContext context, UserModel tech, String token) {
+    final skills = (tech.technicianProfile?.skills ?? []).join(', ');
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Xác nhận phê duyệt'),
-        content: Text(
-          'Bạn có chắc chắn muốn phê duyệt hồ sơ cho thợ "${tech.fullName}"?\nThợ sẽ bắt đầu được cấp quyền nhận việc.',
+        title: const Row(
+          children: [
+            Icon(Icons.verified_outlined, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Xác nhận phê duyệt'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Bạn có chắc chắn muốn phê duyệt hồ sơ thợ:'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tech.fullName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  Text('SĐT: ${tech.phoneNumber}'),
+                  if (skills.isNotEmpty) Text('Chuyên môn: $skills'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Sau khi duyệt, tài khoản thợ sẽ được kích hoạt quyền nhận việc và có thể bắt đầu báo giá các sự cố của khách.',
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -609,61 +1209,98 @@ class _AdminTechnicianApprovalScreenState
     _reasonController.clear();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Từ chối hồ sơ KYC'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Vui lòng nêu rõ lý do từ chối hồ sơ thợ "${tech.fullName}":'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _reasonController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Ví dụ: Ảnh CCCD bị mờ, thiếu chứng chỉ nghề...',
-                border: OutlineInputBorder(),
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateModal) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.cancel_outlined, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Từ chối hồ sơ KYC'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Lý do từ chối hồ sơ thợ "${tech.fullName}":'),
+                const SizedBox(height: 8),
+                const Text(
+                  'Chọn nhanh lý do mẫu:',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor),
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: _quickRejectReasons.map((reason) {
+                    return ActionChip(
+                      label: Text(reason, style: const TextStyle(fontSize: 11)),
+                      backgroundColor: Colors.red.shade50,
+                      side: BorderSide(color: Colors.red.shade200),
+                      onPressed: () {
+                        setStateModal(() {
+                          if (_reasonController.text.trim().isEmpty) {
+                            _reasonController.text = reason;
+                          } else {
+                            _reasonController.text =
+                                '${_reasonController.text.trim()}, $reason';
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _reasonController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: 'Nhập chi tiết yêu cầu bổ sung hoặc sửa đổi...',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                final reason = _reasonController.text.trim();
+                if (reason.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Vui lòng nhập lý do từ chối!'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+                final provider = context.read<TechnicianProvider>();
+                final success =
+                    await provider.rejectTechnician(token, tech.id, reason);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(success
+                          ? 'Đã từ chối hồ sơ thợ.'
+                          : (provider.errorMessage ?? 'Thao tác thất bại')),
+                      backgroundColor: success ? Colors.green : Colors.red,
+                    ),
+                  );
+                  _loadCurrentTab();
+                }
+              },
+              child: const Text('Gửi Từ Chối'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              final reason = _reasonController.text.trim();
-              if (reason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Vui lòng nhập lý do từ chối!'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-              Navigator.pop(ctx);
-              final provider = context.read<TechnicianProvider>();
-              final success =
-                  await provider.rejectTechnician(token, tech.id, reason);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(success
-                        ? 'Đã từ chối hồ sơ thợ.'
-                        : (provider.errorMessage ?? 'Thao tác thất bại')),
-                    backgroundColor: success ? Colors.green : Colors.red,
-                  ),
-                );
-                _loadCurrentTab();
-              }
-            },
-            child: const Text('Gửi Từ Chối'),
-          ),
-        ],
       ),
     );
   }

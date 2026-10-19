@@ -32,3 +32,8 @@ You are working on the "HomeFix" project. Always follow these rules strictly:
 - NO hardcoding: all URLs, ports, secrets must be in `.env` (backend) or `api_endpoints.dart` (frontend).
 - Always use `async/await` with complete `try/catch` error handling.
 - Ensure `flutter analyze` has 0 issues and node files have valid syntax.
+
+## 5. GIT COMMIT CONVENTION
+- Format: `[MSSV]_<tên mình vd: Yourname>: <FIX/FEAT/UPDATE> - #UCXX - <nội dung>`
+- Example: `[CE191178]_Bao: FEAT - #UC-STF-01 - Duyet ho so tho moi voi anh CCCD va chung chi`
+- Commit messages must be meaningful and map directly to the corresponding Use Case.

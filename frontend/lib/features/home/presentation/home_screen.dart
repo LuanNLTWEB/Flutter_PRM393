@@ -39,8 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
         if (auth.isAuthenticated) {
-          // Admin chỉ xem duy nhất trang Quản trị viên (AdminHomeScreen), không xem trang khác
-          if (auth.currentUser?.role == 'admin') {
+          // Admin & Staff xem trang Quản trị & Vận hành (AdminHomeScreen)
+          if (auth.currentUser?.role == 'admin' || auth.currentUser?.role == 'staff') {
             return const AdminHomeScreen();
           }
           return _buildLoggedInHome(context, auth);

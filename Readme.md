@@ -135,9 +135,9 @@ frontend/lib/
 
 * **Cấm dồn commit (No Code Dump):** Tuyệt đối không chấp nhận việc dồn toàn bộ code vào một commit duy nhất ở giai đoạn cuối dự án. Phải commit chia nhỏ theo từng chức năng/tiến độ rõ ràng.
 * **Code AI / Copy:** Việc đưa các khối code lớn do AI tạo ra hoặc copy về mà không có bằng chứng review, refactor hay test sẽ bị đánh giá là thiếu minh chứng đóng góp.
-* **Định dạng Commit Message khuyến nghị:**
+* **Định dạng Commit Message bắt buộc:**
   ```text
-  [Mã số SV/Tên] [Module/Màn hình] Mô tả ngắn gọn
+  [MSSV]_<tên mình vd: Yourname>: <FIX/FEAT/UPDATE> - #UCXX - <nội dung>
   ```
-  * **Ví dụ:** `[SE123456] [Booking] Add validation and submit state`
-  * **Ví dụ thực tế dự án:** `[SE190980] [Review] Hoan thien module danh gia tho rate UC-RAT-01`
+  * **Ví dụ:** `[CE191178]_Bao: FEAT - #UC-STF-01 - Duyet ho so tho moi voi anh CCCD va chung chi`
+  * **Ví dụ khác:** `[CE191215]_Chi: feat- #UC-REQ-04 - Đính kèm ảnh hiện trường từ thư viện và tải lên Cloudinary`

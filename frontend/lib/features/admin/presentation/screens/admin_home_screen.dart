@@ -86,11 +86,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               fit: BoxFit.contain,
             ),
             const SizedBox(width: 8),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
+                const Text(
                   AppConstants.appName,
                   style: TextStyle(
                     fontSize: 16,
@@ -99,11 +99,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ),
                 ),
                 Text(
-                  'Cổng Quản trị viên',
+                  currentUser?.role == 'staff' ? 'Cổng Vận hành Staff' : 'Cổng Quản trị viên',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Colors.deepPurple,
+                    color: currentUser?.role == 'staff' ? Colors.teal : Colors.deepPurple,
                   ),
                 ),
               ],
@@ -139,25 +139,27 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         ],
 
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppTheme.primaryColor,
-        icon: const Icon(Icons.person_add, color: Colors.white),
-        label: const Text(
-          'Thêm Staff',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        onPressed: () async {
-          final created = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateStaffScreen(),
-            ),
-          );
-          if (created == true) {
-            _loadUsers();
-          }
-        },
-      ),
+      floatingActionButton: currentUser?.role == 'admin'
+          ? FloatingActionButton.extended(
+              backgroundColor: AppTheme.primaryColor,
+              icon: const Icon(Icons.person_add, color: Colors.white),
+              label: const Text(
+                'Thêm Staff',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () async {
+                final created = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateStaffScreen(),
+                  ),
+                );
+                if (created == true) {
+                  _loadUsers();
+                }
+              },
+            )
+          : null,
       body: Column(
         children: [
           // Thẻ hồ sơ Admin & Thống kê tóm tắt
@@ -248,7 +250,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                             ),
                           ),
                           child: Text(
-                            'Quản trị viên',
+                            user.roleDisplay,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
