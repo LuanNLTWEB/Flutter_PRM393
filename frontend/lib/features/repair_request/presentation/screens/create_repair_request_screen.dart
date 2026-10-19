@@ -7,10 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/service_category_model.dart';
-import '../providers/repair_request_provider.dart';
 import '../widgets/image_picker_box_widget.dart';
 import '../widgets/schedule_time_slot_picker.dart';
-import 'request_success_screen.dart';
+import 'request_preview_screen.dart';
 
 /// Màn hình tạo yêu cầu sửa chữa (Mô tả triệu chứng & Mức độ khẩn cấp)
 class CreateRepairRequestScreen extends StatefulWidget {
@@ -705,8 +704,8 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
     );
   }
 
-  /// Gửi trực tiếp yêu cầu sửa chữa lên hệ thống
-  Future<void> _submitRequest() async {
+  /// Chuyển sang màn hình xem lại phiếu yêu cầu trước khi đăng (UC-REQ-06)
+  void _previewRequest() {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -744,33 +743,21 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
       return;
     }
 
-    final provider = context.read<RepairRequestProvider>();
-    final result = await provider.createRepairRequest(
-      token: token,
-      serviceCategoryId: widget.preselectedCategory.id,
-      title: _titleController.text.trim(),
-      description: _descriptionController.text.trim(),
-      urgency: _urgency,
-      preferredTime: _preferredTime,
-      images: _selectedImages,
-      address: _addressController.text.trim(),
-    );
-
-    if (!mounted) return;
-
-    if (result != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => RequestSuccessScreen(request: result),
+    // Chuyển sang màn hình xem lại tóm tắt phiếu trước khi đăng (UC-REQ-06)
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RequestPreviewScreen(
+          category: widget.preselectedCategory,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          urgency: _urgency,
+          preferredTime: _preferredTime!,
+          images: _selectedImages,
+          address: _addressController.text.trim(),
         ),
-      );
-    } else {
-      final error = provider.submitError ?? 'Không thể gửi yêu cầu. Vui lòng thử lại.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
-      );
-    }
+      ),
+    );
   }
 
   @override
@@ -1007,48 +994,39 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
               ),
               const SizedBox(height: 28),
 
-              // Nút Gửi yêu cầu sửa chữa
-              Consumer<RepairRequestProvider>(
-                builder: (context, provider, child) {
-                  return SizedBox(
-                    height: 52,
-                    child: ElevatedButton(
-                      key: const Key('create_request_submit_button'),
-                      onPressed: (provider.isSubmitting || isNotCustomer) ? null : _submitRequest,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isNotCustomer ? Colors.grey.shade400 : AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+              // Nút Xem lại phiếu trước khi gửi (UC-REQ-06)
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  key: const Key('create_request_submit_button'),
+                  onPressed: isNotCustomer ? null : _previewRequest,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isNotCustomer ? Colors.grey.shade400 : AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(isNotCustomer ? Icons.block : Icons.visibility_outlined, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        isNotCustomer ? 'Tài khoản $roleName không thể tạo đơn' : 'Xem lại phiếu trước khi gửi',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      child: provider.isSubmitting
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(isNotCustomer ? Icons.block : Icons.send_rounded, size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  isNotCustomer ? 'Tài khoản $roleName không thể tạo đơn' : 'Gửi phiếu yêu cầu sửa chữa',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  );
-                },
+                      if (!isNotCustomer) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.arrow_forward_rounded, size: 18),
+                      ],
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
             ],
