@@ -39,7 +39,11 @@ class NearbyRequestRemoteDataSource {
     throw Exception('Phản hồi không hợp lệ từ máy chủ');
   }
 
-  /// Danh sách yêu cầu đang mở (lọc theo danh mục, khẩn cấp, tọa độ)
+  // ══ START UC-QUO-01 + UC-QUO-02: Xem & lọc sự cố quanh đây ═════════════
+  /// Danh sách sự cố quanh đây cho Thợ (UC-QUO-01)
+  /// + lọc theo chuyên môn / khẩn cấp / khoảng cách (UC-QUO-02)
+  /// → GET /api/requests/nearby
+  /// Backend mặc định trả cả OPEN + QUOTED nên nhiều thợ cùng báo giá được.
   Future<NearbyRequestResult> fetchNearbyRequests({
     required String token,
     String? categorySlug,
@@ -84,8 +88,10 @@ class NearbyRequestRemoteDataSource {
     }
     throw Exception(data['message'] ?? 'Không thể tải danh sách yêu cầu');
   }
+  // ══ END UC-QUO-01 + UC-QUO-02 ════════════════════════════════════════
 
-  /// Chi tiết 1 phiếu yêu cầu (UC-QUO-03)
+  // ══ START UC-QUO-03: Xem chi tiết sự cố ══════════════════════════════
+  /// Chi tiết 1 phiếu yêu cầu → GET /api/requests/:id
   Future<RepairRequestModel> fetchRequestDetail({
     required String token,
     required String id,
@@ -105,6 +111,9 @@ class NearbyRequestRemoteDataSource {
     }
     throw Exception(data['message'] ?? 'Không thể tải chi tiết yêu cầu');
   }
+  // ══ END UC-QUO-03 ════════════════════════════════════════════════════
+
+  // ── UC-LIC-01: Lịch hẹn & Tiền ả (không thuộc epic Báo giá) ───────────
 
   /// Thợ xác nhận giờ hẹn (UC-LIC-01)
   Future<void> confirmAppointment({

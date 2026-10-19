@@ -23,6 +23,7 @@ class RepairRequestModel {
   final String cancellationReason;
   final DateTime? onTheWayAt; // thời điểm thợ bấm "Đang trên đường"
   final int quotesCount; // số lượng báo giá của thợ gửi đến
+  final bool hasQuoted; // thợ đang xem đã tự gửi báo giá cho phiếu này chưa
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -48,6 +49,7 @@ class RepairRequestModel {
     this.cancellationReason = '',
     this.onTheWayAt,
     this.quotesCount = 0,
+    this.hasQuoted = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -146,6 +148,7 @@ class RepairRequestModel {
               : (json['quotationCount'] is num
                   ? (json['quotationCount'] as num).toInt()
                   : 0)),
+      hasQuoted: json['hasQuoted'] == true,
       createdAt: DateTime.tryParse(json['createdAt'] ?? '')?.toLocal() ??
           DateTime.now(),
       updatedAt: DateTime.tryParse(json['updatedAt'] ?? '')?.toLocal() ??
@@ -232,6 +235,7 @@ class RepairRequestModel {
     String? rescheduleRejectNote,
     DateTime? onTheWayAt,
     int? quotesCount,
+    bool? hasQuoted,
   }) {
     return RepairRequestModel(
       id: id,
@@ -255,6 +259,7 @@ class RepairRequestModel {
       cancellationReason: cancellationReason,
       onTheWayAt: onTheWayAt ?? this.onTheWayAt,
       quotesCount: quotesCount ?? this.quotesCount,
+      hasQuoted: hasQuoted ?? this.hasQuoted,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

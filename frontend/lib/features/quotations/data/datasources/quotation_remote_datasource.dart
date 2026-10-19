@@ -41,7 +41,8 @@ class QuotationRemoteDataSource {
     throw Exception('Phản hồi không hợp lệ từ máy chủ');
   }
 
-  /// Thợ gửi báo giá (UC-QUO-04)
+  // ══ START UC-QUO-04: Gửi báo giá (Quotation) ══════════════════════════
+  /// Thợ gửi báo giá → POST /api/quotations
   Future<QuotationModel> sendQuotation({
     required String token,
     required String requestId,
@@ -70,8 +71,11 @@ class QuotationRemoteDataSource {
     }
     throw Exception(data['message'] ?? 'Gửi báo giá thất bại');
   }
+  // ══ END UC-QUO-04 ════════════════════════════════════════════════════
 
-  /// Xem danh sách báo giá của 1 yêu cầu (UC-QUO-06)
+  // ══ START UC-QUO-06: Xem danh sách báo giá nhận được ═════════════════
+  /// Khách xem các thợ đã báo giá cho 1 yêu cầu → GET /api/quotations?requestId=
+  /// (Dữ liệu đầu vào cho màn hình so sánh UC-QUO-07)
   Future<QuotationListResult> fetchQuotations({
     required String token,
     required String requestId,
@@ -95,8 +99,11 @@ class QuotationRemoteDataSource {
     }
     throw Exception(data['message'] ?? 'Không thể tải danh sách báo giá');
   }
+  // ══ END UC-QUO-06 ════════════════════════════════════════════════════
 
-  /// Xem danh sách "Yêu cầu đã báo giá" của chính Thợ (UC-QUO-05)
+  // ══ START UC-QUO-05.c: Xem các báo giá Thợ đã gửi ═══════════════════
+  /// Thợ xem danh sách "Yêu cầu đã báo giá" của chính mình
+  /// → GET /api/quotations/my-quotes
   Future<List<MyQuotationItem>> fetchMyQuotations({
     required String token,
   }) async {
@@ -133,8 +140,10 @@ class QuotationRemoteDataSource {
     }
     throw Exception(data['message'] ?? 'Không thể tải danh sách đã báo giá');
   }
+  // ══ END UC-QUO-05.c ══════════════════════════════════════════════════
 
-  /// Thợ chỉnh sửa báo giá (UC-QUO-05)
+  // ══ START UC-QUO-05.a: Cập nhật báo giá ══════════════════════════════
+  /// Thợ chỉnh sửa báo giá đã gửi → PUT /api/quotations/:id
   Future<QuotationModel> updateQuotation({
     required String token,
     required String id,
@@ -162,8 +171,10 @@ class QuotationRemoteDataSource {
     }
     throw Exception(data['message'] ?? 'Cập nhật báo giá thất bại');
   }
+  // ══ END UC-QUO-05.a ══════════════════════════════════════════════════
 
-  /// Thợ thu hồi báo giá (UC-QUO-05)
+  // ══ START UC-QUO-05.b: Hủy (thu hồi) báo giá ═════════════════════════
+  /// Thợ thu hồi báo giá đã gửi → PATCH /api/quotations/:id/retract
   Future<void> retractQuotation({
     required String token,
     required String id,
@@ -178,8 +189,10 @@ class QuotationRemoteDataSource {
       throw Exception(data['message'] ?? 'Thu hồi báo giá thất bại');
     }
   }
+  // ══ END UC-QUO-05.b ══════════════════════════════════════════════════
 
-  /// Khách chấp nhận báo giá - chốt thợ (UC-QUO-08)
+  // ══ START UC-QUO-08: Chấp nhận báo giá (Accept) ═════════════════════
+  /// Khách chấp nhận báo giá, chốt thợ → POST /api/quotations/:id/accept
   Future<void> acceptQuotation({
     required String token,
     required String id,
@@ -194,8 +207,10 @@ class QuotationRemoteDataSource {
       throw Exception(data['message'] ?? 'Chấp nhận báo giá thất bại');
     }
   }
+  // ══ END UC-QUO-08 ════════════════════════════════════════════════════
 
-  /// Khách từ chối báo giá (UC-QUO-09)
+  // ══ START UC-QUO-09: Từ chối báo giá ═════════════════════════════════
+  /// Khách từ chối báo giá của 1 thợ → POST /api/quotations/:id/reject
   Future<void> rejectQuotation({
     required String token,
     required String id,
@@ -210,4 +225,5 @@ class QuotationRemoteDataSource {
       throw Exception(data['message'] ?? 'Từ chối báo giá thất bại');
     }
   }
+  // ══ END UC-QUO-09 ════════════════════════════════════════════════════
 }

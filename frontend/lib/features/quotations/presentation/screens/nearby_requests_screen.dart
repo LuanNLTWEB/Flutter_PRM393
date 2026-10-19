@@ -118,13 +118,18 @@ class _NearbyRequestsScreenState extends State<NearbyRequestsScreen> {
                       final request = provider.nearbyRequests[index - 1];
                       return _RequestCard(
                         request: request,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                RequestDetailScreen(requestId: request.id, request: request),
-                          ),
-                        ),
+                        // Gửi/thu hồi báo giá ở màn chi tiết sẽ đổi trạng thái
+                        // phiếu, nên phải tải lại feed khi quay lại.
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RequestDetailScreen(
+                                  requestId: request.id, request: request),
+                            ),
+                          );
+                          if (context.mounted) _load(refresh: true);
+                        },
                       );
                     },
                   ),
@@ -429,6 +434,58 @@ class _RequestCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
+            if (request.hasQuoted || request.quotesCount > 0) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (request.hasQuoted)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle,
+                              size: 12, color: AppTheme.primaryColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Đã báo giá của bạn',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (request.quotesCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.secondaryColor.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${request.quotesCount} thợ đã báo giá',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFB45309),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
             Row(
               children: [
                 const Icon(Icons.lock_outline,

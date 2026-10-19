@@ -353,6 +353,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
     if (!canQuote && !showQuotesButton) return const SizedBox.shrink();
 
+    // Thợ đã có báo giá nhưng không còn sửa được (đã bị khách từ chối) thì không
+    // hiện nút "Gửi báo giá" nữa, vì backend sẽ trả 409 khi gửi lại lần hai.
+    final myQuoteLive = _myQuote != null && _myQuote!.canEdit;
+    final myQuoteClosed = _myQuote != null && !_myQuote!.canEdit;
+    final canSubmitQuote = canQuote && !myQuoteClosed;
+
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -366,45 +372,80 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (showQuotesButton) ...[
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RequestQuotationsScreen(
-                        requestId: request.id,
-                        request: request,
+            if (canQuote && request.quotesCount > 0) ...[
+              Text(
+                'Có ${request.quotesCount} thợ đã báo giá cho yêu cầu này.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Row(
+              children: [
+                if (showQuotesButton) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RequestQuotationsScreen(
+                            requestId: request.id,
+                            request: request,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.compare_arrows),
+                      label: const Text('Xem báo giá'),
+                    ),
+                  ),
+                ],
+                if (myQuoteLive) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _retractQuotation,
+                      icon: const Icon(Icons.undo),
+                      label: const Text('Thu hồi'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                if (canSubmitQuote)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _sendQuotation,
+                      icon: const Icon(Icons.request_quote_outlined),
+                      label: Text(myQuoteLive ? 'Sửa báo giá' : 'Gửi báo giá'),
+                    ),
+                  ),
+                if (myQuoteClosed)
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        'Báo giá của bạn: ${_myQuote!.statusDisplay.toLowerCase()}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondaryColor,
+                        ),
                       ),
                     ),
                   ),
-                  icon: const Icon(Icons.compare_arrows),
-                  label: const Text('Xem báo giá'),
-                ),
-              ),
-            ],
-            if (canQuote) ...[
-              if (_myQuote != null && _myQuote!.canEdit) ...[
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _retractQuotation,
-                    icon: const Icon(Icons.undo),
-                    label: const Text('Thu hồi'),
-                  ),
-                ),
-                const SizedBox(width: 10),
               ],
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _sendQuotation,
-                  icon: const Icon(Icons.request_quote_outlined),
-                  label:
-                      Text(_myQuote != null && _myQuote!.canEdit ? 'Sửa báo giá' : 'Gửi báo giá'),
-                ),
-              ),
-            ],
+            ),
           ],
         ),
       ),
