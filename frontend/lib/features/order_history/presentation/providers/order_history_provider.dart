@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/datasources/order_history_remote_datasource.dart';
 import '../../data/models/order_history_model.dart';
+import 'package:frontend/features/notification/services/local_notification_service.dart';
 
 class OrderHistoryProvider extends ChangeNotifier {
   final OrderHistoryRemoteDataSource _dataSource;
@@ -37,6 +38,10 @@ class OrderHistoryProvider extends ChangeNotifier {
 
       _orders = result['orders'] as List<OrderHistoryModel>? ?? [];
       _counts = result['counts'] as Map<String, dynamic>? ?? {};
+
+      // UC-NOT-01: Tự động bắn thông báo khi phát hiện trạng thái đơn thay đổi
+      LocalNotificationService.instance.detectStatusChanges(_orders);
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {

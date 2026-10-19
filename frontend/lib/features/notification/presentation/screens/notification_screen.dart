@@ -4,6 +4,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/notification_model.dart';
 import '../providers/notification_provider.dart';
+import 'package:frontend/features/notification/services/local_notification_service.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -72,9 +73,21 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   _markAllRead(context, token);
                 } else if (value == 'clear_all') {
                   _confirmClearAll(context, token);
+                } else if (value == 'demo_status') {
+                  _showDemoStatusDialog(context);
                 }
               },
               itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'demo_status',
+                  child: Row(
+                    children: [
+                      Icon(Icons.moped_outlined, color: Colors.orange, size: 20),
+                      SizedBox(width: 10),
+                      Text('Thử nghiệm bắn thông báo (UC-NOT-01)'),
+                    ],
+                  ),
+                ),
                 const PopupMenuItem(
                   value: 'read_all',
                   child: Row(
@@ -566,6 +579,100 @@ class _NotificationScreenState extends State<NotificationScreen> {
             child: const Text('Xóa tất cả'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showDemoStatusDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Thử Nghiệm Bắn Thông Báo (UC-NOT-01)',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Chọn trạng thái đơn hàng để kích hoạt thông báo nổi trên màn hình:',
+              style: TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                child: Icon(Icons.moped),
+              ),
+              title: const Text('Thợ đang trên đường đến (ON_THE_WAY)'),
+              subtitle: const Text('Bắn thông báo thợ bắt đầu di chuyển tới nhà'),
+              onTap: () {
+                Navigator.pop(ctx);
+                LocalNotificationService.instance.simulateStatusNotification(
+                  'ON_THE_WAY',
+                  context: context,
+                );
+              },
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                child: Icon(Icons.build),
+              ),
+              title: const Text('Đang sửa chữa (IN_PROGRESS)'),
+              subtitle: const Text('Thợ đã đến nơi và bắt đầu công việc'),
+              onTap: () {
+                Navigator.pop(ctx);
+                LocalNotificationService.instance.simulateStatusNotification(
+                  'IN_PROGRESS',
+                  context: context,
+                );
+              },
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                child: Icon(Icons.check_circle),
+              ),
+              title: const Text('Đã hoàn thành sửa chữa (COMPLETED)'),
+              subtitle: const Text('Sửa xong, nghiệm thu & đánh giá'),
+              onTap: () {
+                Navigator.pop(ctx);
+                LocalNotificationService.instance.simulateStatusNotification(
+                  'COMPLETED',
+                  context: context,
+                );
+              },
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+                child: Icon(Icons.request_quote),
+              ),
+              title: const Text('Có báo giá mới (QUOTED)'),
+              subtitle: const Text('Thợ gửi báo giá tiền công & linh kiện'),
+              onTap: () {
+                Navigator.pop(ctx);
+                LocalNotificationService.instance.simulateStatusNotification(
+                  'QUOTED',
+                  context: context,
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
