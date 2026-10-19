@@ -51,21 +51,15 @@ const populateRequest = (query) =>
     .populate('customerId', CUSTOMER_PUBLIC_FIELDS);
 
 /**
- * UC-QUO-01: Xem tin sự cố quanh đây
- * UC-QUO-02: Lọc sự cố theo chuyên môn
  * @desc    Thợ xem danh sách yêu cầu còn nhận báo giá quanh khu vực (UC-QUO-01)
  *          + lọc theo danh mục dịch vụ/mức độ khẩn cấp (UC-QUO-02)
- *          Mặc định trả về cả OPEN và QUOTED: yêu cầu đã có báo giá vẫn phải cho các
- *          thợ khác cạnh tranh, nếu không thì không bao giờ so sánh được >1 thợ (UC-QUO-07).
- *          Mỗi phiếu kèm `quotesCount` (số thợ đang báo giá) và `hasQuoted`
- *          (thợ đang xem đã tự gửi báo giá cho phiếu này chưa).
+ *          Mặc định trả về cả OPEN và QUOTED để nhiều thợ cùng báo giá (UC-QUO-07).
+ *          Kèm `quotesCount` (số thợ đang báo giá) và `hasQuoted`.
  *          Sắp xếp: nếu có tọa độ thì theo khoảng cách, không thì theo mức độ khẩn cấp
  * @route   GET /api/requests/nearby?status=OPEN,QUOTED&categorySlug=&urgency=&lat=&lng=&radiusKm=&page=&limit=
  * @access  Private (technician)
- *
- * START UC-QUO-01 + UC-QUO-02
- *   - Trong thân hàm, khối `categorySlug` là phần lọc theo chuyên môn của UC-QUO-02.
  */
+// START UC-QUO-01 + UC-QUO-02
 const getNearbyRequests = async (req, res) => {
   try {
     const {
@@ -93,9 +87,7 @@ const getNearbyRequests = async (req, res) => {
 
     const filter = { status: { $in: statuses } };
 
-    // ── START UC-QUO-02: Lọc sự cố theo chuyên môn ──
-    //   categorySlug = chuyên môn / danh mục dịch vụ (điện, nước, máy lạnh, laptop...)
-    //   urgency      = mức độ khẩn cấp, bổ trợ cho việc lọc
+    // Lọc theo chuyên môn / danh mục dịch vụ (UC-QUO-02)
     if (categorySlug) {
       const category = await ServiceCategory.findOne({ slug: categorySlug });
       if (!category) {
@@ -106,7 +98,6 @@ const getNearbyRequests = async (req, res) => {
       }
       filter.serviceCategoryId = category._id;
     }
-    // ── END UC-QUO-02: Lọc sự cố theo chuyên môn ──
 
     if (urgency) {
       if (!VALID_URGENCY.includes(urgency)) {
@@ -228,19 +219,17 @@ const getNearbyRequests = async (req, res) => {
     });
   }
 };
-//   END UC-QUO-01 + UC-QUO-02
+// END UC-QUO-01 + UC-QUO-02
 
 /**
- * UC-QUO-03: Xem chi tiết sự cố
- * @desc    Xem chi tiết 1 phiếu yêu cầu
+ * @desc    Xem chi tiết 1 phiếu yêu cầu (UC-QUO-03)
  *          - Chủ yêu cầu: xem đầy đủ
  *          - Thợ: ẩn SĐT & địa chỉ cho tới khi nào thợ đó được chốt
- *          Kèm `quotesCount` (số thợ đã báo giá) và `hasQuoted` (thợ đang xem đã báo giá chưa)
+ *          Kèm `quotesCount` và `hasQuoted`
  * @route   GET /api/requests/:id
  * @access  Private (user, technician, staff, admin)
- *
- * START UC-QUO-03
  */
+// START UC-QUO-03
 const getRequestDetail = async (req, res) => {
   try {
     const { id } = req.params;
@@ -327,7 +316,7 @@ const getRequestDetail = async (req, res) => {
     });
   }
 };
-//   END UC-QUO-03
+// END UC-QUO-03
 
 module.exports = {
   getNearbyRequests,

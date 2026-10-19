@@ -13,13 +13,11 @@ const populateTechnician = (query) =>
   query.populate('technicianId', TECHNICIAN_PUBLIC_FIELDS);
 
 /**
- * UC-QUO-04: Gửi báo giá (Quotation)
- * @desc    Thợ gửi báo giá cho phiếu yêu cầu
+ * @desc    Thợ gửi báo giá cho phiếu yêu cầu (UC-QUO-04)
  * @route   POST /api/quotations
  * @access  Private (technician)
- *
- * START UC-QUO-04
  */
+// START UC-QUO-04
 const sendQuotation = async (req, res) => {
   try {
     const { requestId, labourCost, partsCost = 0, note = '' } = req.body;
@@ -141,18 +139,16 @@ const sendQuotation = async (req, res) => {
   }
 };
 
-//   END UC-QUO-04
+// END UC-QUO-04
 
 /**
- * UC-QUO-06: Xem danh sách báo giá nhận được
- * @desc    Xem danh sách báo giá của 1 yêu cầu
- *          - Khách hàng: xem toàn bộ báo giá của yêu cầu mình tạo (đầu vào so sánh UC-QUO-07)
+ * @desc    Xem danh sách báo giá của 1 yêu cầu (UC-QUO-06)
+ *          - Khách hàng: xem toàn bộ báo giá của yêu cầu mình tạo
  *          - Thợ: chỉ xem được báo giá của chính mình (không lộ giá thợ khác)
  * @route   GET /api/quotations?requestId=...
  * @access  Private (user, technician)
- *
- * START UC-QUO-06
  */
+// START UC-QUO-06
 const getQuotationsByRequest = async (req, res) => {
   try {
     const { requestId } = req.query;
@@ -210,16 +206,14 @@ const getQuotationsByRequest = async (req, res) => {
   }
 };
 
-//   END UC-QUO-06
+// END UC-QUO-06
 
 /**
- * UC-QUO-05: Cập nhật / Hủy báo giá
- * @desc    Thợ chỉnh sửa báo giá đã gửi
+ * @desc    Thợ chỉnh sửa báo giá đã gửi (UC-QUO-05)
  * @route   PUT /api/quotations/:id
  * @access  Private (technician - chủ báo giá)
- *
- * START UC-QUO-05.a — Cập nhật báo giá
  */
+// START UC-QUO-05.a
 const updateQuotation = async (req, res) => {
   try {
     const { labourCost, partsCost = 0, note = '' } = req.body;
@@ -294,17 +288,15 @@ const updateQuotation = async (req, res) => {
   }
 };
 
-//   END UC-QUO-05.a
+// END UC-QUO-05.a
 
 /**
- * UC-QUO-05: Cập nhật / Hủy báo giá
- * @desc    Thợ thu hồi báo giá đã gửi
+ * @desc    Thợ thu hồi báo giá đã gửi (UC-QUO-05)
  *          Nếu không còn báo giá nào đang mở thì yêu cầu quay lại OPEN
  * @route   PATCH /api/quotations/:id/retract
  * @access  Private (technician - chủ báo giá)
- *
- * START UC-QUO-05.b — Hủy (thu hồi) báo giá
  */
+// START UC-QUO-05.b
 const retractQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
@@ -360,17 +352,15 @@ const retractQuotation = async (req, res) => {
   }
 };
 
-//   END UC-QUO-05.b
+// END UC-QUO-05.b
 
 /**
- * UC-QUO-08: Chấp nhận báo giá (Accept)
- * @desc    Khách hàng chấp nhận 1 báo giá, chốt thợ
+ * @desc    Khách hàng chấp nhận 1 báo giá, chốt thợ (UC-QUO-08)
  *          Báo giá còn lại bị từ chối tự động, yêu cầu chuyển sang ACCEPTED
  * @route   POST /api/quotations/:id/accept
  * @access  Private (user - chủ yêu cầu)
- *
- * START UC-QUO-08
  */
+// START UC-QUO-08
 const acceptQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
@@ -462,17 +452,15 @@ const acceptQuotation = async (req, res) => {
   }
 };
 
-//   END UC-QUO-08
+// END UC-QUO-08
 
 /**
- * UC-QUO-09: Từ chối báo giá
- * @desc    Khách hàng từ chối 1 báo giá
+ * @desc    Khách hàng từ chối 1 báo giá (UC-QUO-09)
  *          Nếu không còn báo giá nào đang mở thì giải phóng yêu cầu (OPEN)
  * @route   POST /api/quotations/:id/reject
  * @access  Private (user - chủ yêu cầu)
- *
- * START UC-QUO-09
  */
+// START UC-QUO-09
 const rejectQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
@@ -535,18 +523,16 @@ const rejectQuotation = async (req, res) => {
   }
 };
 
-//   END UC-QUO-09
+// END UC-QUO-09
 
 /**
- * UC-QUO-05: Cập nhật / Hủy báo giá
- * @desc    Thợ xem danh sách "Yêu cầu đã báo giá" của chính mình
+ * @desc    Thợ xem danh sách "Yêu cầu đã báo giá" của chính mình (UC-QUO-05)
  *          Mỗi báo giá kèm thông tin phiếu yêu cầu (đã populate)
  *          Che SĐT/địa chỉ đến khi báo giá được chấp nhận
  * @route   GET /api/quotations/my-quotes
  * @access  Private (technician)
- *
- * START UC-QUO-05.c — Danh sách báo giá Thợ đã gửi (để sửa / thu hồi)
  */
+// START UC-QUO-05.c
 const getMyQuotations = async (req, res) => {
   try {
     const quotations = await Quotation.find({ technicianId: req.user._id })
@@ -594,7 +580,7 @@ const getMyQuotations = async (req, res) => {
     });
   }
 };
-//   END UC-QUO-05.c
+// END UC-QUO-05.c
 
 module.exports = {
   sendQuotation,

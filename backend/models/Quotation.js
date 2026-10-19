@@ -1,15 +1,6 @@
 const mongoose = require('mongoose');
 
-// ============================================================================
-// Bảng dữ liệu trung tâm của Epic "Báo giá & Khớp lệnh".
-// Một bản ghi = 1 báo giá của 1 Thợ cho 1 phiếu yêu cầu.
-//   UC-QUO-04: Gửi báo giá        — tạo bản ghi (status = SENT)
-//   UC-QUO-05: Cập nhật / Hủy     — sửa labourCost/partsCost/note, hoặc RETRACT
-//   UC-QUO-06: Xem danh sách nhận được — đọc nhiều bản ghi của 1 requestId
-//   UC-QUO-07: So sánh các thợ    — đọc & so sánh total/rating giữa các bản ghi
-//   UC-QUO-08: Chấp nhận           — status = ACCEPTED, các bản ghi khác = REJECTED
-//   UC-QUO-09: Từ chối             — status = REJECTED
-// ============================================================================
+// 1 bản ghi = 1 báo giá của 1 Thợ cho 1 phiếu yêu cầu (UC-QUO-04 -> UC-QUO-09)
 const quotationSchema = new mongoose.Schema(
   {
     // Phiếu yêu cầu được báo giá

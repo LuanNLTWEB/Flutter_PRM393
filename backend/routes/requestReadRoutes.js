@@ -9,25 +9,12 @@ const { protect, authorize } = require('../middlewares/auth');
 // Đọc phiếu yêu cầu dành cho Thợ & Khách hàng
 router.use(protect);
 
-// ============================================================================
-// UC-QUO-01: Xem tin sự cố quanh đây
-//   START UC-QUO-01 — Feed yêu cầu sửa chữa còn nhận báo giá cho Thợ
-//                   (mặc định lấy cả OPEN + QUOTED, xem controller để rõ cú pháp)
-// ============================================================================
+// START UC-QUO-01 + UC-QUO-02: Xem & lọc sự cố quanh đây
 router.get('/nearby', authorize('technician'), getNearbyRequests);
-//   END UC-QUO-01
+// END UC-QUO-01 + UC-QUO-02
 
-// ============================================================================
-// UC-QUO-02: Lọc sự cố theo chuyên môn
-//   START UC-QUO-02 — Cùng endpoint /nearby, thêm tham số categorySlug / urgency
-// ============================================================================
-//   END UC-QUO-02 (tham số lọc, không phải route riêng)
-
-// ============================================================================
-// UC-QUO-03: Xem chi tiết sự cố
-//   START UC-QUO-03 — Chi tiết 1 phiếu yêu cầu (Thợ bị che SĐT & địa chỉ)
-// ============================================================================
+// START UC-QUO-03: Xem chi tiết sự cố
 router.get('/:id', authorize('user', 'technician', 'staff', 'admin'), getRequestDetail);
-//   END UC-QUO-03
+// END UC-QUO-03
 
 module.exports = router;

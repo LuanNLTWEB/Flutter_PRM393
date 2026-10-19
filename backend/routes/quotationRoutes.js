@@ -14,53 +14,32 @@ const { protect, authorize } = require('../middlewares/auth');
 // Toàn bộ API báo giá đều yêu cầu đăng nhập
 router.use(protect);
 
-// ============================================================================
-// UC-QUO-04: Gửi báo giá (Quotation)
-//   START UC-QUO-04 — Thợ gửi báo giá cho 1 phiếu yêu cầu
-// ============================================================================
+// START UC-QUO-04: Gửi báo giá
 router.post('/', authorize('technician'), sendQuotation);
-//   END UC-QUO-04
+// END UC-QUO-04
 
-// ============================================================================
-// UC-QUO-05: Cập nhật / Hủy báo giá
-//   START UC-QUO-05.a — Thợ chỉnh sửa báo giá đã gửi
-// ============================================================================
+// START UC-QUO-05.a: Cập nhật báo giá
 router.put('/:id', authorize('technician'), updateQuotation);
-//   END UC-QUO-05.a
+// END UC-QUO-05.a
 
-// ============================================================================
-// UC-QUO-05: Cập nhật / Hủy báo giá
-//   START UC-QUO-05.b — Thợ thu hồi (hủy) báo giá đã gửi
-// ============================================================================
+// START UC-QUO-05.b: Hủy (thu hồi) báo giá
 router.patch('/:id/retract', authorize('technician'), retractQuotation);
-//   END UC-QUO-05.b
+// END UC-QUO-05.b
 
-// ============================================================================
-// UC-QUO-05: Cập nhật / Hủy báo giá
-//   START UC-QUO-05.c — Thợ xem lại các báo giá mình đã gửi
-// ============================================================================
+// START UC-QUO-05.c: Xem các báo giá Thợ đã gửi
 router.get('/my-quotes', authorize('technician'), getMyQuotations);
-//   END UC-QUO-05.c
+// END UC-QUO-05.c
 
-// ============================================================================
-// UC-QUO-06: Xem danh sách báo giá nhận được
-//   START UC-QUO-06 — Khách hàng xem các thợ đã báo giá cho yêu cầu của mình
-// ============================================================================
+// START UC-QUO-06: Xem danh sách báo giá nhận được
 router.get('/', authorize('user', 'technician'), getQuotationsByRequest);
-//   END UC-QUO-06
+// END UC-QUO-06
 
-// ============================================================================
-// UC-QUO-08: Chấp nhận báo giá (Accept)
-//   START UC-QUO-08 — Khách chốt 1 thợ, tự động từ chối các báo giá còn lại
-// ============================================================================
+// START UC-QUO-08: Chấp nhận báo giá
 router.post('/:id/accept', authorize('user'), acceptQuotation);
-//   END UC-QUO-08
+// END UC-QUO-08
 
-// ============================================================================
-// UC-QUO-09: Từ chối báo giá
-//   START UC-QUO-09 — Khách từ chối báo giá của 1 thợ
-// ============================================================================
+// START UC-QUO-09: Từ chối báo giá
 router.post('/:id/reject', authorize('user'), rejectQuotation);
-//   END UC-QUO-09
+// END UC-QUO-09
 
 module.exports = router;
