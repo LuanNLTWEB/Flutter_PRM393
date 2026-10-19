@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../technician/presentation/screens/technician_skills_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -410,6 +411,36 @@ class ProfileScreen extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondaryColor),
               onTap: () => _openChangePasswordDialog(context),
             ),
+            if (auth.currentUser?.role == 'technician') ...[
+              const Divider(height: 1, indent: 60),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.handyman_rounded, color: Colors.deepPurple, size: 22),
+                ),
+                title: const Text(
+                  'Hồ sơ tay nghề & Chứng chỉ',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                ),
+                subtitle: const Text(
+                  'Cập nhật chuyên môn, kinh nghiệm, bằng cấp',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondaryColor),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const TechnicianSkillsScreen(),
+                    ),
+                  );
+                },
+              ),
+            ],
           ],
         ),
       ),

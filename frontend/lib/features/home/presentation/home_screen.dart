@@ -11,6 +11,7 @@ import '../../order_history/presentation/screens/order_history_screen.dart';
 import '../../technician/presentation/providers/technician_provider.dart';
 import '../../technician/presentation/screens/technician_public_profile_screen.dart';
 import '../../technician/presentation/screens/technician_register_screen.dart';
+import '../../technician/presentation/screens/technician_skills_screen.dart';
 import '../../repair_request/presentation/screens/service_category_screen.dart';
 import '../../repair_request/presentation/screens/create_repair_request_screen.dart';
 import '../../repair_request/presentation/screens/customer_request_list_screen.dart';
@@ -623,62 +624,102 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // Trạng thái Approved: Cho phép Bật/Tắt trạng thái nhận việc
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.green.shade300),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: isAvailable ? Colors.green : Colors.grey,
-            child: Icon(
-              isAvailable ? Icons.check : Icons.power_settings_new,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    // Trạng thái Approved: Cho phép Bật/Tắt trạng thái nhận việc & Cập nhật tay nghề
+    return Material(
+      color: Colors.green.shade50,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.green.shade300),
+        ),
+        child: Column(
+          children: [
+            Row(
               children: [
-                const Text(
-                  'Trạng thái nhận việc',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
+                CircleAvatar(
+                  backgroundColor: isAvailable ? Colors.green : Colors.grey,
+                  child: Icon(
+                    isAvailable ? Icons.check : Icons.power_settings_new,
+                    color: Colors.white,
                   ),
                 ),
-                Text(
-                  isAvailable
-                      ? 'Đang BẬT - Sẵn sàng nhận cuốc mới'
-                      : 'Đang TẮT - Tạm dừng nhận việc',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade700,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Trạng thái nhận việc',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                      Text(
+                        isAvailable
+                            ? 'Đang BẬT - Sẵn sàng nhận cuốc mới'
+                            : 'Đang TẮT - Tạm dừng nhận việc',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                Switch(
+                  value: isAvailable,
+                  activeThumbColor: Colors.green,
+                  onChanged: (val) async {
+                    final provider = context.read<TechnicianProvider>();
+                    final updated =
+                        await provider.toggleAvailability(token, isAvailable: val);
+                    if (updated != null && context.mounted) {
+                      await auth.refreshProfile();
+                    }
+                  },
                 ),
               ],
             ),
-          ),
-          Switch(
-            value: isAvailable,
-            activeThumbColor: Colors.green,
-            onChanged: (val) async {
-
-              final provider = context.read<TechnicianProvider>();
-              final updated =
-                  await provider.toggleAvailability(token, isAvailable: val);
-              if (updated != null && context.mounted) {
-                await auth.refreshProfile();
-              }
-            },
-          ),
-        ],
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const TechnicianSkillsScreen(),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.handyman_outlined, size: 16, color: Colors.green.shade800),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Cập nhật tay nghề & chứng chỉ',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green.shade900,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, size: 18, color: Colors.green.shade800),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

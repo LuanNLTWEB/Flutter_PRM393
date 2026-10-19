@@ -172,6 +172,50 @@ class TechnicianRemoteDataSource {
     }
   }
 
+  /// Cập nhật kỹ năng, số năm kinh nghiệm, tiểu sử và chứng chỉ của thợ
+  Future<UserModel> updateTechnicianSkills({
+    required String token,
+    required List<String> skills,
+    required int experienceYears,
+    required String bio,
+    List<String> existingCertificates = const [],
+    List<XFile> newCertificates = const [],
+  }) async {
+    final uri = Uri.parse(ApiEndpoints.updateTechnicianSkills);
+    final request = http.MultipartRequest('PUT', uri);
+
+    request.headers['Authorization'] = 'Bearer $token';
+
+    request.fields['skills'] = skills.join(',');
+    request.fields['experienceYears'] = experienceYears.toString();
+    request.fields['bio'] = bio.trim();
+    request.fields['existingCertificates'] = json.encode(existingCertificates);
+
+    for (int i = 0; i < newCertificates.length; i++) {
+      final cert = newCertificates[i];
+      final certBytes = await cert.readAsBytes();
+      final certName = _sanitizeImageName(cert.name, 'cert_$i.jpg');
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'certificates',
+          certBytes,
+          filename: certName,
+          contentType: _getMediaType(certName),
+        ),
+      );
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    final data = json.decode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      return UserModel.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Không thể cập nhật hồ sơ tay nghề');
+    }
+  }
+
   /// Lấy danh sách thợ KYC cho Admin & Staff kèm số lượng thống kê
   Future<Map<String, dynamic>> getKYCTechnicians(
     String token, {

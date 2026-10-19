@@ -208,4 +208,39 @@ class TechnicianProvider extends ChangeNotifier {
       return null;
     }
   }
+
+  /// Cập nhật hồ sơ tay nghề và chứng chỉ
+  Future<UserModel?> updateTechnicianSkills({
+    required String token,
+    required List<String> skills,
+    required int experienceYears,
+    required String bio,
+    List<String> existingCertificates = const [],
+    List<XFile> newCertificates = const [],
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedUser = await _dataSource.updateTechnicianSkills(
+        token: token,
+        skills: skills,
+        experienceYears: experienceYears,
+        bio: bio,
+        existingCertificates: existingCertificates,
+        newCertificates: newCertificates,
+      );
+      _successMessage = 'Cập nhật hồ sơ tay nghề thành công!';
+      _isLoading = false;
+      notifyListeners();
+      return updatedUser;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
+  }
 }

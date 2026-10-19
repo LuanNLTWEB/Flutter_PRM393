@@ -309,9 +309,129 @@ const toggleAvailability = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Cập nhật thông tin tay nghề, chuyên môn và chứng chỉ của Thợ
+ * @route   PUT /api/technicians/skills
+ * @access  Private (Technician only)
+ */
+const updateTechnicianSkills = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user || user.role !== 'technician') {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ tài khoản Thợ mới có quyền cập nhật hồ sơ tay nghề',
+      });
+    }
+
+    const { skills, experienceYears, bio, existingCertificates } = req.body;
+
+    if (!user.technicianProfile) {
+      user.technicianProfile = {
+        skills: [],
+        experienceYears: 0,
+        bio: '',
+        certificates: [],
+      };
+    }
+
+    // 1. Cập nhật danh sách kỹ năng / chuyên môn
+    if (skills !== undefined) {
+      let parsedSkills = [];
+      if (Array.isArray(skills)) {
+        parsedSkills = skills.map((s) => String(s).trim()).filter((s) => s.length > 0);
+      } else if (typeof skills === 'string') {
+        try {
+          const jsonParsed = JSON.parse(skills);
+          if (Array.isArray(jsonParsed)) {
+            parsedSkills = jsonParsed.map((s) => String(s).trim()).filter((s) => s.length > 0);
+          } else {
+            parsedSkills = skills
+              .split(',')
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0);
+          }
+        } catch (_) {
+          parsedSkills = skills
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0);
+        }
+      }
+      user.technicianProfile.skills = parsedSkills;
+    }
+
+    // 2. Cập nhật số năm kinh nghiệm
+    if (experienceYears !== undefined) {
+      const exp = Number(experienceYears);
+      if (!isNaN(exp) && exp >= 0) {
+        user.technicianProfile.experienceYears = exp;
+      }
+    }
+
+    // 3. Cập nhật tiểu sử / bio
+    if (bio !== undefined) {
+      user.technicianProfile.bio = String(bio).trim();
+    }
+
+    // 4. Xử lý chứng chỉ: giữ lại chứng chỉ cũ nếu có existingCertificates
+    let currentCerts = [...(user.technicianProfile.certificates || [])];
+    if (existingCertificates !== undefined) {
+      let keptCerts = [];
+      if (Array.isArray(existingCertificates)) {
+        keptCerts = existingCertificates.map((c) => String(c).trim()).filter((c) => c.length > 0);
+      } else if (typeof existingCertificates === 'string') {
+        try {
+          const jsonParsed = JSON.parse(existingCertificates);
+          if (Array.isArray(jsonParsed)) {
+            keptCerts = jsonParsed.map((c) => String(c).trim()).filter((c) => c.length > 0);
+          } else if (existingCertificates.trim().length > 0) {
+            keptCerts = existingCertificates.split(',').map((c) => c.trim()).filter((c) => c.length > 0);
+          }
+        } catch (_) {
+          if (existingCertificates.trim().length > 0) {
+            keptCerts = existingCertificates.split(',').map((c) => c.trim()).filter((c) => c.length > 0);
+          }
+        }
+      }
+      currentCerts = keptCerts;
+    }
+
+    // Upload các file chứng chỉ mới tải lên (nếu có)
+    const files = req.files || [];
+    if (files.length > 0) {
+      const uploadPromises = files.map((file) =>
+        uploadStream(file.buffer, {
+          folder: 'homefix/technicians/certificates',
+        })
+      );
+      const results = await Promise.all(uploadPromises);
+      results.forEach((item) => currentCerts.push(item.url));
+    }
+
+    user.technicianProfile.certificates = currentCerts;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cập nhật hồ sơ tay nghề và chứng chỉ thành công',
+      data: user,
+    });
+  } catch (error) {
+    console.error('Lỗi khi cập nhật hồ sơ tay nghề thợ:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi cập nhật hồ sơ tay nghề',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerTechnician,
   getPublicTechnicians,
   getPublicTechnicianById,
   toggleAvailability,
+  updateTechnicianSkills,
 };

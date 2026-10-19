@@ -14,6 +14,7 @@ class ApiEndpoints {
   static const String publicTechnicians = '$baseUrl/technicians';
   static String publicTechnicianDetail(String id) => '$baseUrl/technicians/$id';
   static const String technicianAvailability = '$baseUrl/technicians/status/availability';
+  static const String updateTechnicianSkills = '$baseUrl/technicians/skills';
 
   // Admin & Staff KYC Endpoints
   static const String adminUsers = '$baseUrl/admin/users';
