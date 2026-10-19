@@ -36,6 +36,11 @@ class ApiEndpoints {
   static const String serviceCategories = '$baseUrl/categories';
   static String serviceCategoryDetail(String identifier) => '$baseUrl/categories/$identifier';
   static String searchServiceCategories(String keyword) => '$baseUrl/categories/search?keyword=$keyword';
+  // Quản lý Danh mục dịch vụ cho Staff/Admin (UC-STF-02)
+  static const String adminServiceCategories = '$baseUrl/categories/manage';
+  static String adminUpdateServiceCategory(String id) => '$baseUrl/categories/$id';
+  static String adminToggleServiceCategory(String id) => '$baseUrl/categories/$id/status';
+  static String adminDeleteServiceCategory(String id) => '$baseUrl/categories/$id';
 
   // Yêu cầu sửa chữa
   static const String requests = '$baseUrl/requests';

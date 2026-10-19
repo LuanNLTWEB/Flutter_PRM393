@@ -8,6 +8,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/admin_provider.dart';
 import 'create_staff_screen.dart';
 import 'admin_technician_approval_screen.dart';
+import 'admin_service_category_screen.dart';
 import '../../../notification/presentation/providers/notification_provider.dart';
 import '../../../notification/presentation/screens/notification_screen.dart';
 
@@ -121,6 +122,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => const AdminTechnicianApprovalScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Quản lý Danh mục & Giá sàn (UC-STF-02)',
+            icon: const Icon(Icons.category_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminServiceCategoryScreen(),
                 ),
               );
             },
@@ -339,6 +352,52 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               _buildStatItem('Thợ', '$techCount', Colors.orange.shade800),
               _buildStatItem('Nhân viên', '$staffCount', AppTheme.primaryColor),
               _buildStatItem('Đã khóa', '$lockedCount', Colors.red.shade700),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+
+          // Lối tắt chức năng vận hành Staff / Admin
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.assignment_ind_outlined, size: 16),
+                  label: const Text('Duyệt Thợ (KYC)', style: TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminTechnicianApprovalScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.category_outlined, size: 16),
+                  label: const Text('Danh mục & Giá sàn', style: TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminServiceCategoryScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
         ],
