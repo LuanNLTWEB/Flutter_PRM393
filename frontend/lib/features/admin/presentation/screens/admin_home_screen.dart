@@ -8,6 +8,9 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/admin_provider.dart';
 import 'create_staff_screen.dart';
 import 'admin_technician_approval_screen.dart';
+import 'admin_service_category_screen.dart';
+import '../../../notification/presentation/providers/notification_provider.dart';
+import '../../../notification/presentation/screens/notification_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
 
@@ -86,11 +89,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               fit: BoxFit.contain,
             ),
             const SizedBox(width: 8),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
+                const Text(
                   AppConstants.appName,
                   style: TextStyle(
                     fontSize: 16,
@@ -99,11 +102,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ),
                 ),
                 Text(
-                  'Cổng Quản trị viên',
+                  currentUser?.role == 'staff' ? 'Cổng Vận hành Staff' : 'Cổng Quản trị viên',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Colors.deepPurple,
+                    color: currentUser?.role == 'staff' ? Colors.teal : Colors.deepPurple,
                   ),
                 ),
               ],
@@ -124,6 +127,68 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             },
           ),
           IconButton(
+            tooltip: 'Quản lý Danh mục & Giá sàn (UC-STF-02)',
+            icon: const Icon(Icons.category_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminServiceCategoryScreen(),
+                ),
+              );
+            },
+          ),
+          Consumer<NotificationProvider>(
+            builder: (context, notifProvider, _) {
+              final unread = notifProvider.unreadCount;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    tooltip: 'Thông báo',
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationScreen(),
+                        ),
+                      );
+                      if (context.mounted && token.isNotEmpty) {
+                        context.read<NotificationProvider>().fetchUnreadCount(token);
+                      }
+                    },
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unread > 9 ? '9+' : '$unread',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          IconButton(
             tooltip: 'Làm mới danh sách',
             icon: const Icon(Icons.refresh),
             onPressed: _loadUsers,
@@ -139,25 +204,27 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         ],
 
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppTheme.primaryColor,
-        icon: const Icon(Icons.person_add, color: Colors.white),
-        label: const Text(
-          'Thêm Staff',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        onPressed: () async {
-          final created = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateStaffScreen(),
-            ),
-          );
-          if (created == true) {
-            _loadUsers();
-          }
-        },
-      ),
+      floatingActionButton: currentUser?.role == 'admin'
+          ? FloatingActionButton.extended(
+              backgroundColor: AppTheme.primaryColor,
+              icon: const Icon(Icons.person_add, color: Colors.white),
+              label: const Text(
+                'Thêm Staff',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () async {
+                final created = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateStaffScreen(),
+                  ),
+                );
+                if (created == true) {
+                  _loadUsers();
+                }
+              },
+            )
+          : null,
       body: Column(
         children: [
           // Thẻ hồ sơ Admin & Thống kê tóm tắt
@@ -248,7 +315,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                             ),
                           ),
                           child: Text(
-                            'Quản trị viên',
+                            user.roleDisplay,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -285,6 +352,52 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               _buildStatItem('Thợ', '$techCount', Colors.orange.shade800),
               _buildStatItem('Nhân viên', '$staffCount', AppTheme.primaryColor),
               _buildStatItem('Đã khóa', '$lockedCount', Colors.red.shade700),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+
+          // Lối tắt chức năng vận hành Staff / Admin
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.assignment_ind_outlined, size: 16),
+                  label: const Text('Duyệt Thợ (KYC)', style: TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminTechnicianApprovalScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.category_outlined, size: 16),
+                  label: const Text('Danh mục & Giá sàn', style: TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminServiceCategoryScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
         ],

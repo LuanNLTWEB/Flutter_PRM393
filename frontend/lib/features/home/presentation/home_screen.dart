@@ -17,6 +17,8 @@ import '../../repair_request/presentation/screens/customer_request_list_screen.d
 import '../../repair_request/data/models/service_category_model.dart';
 import '../../repair_request/presentation/providers/repair_request_provider.dart';
 import '../../quotations/presentation/screens/nearby_requests_screen.dart';
+import '../../notification/presentation/providers/notification_provider.dart';
+import '../../notification/presentation/screens/notification_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,6 +34,10 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TechnicianProvider>().fetchPublicTechnicians();
       context.read<RepairRequestProvider>().fetchCategories();
+      final token = context.read<AuthProvider>().token;
+      if (token != null && token.isNotEmpty) {
+        context.read<NotificationProvider>().fetchUnreadCount(token);
+      }
     });
   }
 
@@ -40,8 +46,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
         if (auth.isAuthenticated) {
-          // Admin chỉ xem duy nhất trang Quản trị viên (AdminHomeScreen), không xem trang khác
-          if (auth.currentUser?.role == 'admin') {
+          // Admin & Staff xem trang Quản trị & Vận hành (AdminHomeScreen)
+          if (auth.currentUser?.role == 'admin' || auth.currentUser?.role == 'staff') {
             return const AdminHomeScreen();
           }
           return _buildLoggedInHome(context, auth);
@@ -77,6 +83,58 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          // Nút bấm Thông báo (UC-NOT-02)
+          Consumer<NotificationProvider>(
+            builder: (context, notifProvider, _) {
+              final unread = notifProvider.unreadCount;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    tooltip: 'Thông báo',
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationScreen(),
+                        ),
+                      );
+                      final token = auth.token;
+                      if (context.mounted && token != null) {
+                        context.read<NotificationProvider>().fetchUnreadCount(token);
+                      }
+                    },
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unread > 9 ? '9+' : '$unread',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           // Nút bấm Profile trên AppBar
           Padding(
             padding: const EdgeInsets.only(right: 12.0),

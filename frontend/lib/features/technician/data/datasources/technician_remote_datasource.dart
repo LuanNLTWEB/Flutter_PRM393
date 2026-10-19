@@ -172,12 +172,19 @@ class TechnicianRemoteDataSource {
     }
   }
 
-  /// Lấy danh sách thợ KYC cho Admin & Staff
-  Future<List<UserModel>> getKYCTechnicians(
+  /// Lấy danh sách thợ KYC cho Admin & Staff kèm số lượng thống kê
+  Future<Map<String, dynamic>> getKYCTechnicians(
     String token, {
     String status = 'pending',
+    String? search,
   }) async {
-    final uri = Uri.parse('${ApiEndpoints.adminKYCTechnicians}?status=$status');
+    final queryParams = <String, String>{'status': status};
+    if (search != null && search.trim().isNotEmpty) {
+      queryParams['search'] = search.trim();
+    }
+
+    final uri = Uri.parse(ApiEndpoints.adminKYCTechnicians)
+        .replace(queryParameters: queryParams);
     final response = await client.get(
       uri,
       headers: {
@@ -188,7 +195,17 @@ class TechnicianRemoteDataSource {
     final data = json.decode(utf8.decode(response.bodyBytes));
     if (response.statusCode == 200 && data['success'] == true) {
       final List rawList = data['data']['technicians'] ?? [];
-      return rawList.map((item) => UserModel.fromJson(item)).toList();
+      final list = rawList.map((item) => UserModel.fromJson(item)).toList();
+      final countsRaw = data['data']['counts'] as Map<String, dynamic>? ?? {};
+      final counts = {
+        'pending': (countsRaw['pending'] as num?)?.toInt() ?? 0,
+        'approved': (countsRaw['approved'] as num?)?.toInt() ?? 0,
+        'rejected': (countsRaw['rejected'] as num?)?.toInt() ?? 0,
+      };
+      return {
+        'technicians': list,
+        'counts': counts,
+      };
     } else {
       throw Exception(data['message'] ?? 'Không thể tải danh sách duyệt KYC');
     }

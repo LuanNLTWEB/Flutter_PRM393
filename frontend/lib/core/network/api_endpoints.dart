@@ -36,6 +36,11 @@ class ApiEndpoints {
   static const String serviceCategories = '$baseUrl/categories';
   static String serviceCategoryDetail(String identifier) => '$baseUrl/categories/$identifier';
   static String searchServiceCategories(String keyword) => '$baseUrl/categories/search?keyword=$keyword';
+  // Quản lý Danh mục dịch vụ cho Staff/Admin (UC-STF-02)
+  static const String adminServiceCategories = '$baseUrl/categories/manage';
+  static String adminUpdateServiceCategory(String id) => '$baseUrl/categories/$id';
+  static String adminToggleServiceCategory(String id) => '$baseUrl/categories/$id/status';
+  static String adminDeleteServiceCategory(String id) => '$baseUrl/categories/$id';
 
   // Yêu cầu sửa chữa
   static const String requests = '$baseUrl/requests';
@@ -64,5 +69,13 @@ class ApiEndpoints {
   static String quotationRetract(String id) =>
       '$baseUrl/quotations/$id/retract';
   static const String nearbyRequests = '$baseUrl/requests/nearby';
+
+  // Thông báo (UC-NOT-01 & UC-NOT-02)
+  static const String notifications = '$baseUrl/notifications';
+  static const String unreadNotificationCount = '$baseUrl/notifications/unread-count';
+  static String markNotificationAsRead(String id) => '$baseUrl/notifications/$id/read';
+  static const String markAllNotificationsAsRead = '$baseUrl/notifications/read-all';
+  static String deleteNotification(String id) => '$baseUrl/notifications/$id';
+  static const String clearAllNotifications = '$baseUrl/notifications/clear-all';
 }
 

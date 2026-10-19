@@ -96,6 +96,10 @@ const userSchema = new mongoose.Schema(
         type: Date,
         default: null,
       },
+      rejectedAt: {
+        type: Date,
+        default: null,
+      },
       approvedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
