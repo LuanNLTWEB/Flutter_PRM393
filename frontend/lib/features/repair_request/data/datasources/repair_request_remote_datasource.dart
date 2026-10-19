@@ -97,7 +97,7 @@ class RepairRequestRemoteDataSource {
     }
   }
 
-  // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường
+  // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường và địa chỉ định vị
   Future<RepairRequestModel> createRepairRequest({
     required String token,
     required String serviceCategoryId,
@@ -106,6 +106,9 @@ class RepairRequestRemoteDataSource {
     String urgency = 'medium',
     DateTime? preferredTime,
     List<XFile> images = const [],
+    String? address,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       if (images.isNotEmpty) {
@@ -117,6 +120,15 @@ class RepairRequestRemoteDataSource {
         request.fields['urgency'] = urgency;
         if (preferredTime != null) {
           request.fields['preferredTime'] = preferredTime.toUtc().toIso8601String();
+        }
+        if (address != null && address.trim().isNotEmpty) {
+          request.fields['address'] = address.trim();
+        }
+        if (latitude != null) {
+          request.fields['latitude'] = latitude.toString();
+        }
+        if (longitude != null) {
+          request.fields['longitude'] = longitude.toString();
         }
 
         for (final file in images) {
@@ -159,6 +171,10 @@ class RepairRequestRemoteDataSource {
           'urgency': urgency,
           if (preferredTime != null)
             'preferredTime': preferredTime.toUtc().toIso8601String(),
+          if (address != null && address.trim().isNotEmpty)
+            'address': address.trim(),
+          'latitude': ?latitude,
+          'longitude': ?longitude,
         });
 
         final response = await client.post(
