@@ -7,6 +7,7 @@ import '../../data/models/service_category_model.dart';
 import '../providers/repair_request_provider.dart';
 import '../widgets/service_category_card.dart';
 import 'create_repair_request_screen.dart';
+import 'customer_request_list_screen.dart';
 import '../../../admin/presentation/screens/admin_service_category_screen.dart';
 
 class ServiceCategoryScreen extends StatefulWidget {
@@ -244,6 +245,18 @@ class _ServiceCategoryScreenState extends State<ServiceCategoryScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Yêu cầu của tôi',
+            icon: const Icon(Icons.assignment_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CustomerRequestListScreen(),
+                ),
+              );
+            },
+          ),
           Consumer<AuthProvider>(
             builder: (context, auth, _) {
               final role = auth.currentUser?.role;

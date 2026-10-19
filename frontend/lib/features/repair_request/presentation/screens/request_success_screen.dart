@@ -3,6 +3,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../data/models/repair_request_model.dart';
 import '../../../home/presentation/home_screen.dart';
 import '../../../quotations/presentation/screens/request_quotations_screen.dart';
+import 'customer_request_list_screen.dart';
 
 /// Màn hình thông báo gửi yêu cầu thành công
 class RequestSuccessScreen extends StatelessWidget {
@@ -139,6 +140,31 @@ class RequestSuccessScreen extends StatelessWidget {
                         requestId: request.id,
                         request: request,
                       ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+
+              // ── Nút Xem danh sách yêu cầu đã tạo (UC-REQ-07) ──
+              OutlinedButton.icon(
+                key: const Key('request_success_list_btn'),
+                icon: const Icon(Icons.format_list_bulleted_rounded),
+                label: const Text(
+                  'Xem danh sách yêu cầu đã tạo',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CustomerRequestListScreen(),
                     ),
                   );
                 },

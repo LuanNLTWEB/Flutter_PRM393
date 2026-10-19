@@ -151,9 +151,71 @@ class RepairRequestProvider extends ChangeNotifier {
     }
   }
 
+  // State danh sách yêu cầu của tôi (UC-REQ-07)
+  List<RepairRequestModel> _myRequests = [];
+  bool _isLoadingRequests = false;
+  String? _requestsError;
+  String _selectedStatusFilter = 'ALL';
+
+  // Getters danh sách yêu cầu
+  List<RepairRequestModel> get myRequests => _myRequests;
+  bool get isLoadingRequests => _isLoadingRequests;
+  String? get requestsError => _requestsError;
+  String get selectedStatusFilter => _selectedStatusFilter;
+
+  // Lọc theo trạng thái yêu cầu
+  List<RepairRequestModel> get openRequests =>
+      _myRequests.where((r) => r.status == 'OPEN' || r.status == 'QUOTED').toList();
+
+  List<RepairRequestModel> get acceptedRequests => _myRequests
+      .where((r) =>
+          r.status == 'ACCEPTED' ||
+          r.status == 'ON_THE_WAY' ||
+          r.status == 'IN_PROGRESS' ||
+          r.status == 'COMPLETED')
+      .toList();
+
+  List<RepairRequestModel> get cancelledRequests =>
+      _myRequests.where((r) => r.status == 'CANCELLED').toList();
+
   // Reset lỗi gửi yêu cầu
   void clearSubmitError() {
     _submitError = null;
+    notifyListeners();
+  }
+
+  // Tải danh sách yêu cầu của tôi (UC-REQ-07)
+  Future<void> fetchMyRequests({
+    required String token,
+    String? tab,
+    String? status,
+    bool refresh = false,
+  }) async {
+    if (_myRequests.isNotEmpty && !refresh && _isLoadingRequests) return;
+
+    _isLoadingRequests = true;
+    _requestsError = null;
+    notifyListeners();
+
+    try {
+      final list = await _dataSource.getMyRepairRequests(
+        token: token,
+        tab: tab,
+        status: status,
+      );
+      _myRequests = list;
+      _isLoadingRequests = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoadingRequests = false;
+      _requestsError = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
+  // Đổi bộ lọc trạng thái
+  void setStatusFilter(String filter) {
+    _selectedStatusFilter = filter;
     notifyListeners();
   }
 }
