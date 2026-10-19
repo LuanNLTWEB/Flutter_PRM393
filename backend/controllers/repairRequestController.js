@@ -239,11 +239,17 @@ const getMyRepairRequests = async (req, res) => {
       ? { assignedTechnicianId: req.user._id }
       : { customerId: req.user._id };
 
-    const { tab } = req.query; // PROCESSING, COMPLETED, CANCELLED, hoặc ALL
+    const { tab, status } = req.query; // WAITING_QUOTES, PROCESSING, COMPLETED, CANCELLED, hoặc ALL
     let statusFilter = {};
 
-    if (tab === 'PROCESSING') {
+    if (status) {
+      statusFilter = { status };
+    } else if (tab === 'WAITING_QUOTES' || tab === 'OPEN') {
+      statusFilter = { status: { $in: ['OPEN', 'QUOTED'] } };
+    } else if (tab === 'PROCESSING') {
       statusFilter = { status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'] } };
+    } else if (tab === 'ACCEPTED') {
+      statusFilter = { status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'] } };
     } else if (tab === 'COMPLETED') {
       statusFilter = { status: 'COMPLETED' };
     } else if (tab === 'CANCELLED') {
@@ -259,7 +265,11 @@ const getMyRepairRequests = async (req, res) => {
       .sort({ createdAt: -1 });
 
     // Đếm số lượng theo từng tab
-    const [processingCount, completedCount, cancelledCount] = await Promise.all([
+    const [waitingCount, processingCount, completedCount, cancelledCount] = await Promise.all([
+      RepairRequest.countDocuments({
+        ...baseFilter,
+        status: { $in: ['OPEN', 'QUOTED'] },
+      }),
       RepairRequest.countDocuments({
         ...baseFilter,
         status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'] },
@@ -268,12 +278,32 @@ const getMyRepairRequests = async (req, res) => {
       RepairRequest.countDocuments({ ...baseFilter, status: 'CANCELLED' }),
     ]);
 
+    // Thống kê số lượng báo giá cho mỗi yêu cầu
+    const requestIds = requests.map((r) => r._id);
+    let quoteCountMap = {};
+    if (requestIds.length > 0) {
+      const quoteCounts = await Quotation.aggregate([
+        { $match: { requestId: { $in: requestIds }, status: { $ne: 'RETRACTED' } } },
+        { $group: { _id: '$requestId', count: { $sum: 1 } } },
+      ]);
+      quoteCounts.forEach((qc) => {
+        quoteCountMap[qc._id.toString()] = qc.count;
+      });
+    }
+
+    const requestsWithQuotes = requests.map((r) => {
+      const obj = r.toObject();
+      obj.quotesCount = quoteCountMap[r._id.toString()] || 0;
+      return obj;
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Lấy lịch sử đơn hàng thành công',
       data: {
-        requests,
+        requests: requestsWithQuotes,
         counts: {
+          waitingQuotes: waitingCount,
           processing: processingCount,
           completed: completedCount,
           cancelled: cancelledCount,

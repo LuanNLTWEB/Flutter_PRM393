@@ -14,10 +14,10 @@ const upload = require('../middlewares/upload');
 // Yêu cầu đăng nhập cho tất cả các routes bên dưới
 router.use(protect);
 
-// Lịch sử đơn hàng của tôi (UC-HIS-01)
+// Lấy danh sách yêu cầu của tôi (UC-REQ-07, UC-HIS-01)
 router.get('/my-requests', getMyRepairRequests);
 
-// Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường
+// Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường (UC-REQ-03, 04, 05)
 router.post('/', authorize('user'), upload.array('images', 5), createRepairRequest);
 
 // Thợ xác nhận / đổi lịch hẹn (UC-LIC-01)

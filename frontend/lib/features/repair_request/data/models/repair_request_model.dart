@@ -22,6 +22,7 @@ class RepairRequestModel {
   final DateTime? cancelledAt;
   final String cancellationReason;
   final DateTime? onTheWayAt; // thời điểm thợ bấm "Đang trên đường"
+  final int quotesCount; // số lượng báo giá của thợ gửi đến
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -46,6 +47,7 @@ class RepairRequestModel {
     this.cancelledAt,
     this.cancellationReason = '',
     this.onTheWayAt,
+    this.quotesCount = 0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -137,6 +139,13 @@ class RepairRequestModel {
       onTheWayAt: json['onTheWayAt'] != null
           ? DateTime.tryParse(json['onTheWayAt'])?.toLocal()
           : null,
+      quotesCount: json['quotesCount'] is int
+          ? json['quotesCount']
+          : (json['quotesCount'] is num
+              ? (json['quotesCount'] as num).toInt()
+              : (json['quotationCount'] is num
+                  ? (json['quotationCount'] as num).toInt()
+                  : 0)),
       createdAt: DateTime.tryParse(json['createdAt'] ?? '')?.toLocal() ??
           DateTime.now(),
       updatedAt: DateTime.tryParse(json['updatedAt'] ?? '')?.toLocal() ??
@@ -222,6 +231,7 @@ class RepairRequestModel {
     String? rescheduleNote,
     String? rescheduleRejectNote,
     DateTime? onTheWayAt,
+    int? quotesCount,
   }) {
     return RepairRequestModel(
       id: id,
@@ -244,6 +254,7 @@ class RepairRequestModel {
       cancelledAt: cancelledAt,
       cancellationReason: cancellationReason,
       onTheWayAt: onTheWayAt ?? this.onTheWayAt,
+      quotesCount: quotesCount ?? this.quotesCount,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

@@ -202,4 +202,46 @@ class RepairRequestRemoteDataSource {
       throw Exception('Không thể kết nối đến máy chủ: $e');
     }
   }
+
+  /// Lấy danh sách phiếu yêu cầu sửa chữa của khách hàng hiện tại (UC-REQ-07)
+  Future<List<RepairRequestModel>> getMyRepairRequests({
+    required String token,
+    String? tab,
+    String? status,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (tab != null && tab.isNotEmpty) {
+        queryParams['tab'] = tab;
+      }
+      if (status != null && status.isNotEmpty) {
+        queryParams['status'] = status;
+      }
+
+      final uri = Uri.parse(ApiEndpoints.myRequests).replace(
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      final response = await client.get(
+        uri,
+        headers: _headers(token),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        final List<dynamic> list = data['data']?['requests'] ?? [];
+        return list
+            .map((item) => RepairRequestModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } else {
+        throw Exception(
+          data['message'] ?? 'Không thể tải danh sách phiếu yêu cầu của bạn',
+        );
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
 }
