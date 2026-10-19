@@ -64,5 +64,13 @@ class ApiEndpoints {
   static String quotationRetract(String id) =>
       '$baseUrl/quotations/$id/retract';
   static const String nearbyRequests = '$baseUrl/requests/nearby';
+
+  // Thông báo (UC-NOT-01 & UC-NOT-02)
+  static const String notifications = '$baseUrl/notifications';
+  static const String unreadNotificationCount = '$baseUrl/notifications/unread-count';
+  static String markNotificationAsRead(String id) => '$baseUrl/notifications/$id/read';
+  static const String markAllNotificationsAsRead = '$baseUrl/notifications/read-all';
+  static String deleteNotification(String id) => '$baseUrl/notifications/$id';
+  static const String clearAllNotifications = '$baseUrl/notifications/clear-all';
 }
 

@@ -2,6 +2,7 @@ const RepairRequest = require('../models/RepairRequest');
 const ServiceCategory = require('../models/ServiceCategory');
 const Quotation = require('../models/Quotation');
 const { uploadStream } = require('../config/cloudinary');
+const { createNotificationUtil } = require('./notificationController');
 
 // Hàm kiểm tra văn bản spam hoặc ký tự vô nghĩa lặp lại
 const isSpamText = (text) => {
@@ -564,6 +565,15 @@ const updateOnTheWay = async (req, res) => {
     request.status = 'ON_THE_WAY';
     request.onTheWayAt = new Date();
     await request.save();
+
+    // Gửi thông báo đến khách hàng
+    await createNotificationUtil({
+      recipient: request.customerId,
+      title: 'Thợ đang trên đường đến! 🛵',
+      message: `Thợ ${req.user.fullName || 'kỹ thuật'} đang di chuyển đến nhà bạn cho yêu cầu "${request.title}". Vui lòng chuẩn bị và chú ý điện thoại.`,
+      type: 'ORDER_STATUS',
+      data: { requestId: request._id, status: 'ON_THE_WAY' },
+    });
 
     return res.status(200).json({
       success: true,

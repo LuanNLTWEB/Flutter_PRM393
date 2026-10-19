@@ -1,5 +1,6 @@
 const Quotation = require('../models/Quotation');
 const RepairRequest = require('../models/RepairRequest');
+const { createNotificationUtil } = require('./notificationController');
 
 // Trường thông tin công khai của Thợ được phép trả về Khách hàng
 const TECHNICIAN_PUBLIC_FIELDS =
@@ -92,6 +93,15 @@ const sendQuotation = async (req, res) => {
       request.status = 'QUOTED';
       await request.save();
     }
+
+    // Gửi thông báo đến khách hàng
+    await createNotificationUtil({
+      recipient: request.customerId,
+      title: 'Có báo giá mới từ thợ! 💰',
+      message: `Thợ ${req.user.fullName || 'kỹ thuật'} vừa gửi báo giá cho yêu cầu "${request.title}". Hãy vào xem chi tiết và so sánh báo giá.`,
+      type: 'QUOTATION',
+      data: { requestId: request._id, quotationId: quotation._id },
+    });
 
     const populated = await populateTechnician(
       Quotation.findById(quotation._id)

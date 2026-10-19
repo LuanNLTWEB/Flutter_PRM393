@@ -8,6 +8,8 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/admin_provider.dart';
 import 'create_staff_screen.dart';
 import 'admin_technician_approval_screen.dart';
+import '../../../notification/presentation/providers/notification_provider.dart';
+import '../../../notification/presentation/screens/notification_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
 
@@ -120,6 +122,56 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 MaterialPageRoute(
                   builder: (_) => const AdminTechnicianApprovalScreen(),
                 ),
+              );
+            },
+          ),
+          Consumer<NotificationProvider>(
+            builder: (context, notifProvider, _) {
+              final unread = notifProvider.unreadCount;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    tooltip: 'Thông báo',
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationScreen(),
+                        ),
+                      );
+                      if (context.mounted && token.isNotEmpty) {
+                        context.read<NotificationProvider>().fetchUnreadCount(token);
+                      }
+                    },
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unread > 9 ? '9+' : '$unread',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
               );
             },
           ),

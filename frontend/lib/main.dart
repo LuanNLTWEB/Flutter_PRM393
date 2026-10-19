@@ -9,6 +9,7 @@ import 'features/quotations/presentation/providers/quotation_provider.dart';
 import 'features/repair_request/presentation/providers/repair_request_provider.dart';
 import 'features/technician/presentation/providers/technician_provider.dart';
 import 'features/order_history/presentation/providers/order_history_provider.dart';
+import 'features/notification/presentation/providers/notification_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RepairRequestProvider()),
         ChangeNotifierProvider(create: (_) => OrderHistoryProvider()),
         ChangeNotifierProvider(create: (_) => QuotationProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
 
       child: MaterialApp(
