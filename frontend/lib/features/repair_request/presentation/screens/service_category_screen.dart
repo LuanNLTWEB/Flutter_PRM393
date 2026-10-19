@@ -7,6 +7,7 @@ import '../../data/models/service_category_model.dart';
 import '../providers/repair_request_provider.dart';
 import '../widgets/service_category_card.dart';
 import 'create_repair_request_screen.dart';
+import '../../../admin/presentation/screens/admin_service_category_screen.dart';
 
 class ServiceCategoryScreen extends StatefulWidget {
   const ServiceCategoryScreen({super.key});
@@ -242,6 +243,33 @@ class _ServiceCategoryScreenState extends State<ServiceCategoryScreen> {
           'Danh mục dịch vụ',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
+        actions: [
+          Consumer<AuthProvider>(
+            builder: (context, auth, _) {
+              final role = auth.currentUser?.role;
+              if (role == 'staff' || role == 'admin') {
+                return IconButton(
+                  tooltip: 'Quản lý danh mục (Staff)',
+                  icon: const Icon(Icons.tune_rounded),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminServiceCategoryScreen(),
+                      ),
+                    );
+                    if (context.mounted) {
+                      context
+                          .read<RepairRequestProvider>()
+                          .fetchCategories(refresh: true);
+                    }
+                  },
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(

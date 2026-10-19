@@ -8,6 +8,8 @@ class TechnicianProfileModel {
   final String approvalStatus; // pending, approved, rejected
   final String rejectionReason;
   final DateTime? approvedAt;
+  final DateTime? rejectedAt;
+  final String? approvedByName;
   final bool isAvailable;
   final int completedJobsCount;
   final double rating;
@@ -23,6 +25,8 @@ class TechnicianProfileModel {
     this.approvalStatus = 'pending',
     this.rejectionReason = '',
     this.approvedAt,
+    this.rejectedAt,
+    this.approvedByName,
     this.isAvailable = false,
     this.completedJobsCount = 0,
     this.rating = 5.0,
@@ -30,6 +34,11 @@ class TechnicianProfileModel {
   });
 
   factory TechnicianProfileModel.fromJson(Map<String, dynamic> json) {
+    String? approvedByName;
+    if (json['approvedBy'] is Map<String, dynamic>) {
+      approvedByName = json['approvedBy']['fullName']?.toString();
+    }
+
     return TechnicianProfileModel(
       skills: (json['skills'] as List<dynamic>?)
               ?.map((e) => e.toString())
@@ -48,6 +57,10 @@ class TechnicianProfileModel {
       approvedAt: json['approvedAt'] != null
           ? DateTime.tryParse(json['approvedAt'].toString())
           : null,
+      rejectedAt: json['rejectedAt'] != null
+          ? DateTime.tryParse(json['rejectedAt'].toString())
+          : null,
+      approvedByName: approvedByName,
       isAvailable: json['isAvailable'] == true,
       completedJobsCount: (json['completedJobsCount'] as num?)?.toInt() ?? 0,
       rating: (json['rating'] as num?)?.toDouble() ?? 5.0,
