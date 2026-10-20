@@ -39,7 +39,11 @@ class NearbyRequestRemoteDataSource {
     throw Exception('Phản hồi không hợp lệ từ máy chủ');
   }
 
-  /// Danh sách yêu cầu đang mở (lọc theo danh mục, khẩn cấp, tọa độ)
+  // ══ START UC-QUO-01 + UC-QUO-02: Xem & lọc sự cố quanh đây ═════════════
+  /// Danh sách sự cố quanh đây cho Thợ (UC-QUO-01)
+  /// + lọc theo chuyên môn / khẩn cấp / khoảng cách (UC-QUO-02)
+  /// → GET /api/requests/nearby
+  /// Backend mặc định trả cả OPEN + QUOTED nên nhiều thợ cùng báo giá được.
   Future<NearbyRequestResult> fetchNearbyRequests({
     required String token,
     String? categorySlug,
@@ -84,8 +88,10 @@ class NearbyRequestRemoteDataSource {
     }
     throw Exception(data['message'] ?? 'Không thể tải danh sách yêu cầu');
   }
+  // ══ END UC-QUO-01 + UC-QUO-02 ════════════════════════════════════════
 
-  /// Chi tiết 1 phiếu yêu cầu (UC-QUO-03)
+  // ══ START UC-QUO-03: Xem chi tiết sự cố ══════════════════════════════
+  /// Chi tiết 1 phiếu yêu cầu → GET /api/requests/:id
   Future<RepairRequestModel> fetchRequestDetail({
     required String token,
     required String id,
@@ -104,5 +110,95 @@ class NearbyRequestRemoteDataSource {
       throw Exception('Không nhận được dữ liệu phiếu yêu cầu');
     }
     throw Exception(data['message'] ?? 'Không thể tải chi tiết yêu cầu');
+  }
+  // ══ END UC-QUO-03 ════════════════════════════════════════════════════
+
+  // ── UC-LIC-01: Lịch hẹn & Tiền ả (không thuộc epic Báo giá) ───────────
+
+  /// Thợ xác nhận giờ hẹn (UC-LIC-01)
+  Future<void> confirmAppointment({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.confirmAppointment(requestId)),
+      headers: _headers(token),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Xác nhận lịch hẹn thất bại');
+    }
+  }
+
+  /// Thợ đề xuất khung giờ mới (UC-LIC-01)
+  Future<void> proposeAppointment({
+    required String token,
+    required String requestId,
+    required DateTime proposedTime,
+    String note = '',
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.proposeAppointment(requestId)),
+      headers: _headers(token),
+      body: json.encode({
+        // toUtc() để gửi kèm offset, tránh server hiểu nhầm là UTC
+        'proposedTime': proposedTime.toUtc().toIso8601String(),
+        if (note.isNotEmpty) 'note': note,
+      }),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Đề xuất khung giờ mới thất bại');
+    }
+  }
+
+  /// Thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+  Future<void> markOnTheWay({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.onTheWay(requestId)),
+      headers: _headers(token),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Cập nhật trạng thái di chuyển thất bại');
+    }
+  }
+
+  /// Thợ bấm "Đã có mặt tại hiện trường" (UC-ARR-01)
+  Future<void> markArrived({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.arrived(requestId)),
+      headers: _headers(token),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Cập nhật trạng thái đã có mặt thất bại');
+    }
+  }
+
+  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+  Future<void> markWorking({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.working(requestId)),
+      headers: _headers(token),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Cập nhật trạng thái bắt đầu sửa chữa thất bại');
+    }
   }
 }

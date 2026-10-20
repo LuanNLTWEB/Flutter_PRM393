@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { createNotificationUtil } = require('./notificationController');
 
 /**
  * @desc    Lấy danh sách tài khoản (có tìm kiếm, lọc theo vai trò và trạng thái)
@@ -278,7 +279,7 @@ const toggleUserStatus = async (req, res) => {
  */
 const getTechniciansForKYC = async (req, res) => {
   try {
-    const { status = 'pending', page = 1, limit = 20 } = req.query;
+    const { status = 'pending', page = 1, limit = 50, search } = req.query;
 
     const query = {
       role: 'technician',
@@ -288,17 +289,31 @@ const getTechniciansForKYC = async (req, res) => {
       query['technicianProfile.approvalStatus'] = status;
     }
 
+    if (search && search.trim() !== '') {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { fullName: searchRegex },
+        { phoneNumber: searchRegex },
+        { email: searchRegex },
+        { 'technicianProfile.skills': searchRegex },
+      ];
+    }
+
     const pageNumber = Math.max(1, parseInt(page, 10) || 1);
-    const pageSize = Math.max(1, parseInt(limit, 10) || 20);
+    const pageSize = Math.max(1, parseInt(limit, 10) || 50);
     const skip = (pageNumber - 1) * pageSize;
 
-    const [total, technicians] = await Promise.all([
+    const [total, technicians, pendingCount, approvedCount, rejectedCount] = await Promise.all([
       User.countDocuments(query),
       User.find(query)
         .select('-password')
+        .populate('technicianProfile.approvedBy', 'fullName email')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageSize),
+      User.countDocuments({ role: 'technician', 'technicianProfile.approvalStatus': 'pending' }),
+      User.countDocuments({ role: 'technician', 'technicianProfile.approvalStatus': 'approved' }),
+      User.countDocuments({ role: 'technician', 'technicianProfile.approvalStatus': 'rejected' }),
     ]);
 
     return res.status(200).json({
@@ -309,6 +324,11 @@ const getTechniciansForKYC = async (req, res) => {
         total,
         page: pageNumber,
         totalPages: Math.ceil(total / pageSize) || 1,
+        counts: {
+          pending: pendingCount,
+          approved: approvedCount,
+          rejected: rejectedCount,
+        },
       },
     });
   } catch (error) {
@@ -341,9 +361,19 @@ const approveTechnician = async (req, res) => {
     user.technicianProfile.approvalStatus = 'approved';
     user.technicianProfile.rejectionReason = '';
     user.technicianProfile.approvedAt = new Date();
+    user.technicianProfile.rejectedAt = null;
     user.technicianProfile.approvedBy = req.user._id;
     user.technicianProfile.isAvailable = true; // Cho phép nhận việc sau khi duyệt
     await user.save();
+
+    // Gửi thông báo tới thợ
+    await createNotificationUtil({
+      recipient: user._id,
+      title: 'Hồ sơ Thợ đã được phê duyệt! 🎉',
+      message: 'Chúc mừng bạn! Hồ sơ kỹ thuật viên đã được ban quản trị xét duyệt thành công. Bạn đã có thể bắt đầu nhận đơn và báo giá dịch vụ.',
+      type: 'KYC',
+      data: { status: 'approved' },
+    });
 
     return res.status(200).json({
       success: true,
@@ -387,8 +417,19 @@ const rejectTechnician = async (req, res) => {
 
     user.technicianProfile.approvalStatus = 'rejected';
     user.technicianProfile.rejectionReason = reason.trim();
+    user.technicianProfile.rejectedAt = new Date();
+    user.technicianProfile.approvedBy = req.user._id;
     user.technicianProfile.isAvailable = false;
     await user.save();
+
+    // Gửi thông báo từ chối tới thợ
+    await createNotificationUtil({
+      recipient: user._id,
+      title: 'Hồ sơ Thợ chưa đạt yêu cầu ⚠️',
+      message: `Hồ sơ kỹ thuật viên của bạn đã bị từ chối với lý do: "${reason.trim()}". Vui lòng kiểm tra và cập nhật lại thông tin giấy tờ.`,
+      type: 'KYC',
+      data: { status: 'rejected', reason: reason.trim() },
+    });
 
     return res.status(200).json({
       success: true,

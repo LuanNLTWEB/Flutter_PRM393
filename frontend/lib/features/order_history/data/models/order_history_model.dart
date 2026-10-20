@@ -14,6 +14,11 @@ class OrderHistoryModel {
   final String locationAddress;
   final List<String> completionImages;
   final String? paymentMethod;
+  final DateTime? preferredTime;
+  final String appointmentStatus; // PENDING, CONFIRMED, RESCHEDULED
+  final DateTime? proposedTime;
+  final String rescheduleNote;
+  final String rescheduleRejectNote;
 
   OrderHistoryModel({
     required this.id,
@@ -31,6 +36,11 @@ class OrderHistoryModel {
     required this.locationAddress,
     this.completionImages = const [],
     this.paymentMethod,
+    this.preferredTime,
+    this.appointmentStatus = 'PENDING',
+    this.proposedTime,
+    this.rescheduleNote = '',
+    this.rescheduleRejectNote = '',
   });
 
   factory OrderHistoryModel.fromJson(Map<String, dynamic> json) {
@@ -72,13 +82,24 @@ class OrderHistoryModel {
       assignedTechnicianName: techName,
       assignedTechnicianRating: techRating,
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString())
+          ? DateTime.tryParse(json['createdAt'].toString())?.toLocal()
           : null,
       locationAddress: address,
       completionImages: json['completionImages'] != null
           ? List<String>.from(json['completionImages'])
           : const [],
       paymentMethod: json['paymentMethod']?.toString(),
+      preferredTime: json['preferredTime'] != null
+          ? DateTime.tryParse(json['preferredTime'].toString())?.toLocal()
+          : null,
+      appointmentStatus: (json['appointmentStatus'] ?? 'PENDING')
+          .toString()
+          .toUpperCase(),
+      proposedTime: json['proposedTime'] != null
+          ? DateTime.tryParse(json['proposedTime'].toString())?.toLocal()
+          : null,
+      rescheduleNote: (json['rescheduleNote'] ?? '').toString(),
+      rescheduleRejectNote: (json['rescheduleRejectNote'] ?? '').toString(),
     );
   }
 
@@ -90,6 +111,10 @@ class OrderHistoryModel {
         return 'Đã có báo giá';
       case 'ACCEPTED':
         return 'Đã chọn thợ';
+      case 'ON_THE_WAY':
+        return 'Thợ đang trên đường đến';
+      case 'ARRIVED':
+        return 'Thợ đã có mặt';
       case 'IN_PROGRESS':
         return 'Đang sửa chữa';
       case 'COMPLETED':

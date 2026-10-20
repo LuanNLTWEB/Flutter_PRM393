@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../auth/data/models/user_model.dart';
+import '../../../repair_request/data/models/service_category_model.dart';
 import '../../data/datasources/admin_remote_datasource.dart';
 
 class AdminProvider extends ChangeNotifier {
@@ -17,6 +18,15 @@ class AdminProvider extends ChangeNotifier {
   String _searchQuery = '';
   String? _selectedRole;
   bool? _selectedStatus;
+
+  // Quản lý Danh mục dịch vụ (UC-STF-02)
+  List<ServiceCategoryModel> _categories = [];
+  int _categoriesTotal = 0;
+  int _categoriesActive = 0;
+  int _categoriesInactive = 0;
+  bool _isCategoriesLoading = false;
+  String? _categoryFilter; // null / 'ALL', 'ACTIVE', 'INACTIVE'
+  String _categorySearchQuery = '';
 
   List<UserModel> get users => _users;
   bool get isLoading => _isLoading;
@@ -182,6 +192,257 @@ class AdminProvider extends ChangeNotifier {
       _successMessage = updatedUser.isActive
           ? 'Đã mở khóa tài khoản "${updatedUser.fullName}"'
           : 'Đã khóa tài khoản "${updatedUser.fullName}"';
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isActionLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ==========================================================
+  // GETTERS & METHODS FOR CATEGORY MANAGEMENT (UC-STF-02)
+  // ==========================================================
+
+  List<ServiceCategoryModel> get categories {
+    var list = _categories;
+    if (_categoryFilter == 'ACTIVE') {
+      list = list.where((c) => c.isActive).toList();
+    } else if (_categoryFilter == 'INACTIVE') {
+      list = list.where((c) => !c.isActive).toList();
+    }
+    if (_categorySearchQuery.trim().isNotEmpty) {
+      final q = _categorySearchQuery.toLowerCase().trim();
+      list = list.where((c) =>
+          c.name.toLowerCase().contains(q) ||
+          c.description.toLowerCase().contains(q) ||
+          c.slug.toLowerCase().contains(q)).toList();
+    }
+    return list;
+  }
+
+  List<ServiceCategoryModel> get rawCategories => _categories;
+  int get categoriesTotal => _categoriesTotal;
+  int get categoriesActive => _categoriesActive;
+  int get categoriesInactive => _categoriesInactive;
+  bool get isCategoriesLoading => _isCategoriesLoading;
+  String? get categoryFilter => _categoryFilter;
+  String get categorySearchQuery => _categorySearchQuery;
+
+  void setCategoryFilter(String? filter) {
+    _categoryFilter = filter;
+    notifyListeners();
+  }
+
+  void setCategorySearch(String query) {
+    _categorySearchQuery = query;
+    notifyListeners();
+  }
+
+  /// Lấy danh sách danh mục quản trị kèm thống kê
+  Future<void> fetchCategoriesForManage(String token) async {
+    _isCategoriesLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final res = await _dataSource.getCategoriesForManage(token: token);
+      _categories = res['categories'] as List<ServiceCategoryModel>;
+      _categoriesTotal = res['total'] as int;
+      _categoriesActive = res['activeCount'] as int;
+      _categoriesInactive = res['inactiveCount'] as int;
+      _isCategoriesLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isCategoriesLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
+  /// Tạo danh mục mới
+  Future<bool> createCategory({
+    required String token,
+    required String name,
+    required String description,
+    required String icon,
+    required String color,
+    required double basePrice,
+    List<String> commonIssues = const [],
+    bool isActive = true,
+    int sortOrder = 0,
+  }) async {
+    _isActionLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final newCat = await _dataSource.createCategory(
+        token: token,
+        name: name,
+        description: description,
+        icon: icon,
+        color: color,
+        basePrice: basePrice,
+        commonIssues: commonIssues,
+        isActive: isActive,
+        sortOrder: sortOrder,
+      );
+
+      _categories.insert(0, newCat);
+      _categoriesTotal++;
+      if (newCat.isActive) {
+        _categoriesActive++;
+      } else {
+        _categoriesInactive++;
+      }
+
+      _isActionLoading = false;
+      _successMessage = 'Tạo danh mục "${newCat.name}" thành công';
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isActionLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Cập nhật danh mục
+  Future<bool> updateCategory({
+    required String token,
+    required String id,
+    String? name,
+    String? description,
+    String? icon,
+    String? color,
+    double? basePrice,
+    List<String>? commonIssues,
+    bool? isActive,
+    int? sortOrder,
+  }) async {
+    _isActionLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedCat = await _dataSource.updateCategory(
+        token: token,
+        id: id,
+        name: name,
+        description: description,
+        icon: icon,
+        color: color,
+        basePrice: basePrice,
+        commonIssues: commonIssues,
+        isActive: isActive,
+        sortOrder: sortOrder,
+      );
+
+      final idx = _categories.indexWhere((c) => c.id == id);
+      if (idx != -1) {
+        _categories[idx] = updatedCat;
+      }
+      _categoriesActive = _categories.where((c) => c.isActive).length;
+      _categoriesInactive = _categories.where((c) => !c.isActive).length;
+
+      _isActionLoading = false;
+      _successMessage = 'Cập nhật danh mục "${updatedCat.name}" thành công';
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isActionLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Đổi trạng thái kích hoạt / ẩn danh mục
+  Future<bool> toggleCategoryStatus({
+    required String token,
+    required String id,
+  }) async {
+    _isActionLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedCat = await _dataSource.toggleCategoryStatus(
+        token: token,
+        id: id,
+      );
+
+      final idx = _categories.indexWhere((c) => c.id == id);
+      if (idx != -1) {
+        _categories[idx] = updatedCat;
+      }
+      _categoriesActive = _categories.where((c) => c.isActive).length;
+      _categoriesInactive = _categories.where((c) => !c.isActive).length;
+
+      _isActionLoading = false;
+      _successMessage = updatedCat.isActive
+          ? 'Đã kích hoạt danh mục "${updatedCat.name}"'
+          : 'Đã tạm ẩn danh mục "${updatedCat.name}"';
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isActionLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Xóa danh mục
+  Future<bool> deleteCategory({
+    required String token,
+    required String id,
+  }) async {
+    _isActionLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final res = await _dataSource.deleteCategory(
+        token: token,
+        id: id,
+      );
+
+      final softDeleted = res['softDeleted'] == true;
+      if (softDeleted) {
+        final idx = _categories.indexWhere((c) => c.id == id);
+        if (idx != -1) {
+          final old = _categories[idx];
+          _categories[idx] = ServiceCategoryModel(
+            id: old.id,
+            name: old.name,
+            slug: old.slug,
+            description: old.description,
+            icon: old.icon,
+            color: old.color,
+            basePrice: old.basePrice,
+            commonIssues: old.commonIssues,
+            isActive: false,
+            sortOrder: old.sortOrder,
+          );
+        }
+      } else {
+        _categories.removeWhere((c) => c.id == id);
+        _categoriesTotal--;
+      }
+      _categoriesActive = _categories.where((c) => c.isActive).length;
+      _categoriesInactive = _categories.where((c) => !c.isActive).length;
+
+      _isActionLoading = false;
+      _successMessage = res['message'] as String;
       notifyListeners();
       return true;
     } catch (e) {

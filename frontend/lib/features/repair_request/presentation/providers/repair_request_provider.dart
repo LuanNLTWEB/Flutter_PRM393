@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../data/datasources/repair_request_remote_datasource.dart';
 import '../../data/models/service_category_model.dart';
 import '../../data/models/repair_request_model.dart';
@@ -66,10 +67,40 @@ class RepairRequestProvider extends ChangeNotifier {
     }
   }
 
-  // Cập nhật từ khóa tìm kiếm
+  // Lọc danh mục theo từ khóa tìm kiếm
   void setSearchKeyword(String keyword) {
     _searchKeyword = keyword;
     notifyListeners();
+  }
+
+  // Xóa bộ lọc tìm kiếm
+  void clearSearch() {
+    _searchKeyword = '';
+    notifyListeners();
+  }
+
+  // Tìm kiếm danh mục từ máy chủ API
+  Future<void> searchCategoriesFromApi(String keyword) async {
+    _searchKeyword = keyword;
+    if (keyword.trim().isEmpty) {
+      await fetchCategories(refresh: true);
+      return;
+    }
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final results = await _dataSource.searchCategories(keyword.trim());
+      _categories = results;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
   }
 
   // Chọn danh mục dịch vụ
@@ -78,7 +109,7 @@ class RepairRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Tạo yêu cầu sửa chữa mới
+  // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường và địa chỉ định vị
   Future<RepairRequestModel?> createRepairRequest({
     required String token,
     required String serviceCategoryId,
@@ -86,6 +117,10 @@ class RepairRequestProvider extends ChangeNotifier {
     required String description,
     String urgency = 'medium',
     DateTime? preferredTime,
+    List<XFile> images = const [],
+    String? address,
+    double? latitude,
+    double? longitude,
   }) async {
     _isSubmitting = true;
     _submitError = null;
@@ -99,6 +134,10 @@ class RepairRequestProvider extends ChangeNotifier {
         description: description,
         urgency: urgency,
         preferredTime: preferredTime,
+        images: images,
+        address: address,
+        latitude: latitude,
+        longitude: longitude,
       );
       _lastCreatedRequest = result;
       _isSubmitting = false;
@@ -112,9 +151,72 @@ class RepairRequestProvider extends ChangeNotifier {
     }
   }
 
+  // State danh sách yêu cầu của tôi (UC-REQ-07)
+  List<RepairRequestModel> _myRequests = [];
+  bool _isLoadingRequests = false;
+  String? _requestsError;
+  String _selectedStatusFilter = 'ALL';
+
+  // Getters danh sách yêu cầu
+  List<RepairRequestModel> get myRequests => _myRequests;
+  bool get isLoadingRequests => _isLoadingRequests;
+  String? get requestsError => _requestsError;
+  String get selectedStatusFilter => _selectedStatusFilter;
+
+  // Lọc theo trạng thái yêu cầu
+  List<RepairRequestModel> get openRequests =>
+      _myRequests.where((r) => r.status == 'OPEN' || r.status == 'QUOTED').toList();
+
+  List<RepairRequestModel> get acceptedRequests => _myRequests
+      .where((r) =>
+          r.status == 'ACCEPTED' ||
+          r.status == 'ON_THE_WAY' ||
+          r.status == 'ARRIVED' ||
+          r.status == 'IN_PROGRESS' ||
+          r.status == 'COMPLETED')
+      .toList();
+
+  List<RepairRequestModel> get cancelledRequests =>
+      _myRequests.where((r) => r.status == 'CANCELLED').toList();
+
   // Reset lỗi gửi yêu cầu
   void clearSubmitError() {
     _submitError = null;
+    notifyListeners();
+  }
+
+  // Tải danh sách yêu cầu của tôi (UC-REQ-07)
+  Future<void> fetchMyRequests({
+    required String token,
+    String? tab,
+    String? status,
+    bool refresh = false,
+  }) async {
+    if (_myRequests.isNotEmpty && !refresh && _isLoadingRequests) return;
+
+    _isLoadingRequests = true;
+    _requestsError = null;
+    notifyListeners();
+
+    try {
+      final list = await _dataSource.getMyRepairRequests(
+        token: token,
+        tab: tab,
+        status: status,
+      );
+      _myRequests = list;
+      _isLoadingRequests = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoadingRequests = false;
+      _requestsError = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
+  // Đổi bộ lọc trạng thái
+  void setStatusFilter(String filter) {
+    _selectedStatusFilter = filter;
     notifyListeners();
   }
 }

@@ -17,9 +17,12 @@ class TechnicianProvider extends ChangeNotifier {
   String? _errorMessage;
   String? _successMessage;
 
+  Map<String, int> _kycCounts = {'pending': 0, 'approved': 0, 'rejected': 0};
+
   List<UserModel> get publicTechnicians => _publicTechnicians;
   UserModel? get selectedTechnician => _selectedTechnician;
   List<UserModel> get kycTechnicians => _kycTechnicians;
+  Map<String, int> get kycCounts => _kycCounts;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
@@ -114,14 +117,26 @@ class TechnicianProvider extends ChangeNotifier {
     }
   }
 
-  /// Lấy danh sách KYC cho Admin & Staff
-  Future<void> fetchKYCTechnicians(String token, {String status = 'pending'}) async {
+  /// Lấy danh sách KYC cho Admin & Staff kèm đếm số lượng
+  Future<void> fetchKYCTechnicians(
+    String token, {
+    String status = 'pending',
+    String? search,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _kycTechnicians = await _dataSource.getKYCTechnicians(token, status: status);
+      final res = await _dataSource.getKYCTechnicians(
+        token,
+        status: status,
+        search: search,
+      );
+      _kycTechnicians = res['technicians'] as List<UserModel>;
+      if (res['counts'] is Map<String, int>) {
+        _kycCounts = res['counts'] as Map<String, int>;
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {
@@ -139,8 +154,12 @@ class TechnicianProvider extends ChangeNotifier {
     try {
       await _dataSource.approveTechnician(token, id);
       _successMessage = 'Đã phê duyệt hồ sơ thợ thành công!';
-      // Cập nhật local list
+      // Cập nhật local list và counts
       _kycTechnicians.removeWhere((item) => item.id == id);
+      if (_kycCounts['pending'] != null && _kycCounts['pending']! > 0) {
+        _kycCounts['pending'] = _kycCounts['pending']! - 1;
+      }
+      _kycCounts['approved'] = (_kycCounts['approved'] ?? 0) + 1;
       _isLoading = false;
       notifyListeners();
       return true;
@@ -161,8 +180,12 @@ class TechnicianProvider extends ChangeNotifier {
     try {
       await _dataSource.rejectTechnician(token, id, reason);
       _successMessage = 'Đã từ chối hồ sơ thợ thành công!';
-      // Cập nhật local list
+      // Cập nhật local list và counts
       _kycTechnicians.removeWhere((item) => item.id == id);
+      if (_kycCounts['pending'] != null && _kycCounts['pending']! > 0) {
+        _kycCounts['pending'] = _kycCounts['pending']! - 1;
+      }
+      _kycCounts['rejected'] = (_kycCounts['rejected'] ?? 0) + 1;
       _isLoading = false;
       notifyListeners();
       return true;
@@ -181,6 +204,41 @@ class TechnicianProvider extends ChangeNotifier {
       return newStatus;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Cập nhật hồ sơ tay nghề và chứng chỉ
+  Future<UserModel?> updateTechnicianSkills({
+    required String token,
+    required List<String> skills,
+    required int experienceYears,
+    required String bio,
+    List<String> existingCertificates = const [],
+    List<XFile> newCertificates = const [],
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedUser = await _dataSource.updateTechnicianSkills(
+        token: token,
+        skills: skills,
+        experienceYears: experienceYears,
+        bio: bio,
+        existingCertificates: existingCertificates,
+        newCertificates: newCertificates,
+      );
+      _successMessage = 'Cập nhật hồ sơ tay nghề thành công!';
+      _isLoading = false;
+      notifyListeners();
+      return updatedUser;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
       notifyListeners();
       return null;
     }

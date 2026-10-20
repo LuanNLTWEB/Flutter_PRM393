@@ -9,12 +9,18 @@ class CreateReviewScreen extends StatefulWidget {
   final String technicianId;
   final String technicianName;
   final String bookingId;
+  final double? initialRating;
+  final List<String>? initialTags;
+  final String? initialComment;
 
   const CreateReviewScreen({
     super.key,
     required this.technicianId,
     required this.technicianName,
     required this.bookingId,
+    this.initialRating,
+    this.initialTags,
+    this.initialComment,
   });
 
   @override
@@ -39,6 +45,15 @@ class _CreateReviewScreenState extends State<CreateReviewScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialRating != null) {
+      _rating = widget.initialRating!;
+    }
+    if (widget.initialTags != null) {
+      _selectedTags.addAll(widget.initialTags!);
+    }
+    if (widget.initialComment != null) {
+      _commentController.text = widget.initialComment!;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ReviewProvider>().loadTags();
     });
@@ -100,7 +115,9 @@ class _CreateReviewScreenState extends State<CreateReviewScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Đánh giá thợ kỹ thuật'),
+        title: Text(widget.initialRating != null
+            ? 'Chỉnh sửa đánh giá'
+            : 'Đánh giá thợ kỹ thuật'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
@@ -285,9 +302,11 @@ class _CreateReviewScreenState extends State<CreateReviewScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text(
-                      'Gửi đánh giá',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  : Text(
+                      widget.initialRating != null
+                          ? 'Cập nhật đánh giá'
+                          : 'Gửi đánh giá',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
             ),
           ],

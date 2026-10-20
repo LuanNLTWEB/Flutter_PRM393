@@ -93,9 +93,15 @@ class ReviewProvider extends ChangeNotifier {
       );
 
       // Cập nhật danh sách hiển thị
-      _reviews.insert(0, newReview);
+      final existingIndex = _reviews.indexWhere((r) => r.id == newReview.id || (r.bookingId != null && r.bookingId == bookingId));
+      if (existingIndex != -1) {
+        _reviews[existingIndex] = newReview;
+        _successMessage = 'Cập nhật đánh giá dịch vụ thành công!';
+      } else {
+        _reviews.insert(0, newReview);
+        _successMessage = 'Gửi đánh giá thành công! Cảm ơn bạn đã phản hồi.';
+      }
       _isSubmitting = false;
-      _successMessage = 'Gửi đánh giá thành công! Cảm ơn bạn đã phản hồi.';
       notifyListeners();
       return true;
     } catch (e) {

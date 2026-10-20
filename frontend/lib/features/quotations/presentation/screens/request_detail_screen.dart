@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/directions.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../repair_request/data/models/repair_request_model.dart';
 import '../../data/models/quotation_model.dart';
@@ -106,6 +107,24 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     if (mounted) await _load();
   }
 
+  /// Mở Google Maps chỉ đường tới nhà khách (UC-MAP-01)
+  Future<void> _openDirections(RepairRequestModel request) async {
+    final loc = request.location;
+    final ok = await openGoogleMapsDirections(
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      address: loc.address,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không mở được Google Maps — chưa có địa chỉ khách'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _openImage(String url) {
     showDialog<void>(
       context: context,
@@ -176,18 +195,53 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           const SizedBox(height: 12),
           _buildSection(
             title: 'Địa chỉ sửa chữa',
-            child: Text(
-              request.location.address.isEmpty
-                  ? 'Địa chỉ được bảo vệ đến khi thợ được chốt'
-                  : request.location.address,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: request.location.address.isEmpty
-                    ? AppTheme.textSecondaryColor
-                    : AppTheme.textPrimaryColor,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  request.location.address.isEmpty
+                      ? 'Địa chỉ được bảo vệ đến khi thợ được chốt'
+                      : request.location.address,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: request.location.address.isEmpty
+                        ? AppTheme.textSecondaryColor
+                        : AppTheme.textPrimaryColor,
+                  ),
+                ),
+                if (request.location.address.isNotEmpty &&
+                    role != 'user') ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryColor,
+                        side: BorderSide(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.navigation_outlined, size: 18),
+                      label: const Text(
+                        'Chỉ đường tới khách bằng Google Maps',
+                        style: TextStyle(
+                            fontSize: 13.5, fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: () => _openDirections(request),
+                    ),
+                  ),
+                ],
+              ],
             ),
+          ),
+          const SizedBox(height: 12),
+          _buildSection(
+            title: 'Lịch hẹn',
+            child: _buildAppointment(request),
           ),
           const SizedBox(height: 12),
           _buildSection(
@@ -314,6 +368,105 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
   }
 
+  /// Lịch hẹn sửa chữa — để thợ biết khách muốn thợ đến lúc nào (UC-LIC-01)
+  Widget _buildAppointment(RepairRequestModel request) {
+    final t = request.preferredTime;
+    final isPast = t != null && t.isBefore(DateTime.now());
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.schedule,
+                size: 16,
+                color: t == null
+                    ? AppTheme.textSecondaryColor
+                    : isPast
+                        ? Colors.red.shade700
+                        : AppTheme.primaryColor),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                t == null
+                    ? 'Khách chưa chọn giờ hẹn'
+                    : 'Khách mong muốn thợ đến: ${_formatDateTime(t)}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: t == null
+                      ? AppTheme.textSecondaryColor
+                      : isPast
+                          ? Colors.red.shade700
+                          : AppTheme.textPrimaryColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (isPast) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Khung giờ này đã qua — lịch hẹn cần được đề xuất lại.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.red.shade700,
+            ),
+          ),
+        ],
+        if (request.appointmentStatus == 'CONFIRMED') ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.check_circle_outline,
+                  size: 14, color: Colors.green.shade700),
+              const SizedBox(width: 6),
+              Text(
+                'Lịch hẹn đã được xác nhận',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green.shade800,
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (request.appointmentStatus == 'RESCHEDULED' &&
+            request.proposedTime != null) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.swap_horiz,
+                  size: 14, color: Colors.orange.shade700),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Thợ đề xuất khung giờ mới: '
+                  '${_formatDateTime(request.proposedTime!)} (chờ khách phản hồi)',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final d = dt.day.toString().padLeft(2, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '$d/$m/${dt.year} $hh:$mm';
+  }
+
   Widget _buildImages() {
     final images = _request?.images ?? const <String>[];
     return Wrap(
@@ -353,6 +506,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
     if (!canQuote && !showQuotesButton) return const SizedBox.shrink();
 
+    // Thợ đã có báo giá nhưng không còn sửa được (đã bị khách từ chối) thì không
+    // hiện nút "Gửi báo giá" nữa, vì backend sẽ trả 409 khi gửi lại lần hai.
+    final myQuoteLive = _myQuote != null && _myQuote!.canEdit;
+    final myQuoteClosed = _myQuote != null && !_myQuote!.canEdit;
+    final canSubmitQuote = canQuote && !myQuoteClosed;
+
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -366,45 +525,80 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (showQuotesButton) ...[
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RequestQuotationsScreen(
-                        requestId: request.id,
-                        request: request,
+            if (canQuote && request.quotesCount > 0) ...[
+              Text(
+                'Có ${request.quotesCount} thợ đã báo giá cho yêu cầu này.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Row(
+              children: [
+                if (showQuotesButton) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => RequestQuotationsScreen(
+                            requestId: request.id,
+                            request: request,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.compare_arrows),
+                      label: const Text('Xem báo giá'),
+                    ),
+                  ),
+                ],
+                if (myQuoteLive) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _retractQuotation,
+                      icon: const Icon(Icons.undo),
+                      label: const Text('Thu hồi'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                if (canSubmitQuote)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _sendQuotation,
+                      icon: const Icon(Icons.request_quote_outlined),
+                      label: Text(myQuoteLive ? 'Sửa báo giá' : 'Gửi báo giá'),
+                    ),
+                  ),
+                if (myQuoteClosed)
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        'Báo giá của bạn: ${_myQuote!.statusDisplay.toLowerCase()}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondaryColor,
+                        ),
                       ),
                     ),
                   ),
-                  icon: const Icon(Icons.compare_arrows),
-                  label: const Text('Xem báo giá'),
-                ),
-              ),
-            ],
-            if (canQuote) ...[
-              if (_myQuote != null && _myQuote!.canEdit) ...[
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _retractQuotation,
-                    icon: const Icon(Icons.undo),
-                    label: const Text('Thu hồi'),
-                  ),
-                ),
-                const SizedBox(width: 10),
               ],
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _sendQuotation,
-                  icon: const Icon(Icons.request_quote_outlined),
-                  label:
-                      Text(_myQuote != null && _myQuote!.canEdit ? 'Sửa báo giá' : 'Gửi báo giá'),
-                ),
-              ),
-            ],
+            ),
           ],
         ),
       ),

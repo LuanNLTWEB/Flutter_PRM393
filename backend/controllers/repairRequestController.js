@@ -2,6 +2,7 @@ const RepairRequest = require('../models/RepairRequest');
 const ServiceCategory = require('../models/ServiceCategory');
 const Quotation = require('../models/Quotation');
 const { uploadStream, deleteImage } = require('../config/cloudinary');
+const { createNotificationUtil } = require('./notificationController');
 
 // Hàm kiểm tra văn bản spam hoặc ký tự vô nghĩa lặp lại
 const isSpamText = (text) => {
@@ -19,6 +20,18 @@ const isSpamText = (text) => {
 // Tạo yêu cầu sửa chữa mới
 const createRepairRequest = async (req, res) => {
   try {
+    if (req.user && req.user.role !== 'user') {
+      let roleLabel = 'nội bộ';
+      if (req.user.role === 'technician') roleLabel = 'Kỹ thuật viên (Thợ)';
+      else if (req.user.role === 'staff') roleLabel = 'Nhân viên vận hành (Staff)';
+      else if (req.user.role === 'admin') roleLabel = 'Quản trị viên (Admin)';
+
+      return res.status(403).json({
+        success: false,
+        message: `Tài khoản ${roleLabel} không thể tạo yêu cầu sửa chữa. Tính năng này chỉ dành riêng cho Khách hàng.`,
+      });
+    }
+
     const {
       serviceCategoryId,
       title,
@@ -107,6 +120,13 @@ const createRepairRequest = async (req, res) => {
       normalizedUrgency = rawUrgency;
     }
 
+    if (!preferredTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn thời gian hẹn thợ đến nhà',
+      });
+    }
+
     let parsedPreferredTime = null;
     if (preferredTime) {
       const dt = new Date(preferredTime);
@@ -115,15 +135,103 @@ const createRepairRequest = async (req, res) => {
       }
     }
 
+    if (!parsedPreferredTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian hẹn không hợp lệ',
+      });
+    }
+
+    const now = Date.now();
+    const minTime = now + 15 * 60 * 1000; // ít nhất 15 phút nữa
+    const maxTime = now + 14 * 24 * 60 * 60 * 1000; // tối đa 14 ngày
+    if (parsedPreferredTime.getTime() <= now) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian hẹn phải ở tương lai',
+      });
+    }
+    if (parsedPreferredTime.getTime() < minTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian hẹn cần cách thời điểm hiện tại ít nhất 15 phút',
+      });
+    }
+    if (parsedPreferredTime.getTime() > maxTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian hẹn không được vượt quá 14 ngày kể từ bây giờ',
+      });
+    }
+
+    let imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map((file) =>
+        uploadStream(file.buffer, {
+          folder: 'homefix/repair_requests',
+        })
+      );
+      const results = await Promise.all(uploadPromises);
+      imageUrls = results.map((res) => res.url);
+    } else if (req.body.images) {
+      if (Array.isArray(req.body.images)) {
+        imageUrls = req.body.images;
+      } else if (typeof req.body.images === 'string') {
+        try {
+          const parsed = JSON.parse(req.body.images);
+          if (Array.isArray(parsed)) {
+            imageUrls = parsed;
+          } else {
+            imageUrls = [req.body.images];
+          }
+        } catch (_) {
+          imageUrls = [req.body.images];
+        }
+      }
+    }
+
+    let locationData = {
+      address: 'Chưa cập nhật địa chỉ',
+      latitude: null,
+      longitude: null,
+    };
+
+    if (req.body.location) {
+      if (typeof req.body.location === 'string') {
+        try {
+          const parsed = JSON.parse(req.body.location);
+          locationData = {
+            address: (parsed.address || '').trim() || 'Chưa cập nhật địa chỉ',
+            latitude: parsed.latitude != null ? Number(parsed.latitude) : null,
+            longitude: parsed.longitude != null ? Number(parsed.longitude) : null,
+          };
+        } catch (_) {
+          locationData.address = req.body.location.trim();
+        }
+      } else if (typeof req.body.location === 'object') {
+        locationData = {
+          address: (req.body.location.address || '').trim() || 'Chưa cập nhật địa chỉ',
+          latitude: req.body.location.latitude != null ? Number(req.body.location.latitude) : null,
+          longitude: req.body.location.longitude != null ? Number(req.body.location.longitude) : null,
+        };
+      }
+    } else if (req.body.address) {
+      locationData.address = req.body.address.trim();
+      if (req.body.latitude != null) locationData.latitude = Number(req.body.latitude);
+      if (req.body.longitude != null) locationData.longitude = Number(req.body.longitude);
+    }
+
     const newRequest = await RepairRequest.create({
       customerId: req.user._id,
       serviceCategoryId,
       title: reqTitle,
       description: reqDesc,
+      images: imageUrls,
       urgency: normalizedUrgency,
       preferredTime: parsedPreferredTime,
+      location: locationData,
       status: 'OPEN',
-      contactPhone: req.user.phoneNumber || '',
+      contactPhone: (req.body.contactPhone || '').trim() || req.user.phoneNumber || '',
     });
 
     const populated = await RepairRequest.findById(newRequest._id)
@@ -168,11 +276,17 @@ const getMyRepairRequests = async (req, res) => {
       ? { assignedTechnicianId: req.user._id }
       : { customerId: req.user._id };
 
-    const { tab } = req.query; // PROCESSING, COMPLETED, CANCELLED, hoặc ALL
+    const { tab, status } = req.query; // WAITING_QUOTES, PROCESSING, COMPLETED, CANCELLED, hoặc ALL
     let statusFilter = {};
 
-    if (tab === 'PROCESSING') {
-      statusFilter = { status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'IN_PROGRESS'] } };
+    if (status) {
+      statusFilter = { status };
+    } else if (tab === 'WAITING_QUOTES' || tab === 'OPEN') {
+      statusFilter = { status: { $in: ['OPEN', 'QUOTED'] } };
+    } else if (tab === 'PROCESSING') {
+      statusFilter = { status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] } };
+    } else if (tab === 'ACCEPTED') {
+      statusFilter = { status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] } };
     } else if (tab === 'COMPLETED') {
       statusFilter = { status: 'COMPLETED' };
     } else if (tab === 'CANCELLED') {
@@ -188,21 +302,45 @@ const getMyRepairRequests = async (req, res) => {
       .sort({ createdAt: -1 });
 
     // Đếm số lượng theo từng tab
-    const [processingCount, completedCount, cancelledCount] = await Promise.all([
+    const [waitingCount, processingCount, completedCount, cancelledCount] = await Promise.all([
       RepairRequest.countDocuments({
         ...baseFilter,
-        status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'IN_PROGRESS'] },
+        status: { $in: ['OPEN', 'QUOTED'] },
+      }),
+      RepairRequest.countDocuments({
+        ...baseFilter,
+        status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] },
       }),
       RepairRequest.countDocuments({ ...baseFilter, status: 'COMPLETED' }),
       RepairRequest.countDocuments({ ...baseFilter, status: 'CANCELLED' }),
     ]);
 
+    // Thống kê số lượng báo giá cho mỗi yêu cầu
+    const requestIds = requests.map((r) => r._id);
+    let quoteCountMap = {};
+    if (requestIds.length > 0) {
+      const quoteCounts = await Quotation.aggregate([
+        { $match: { requestId: { $in: requestIds }, status: { $ne: 'RETRACTED' } } },
+        { $group: { _id: '$requestId', count: { $sum: 1 } } },
+      ]);
+      quoteCounts.forEach((qc) => {
+        quoteCountMap[qc._id.toString()] = qc.count;
+      });
+    }
+
+    const requestsWithQuotes = requests.map((r) => {
+      const obj = r.toObject();
+      obj.quotesCount = quoteCountMap[r._id.toString()] || 0;
+      return obj;
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Lấy lịch sử đơn hàng thành công',
       data: {
-        requests,
+        requests: requestsWithQuotes,
         counts: {
+          waitingQuotes: waitingCount,
           processing: processingCount,
           completed: completedCount,
           cancelled: cancelledCount,
@@ -219,6 +357,501 @@ const getMyRepairRequests = async (req, res) => {
     });
   }
 };
+
+// Hàm xác định Thợ đã được chốt cho 1 phiếu yêu cầu (thắng báo giá hoặc assignedTechnicianId)
+const isAssignedTechnician = async (request, technicianId) => {
+  if (
+    request.assignedTechnicianId &&
+    request.assignedTechnicianId.toString() === technicianId.toString()
+  ) {
+    return true;
+  }
+  const won = await Quotation.findOne({
+    requestId: request._id,
+    technicianId,
+    status: 'ACCEPTED',
+  });
+  return Boolean(won);
+};
+
+/**
+ * @desc    Thợ xác nhận giờ hẹn do khách đề xuất (UC-LIC-01)
+ *          Chuyển appointmentStatus sang CONFIRMED
+ * @route   PATCH /api/requests/:id/appointment/confirm
+ * @access  Private (technician - thợ được chốt)
+ */
+const confirmAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.status !== 'ACCEPTED' && request.status !== 'IN_PROGRESS') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể xác nhận lịch hẹn khi yêu cầu đã được chốt thợ',
+      });
+    }
+
+    if (!(await isAssignedTechnician(request, req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thợ được chốt cho yêu cầu này',
+      });
+    }
+
+    if (request.appointmentStatus === 'CONFIRMED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Lịch hẹn đã được xác nhận trước đó',
+      });
+    }
+
+    if (request.appointmentStatus === 'RESCHEDULED') {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Bạn đã đề xuất khung giờ mới, đang chờ khách phản hồi. Không thể xác nhận giờ hẹn lúc này',
+      });
+    }
+
+    if (!request.preferredTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Yêu cầu chưa có giờ hẹn để xác nhận',
+      });
+    }
+
+    if (request.preferredTime.getTime() <= Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Giờ hẹn đã qua, vui lòng đề xuất khung giờ mới',
+      });
+    }
+
+    request.appointmentStatus = 'CONFIRMED';
+    request.appointmentConfirmedAt = new Date();
+    request.proposedTime = null;
+    request.rescheduleNote = '';
+    request.rescheduleRejectNote = '';
+    await request.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Xác nhận lịch hẹn thành công',
+      data: {
+        appointmentStatus: request.appointmentStatus,
+        preferredTime: request.preferredTime,
+        appointmentConfirmedAt: request.appointmentConfirmedAt,
+      },
+    });
+  } catch (error) {
+    console.error('confirmAppointment error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi xác nhận lịch hẹn',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Thợ đề xuất khung giờ mới (UC-LIC-01)
+ *          Chuyển appointmentStatus sang RESCHEDULED, lưu proposedTime
+ * @route   PATCH /api/requests/:id/appointment/propose
+ * @access  Private (technician - thợ được chốt)
+ */
+const proposeAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { proposedTime, note } = req.body;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.status !== 'ACCEPTED' && request.status !== 'IN_PROGRESS') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể đổi lịch hẹn khi yêu cầu đã được chốt thợ',
+      });
+    }
+
+    if (!(await isAssignedTechnician(request, req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thợ được chốt cho yêu cầu này',
+      });
+    }
+
+    if (!proposedTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn khung giờ mới',
+      });
+    }
+
+    const dt = new Date(proposedTime);
+    if (isNaN(dt.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Khung giờ đề xuất không hợp lệ',
+      });
+    }
+
+    const now = Date.now();
+    if (dt.getTime() <= now) {
+      return res.status(400).json({
+        success: false,
+        message: 'Khung giờ đề xuất phải ở tương lai',
+      });
+    }
+    if (dt.getTime() < now + 15 * 60 * 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Khung giờ đề xuất cần cách thời điểm hiện tại ít nhất 15 phút',
+      });
+    }
+    if (dt.getTime() > now + 14 * 24 * 60 * 60 * 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Khung giờ đề xuất không được vượt quá 14 ngày kể từ bây giờ',
+      });
+    }
+
+    request.appointmentStatus = 'RESCHEDULED';
+    request.proposedTime = dt;
+    request.rescheduleNote = (note || '').trim();
+    request.rescheduleRejectNote = ''; // lý do từ chối cũ không còn áp dụng
+    request.appointmentConfirmedAt = null;
+    await request.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đề xuất khung giờ mới thành công, chờ khách hàng xác nhận',
+      data: {
+        appointmentStatus: request.appointmentStatus,
+        preferredTime: request.preferredTime,
+        proposedTime: request.proposedTime,
+        rescheduleNote: request.rescheduleNote,
+      },
+    });
+  } catch (error) {
+    console.error('proposeAppointment error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi đề xuất lịch hẹn mới',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Khách hàng đồng ý / từ chối khung giờ Thợ đề xuất (UC-LIC-01)
+ *          - accept: proposedTime → preferredTime, chuyển CONFIRMED
+ *          - reject: bỏ proposedTime, quay về PENDING (chờ thợ xử lý lại)
+ * @route   PATCH /api/requests/:id/appointment/respond
+ * @access  Private (user - chủ yêu cầu)
+ */
+const respondAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, reason } = req.body; // 'accept' | 'reject', reason tùy chọn
+
+    if (!['accept', 'reject'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hành động phản hồi lịch hẹn không hợp lệ',
+      });
+    }
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.customerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền phản hồi lịch hẹn của yêu cầu này',
+      });
+    }
+
+    if (!['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(request.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Yêu cầu này không còn ở trạng thái có thể phản hồi lịch hẹn',
+      });
+    }
+
+    if (request.appointmentStatus !== 'RESCHEDULED' || !request.proposedTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Yêu cầu này không có lịch đổi hẹn đang chờ phản hồi',
+      });
+    }
+
+    if (action === 'accept') {
+      if (request.proposedTime.getTime() <= Date.now()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Giờ đề xuất đã qua, vui lòng nhờ thợ đề xuất khung giờ mới',
+        });
+      }
+
+      request.preferredTime = request.proposedTime;
+      request.appointmentStatus = 'CONFIRMED';
+      request.appointmentConfirmedAt = new Date();
+      request.proposedTime = null;
+      request.rescheduleNote = '';
+      request.rescheduleRejectNote = '';
+      await request.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Đã đồng ý khung giờ mới với thợ',
+        data: {
+          appointmentStatus: request.appointmentStatus,
+          preferredTime: request.preferredTime,
+        },
+      });
+    }
+
+    // reject — lưu lý do từ chối (nếu khách có nhập)
+    request.appointmentStatus = 'PENDING';
+    request.proposedTime = null;
+    request.rescheduleNote = '';
+    request.rescheduleRejectNote = (reason || '').trim().slice(0, 300);
+    request.appointmentConfirmedAt = null;
+    await request.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã từ chối khung giờ mới, chờ thợ đề xuất lịch khác',
+      data: {
+        appointmentStatus: request.appointmentStatus,
+        preferredTime: request.preferredTime,
+      },
+    });
+  } catch (error) {
+    console.error('respondAppointment error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi phản hồi lịch hẹn',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+ *          Chuyển status từ ACCEPTED sang ON_THE_WAY — chỉ khi lịch hẹn đã CONFIRMED
+ * @route   PATCH /api/requests/:id/on-the-way
+ * @access  Private (technician - thợ được chốt)
+ */
+const updateOnTheWay = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.status !== 'ACCEPTED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể cập nhật trạng thái di chuyển khi yêu cầu đã được chốt thợ',
+      });
+    }
+
+    if (!(await isAssignedTechnician(request, req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thợ được chốt cho yêu cầu này',
+      });
+    }
+
+    if (request.appointmentStatus !== 'CONFIRMED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cần xác nhận lịch hẹn trước khi bắt đầu di chuyển đến nhà khách',
+      });
+    }
+
+    request.status = 'ON_THE_WAY';
+    request.onTheWayAt = new Date();
+    await request.save();
+
+    // Gửi thông báo đến khách hàng
+    await createNotificationUtil({
+      recipient: request.customerId,
+      title: 'Thợ đang trên đường đến! 🛵',
+      message: `Thợ ${req.user.fullName || 'kỹ thuật'} đang di chuyển đến nhà bạn cho yêu cầu "${request.title}". Vui lòng chuẩn bị và chú ý điện thoại.`,
+      type: 'ORDER_STATUS',
+      data: { requestId: request._id, status: 'ON_THE_WAY' },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã cập nhật: đang trên đường đến nhà khách',
+      data: {
+        status: request.status,
+        onTheWayAt: request.onTheWayAt,
+      },
+    });
+  } catch (error) {
+    console.error('updateOnTheWay error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi cập nhật trạng thái di chuyển',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Thợ bấm "Đã có mặt tại hiện trường" (UC-ARR-01)
+ *          Chuyển status từ ON_THE_WAY sang IN_PROGRESS
+ * @route   PATCH /api/requests/:id/arrived
+ * @access  Private (technician - thợ được chốt)
+ */
+const updateArrived = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.status !== 'ON_THE_WAY') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể báo đã có mặt khi đang trên đường đến nhà khách',
+      });
+    }
+
+    if (!(await isAssignedTechnician(request, req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thợ được chốt cho yêu cầu này',
+      });
+    }
+
+    request.status = 'ARRIVED';
+    request.arrivedAt = new Date();
+    await request.save();
+
+    // Gửi thông báo đến khách hàng
+    await createNotificationUtil({
+      recipient: request.customerId,
+      title: 'Thợ đã có mặt! 📍',
+      message: `Thợ ${req.user.fullName || 'kỹ thuật'} đã có mặt tại hiện trường cho yêu cầu "${request.title}". Vui lòng đón tiếp thợ.`,
+      type: 'ORDER_STATUS',
+      data: { requestId: request._id, status: 'ARRIVED' },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã cập nhật: đã có mặt tại hiện trường',
+      data: {
+        status: request.status,
+        arrivedAt: request.arrivedAt,
+      },
+    });
+  } catch (error) {
+    console.error('updateArrived error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi cập nhật trạng thái đã có mặt',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+ *          Chuyển status từ ARRIVED sang IN_PROGRESS
+ * @route   PATCH /api/requests/:id/working
+ * @access  Private (technician - thợ được chốt)
+ */
+const updateWorking = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.status !== 'ARRIVED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể bắt đầu sửa chữa khi đã có mặt tại hiện trường',
+      });
+    }
+
+    if (!(await isAssignedTechnician(request, req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thợ được chốt cho yêu cầu này',
+      });
+    }
+
+    request.status = 'IN_PROGRESS';
+    request.startedAt = new Date();
+    await request.save();
+
+    // Gửi thông báo đến khách hàng
+    await createNotificationUtil({
+      recipient: request.customerId,
+      title: 'Thợ bắt đầu sửa chữa 🔧',
+      message: `Thợ ${req.user.fullName || 'kỹ thuật'} đã bắt đầu sửa chữa cho yêu cầu "${request.title}".`,
+      type: 'ORDER_STATUS',
+      data: { requestId: request._id, status: 'IN_PROGRESS' },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã cập nhật: đang sửa chữa',
+      data: {
+        status: request.status,
+        startedAt: request.startedAt,
+      },
+    });
+  } catch (error) {
+    console.error('updateWorking error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi cập nhật trạng thái bắt đầu sửa chữa',
+      error: error.message,
+    });
+  }
+};
+
 
 /**
  * @desc    Thợ upload ảnh sau khi hoàn tất sửa chữa (UC-CFM-01)
@@ -332,9 +965,14 @@ const uploadCompletionImages = async (req, res) => {
     });
   }
 };
-
 module.exports = {
   createRepairRequest,
   getMyRepairRequests,
   uploadCompletionImages,
+  confirmAppointment,
+  proposeAppointment,
+  respondAppointment,
+  updateOnTheWay,
+  updateArrived,
+  updateWorking,
 };

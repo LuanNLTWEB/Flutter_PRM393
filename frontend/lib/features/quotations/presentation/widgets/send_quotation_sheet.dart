@@ -54,12 +54,12 @@ class _SendQuotationSheetState extends State<SendQuotationSheet> {
     final quote = widget.existingQuote;
     _labourController = TextEditingController(
       text: quote != null && quote.labourCost > 0
-          ? quote.labourCost.toStringAsFixed(0)
+          ? formatThousands(quote.labourCost)
           : '',
     );
     _partsController = TextEditingController(
       text: quote != null && quote.partsCost > 0
-          ? quote.partsCost.toStringAsFixed(0)
+          ? formatThousands(quote.partsCost)
           : '',
     );
     _noteController = TextEditingController(text: quote?.note ?? '');
@@ -73,8 +73,8 @@ class _SendQuotationSheetState extends State<SendQuotationSheet> {
     super.dispose();
   }
 
-  double get _labour => double.tryParse(_labourController.text.trim()) ?? 0;
-  double get _parts => double.tryParse(_partsController.text.trim()) ?? 0;
+  double get _labour => parseVndInput(_labourController.text) ?? 0;
+  double get _parts => parseVndInput(_partsController.text) ?? 0;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -115,10 +115,11 @@ class _SendQuotationSheetState extends State<SendQuotationSheet> {
   }
 
   String? _validateAmount(String? value, String label) {
-    if (value == null || value.trim().isEmpty) {
+    final digits = value?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+    if (digits.isEmpty) {
       return 'Nhập $label';
     }
-    final parsed = double.tryParse(value.trim());
+    final parsed = double.tryParse(digits);
     if (parsed == null || !QuotationComparator.isValidAmount(parsed)) {
       return '$label phải là số không âm';
     }
@@ -161,6 +162,7 @@ class _SendQuotationSheetState extends State<SendQuotationSheet> {
             TextFormField(
               controller: _labourController,
               keyboardType: TextInputType.number,
+              inputFormatters: const [ThousandsSeparatorFormatter()],
               decoration: const InputDecoration(
                 labelText: 'Tiền công ước tính (đ)',
                 border: OutlineInputBorder(),
@@ -172,6 +174,7 @@ class _SendQuotationSheetState extends State<SendQuotationSheet> {
             TextFormField(
               controller: _partsController,
               keyboardType: TextInputType.number,
+              inputFormatters: const [ThousandsSeparatorFormatter()],
               decoration: const InputDecoration(
                 labelText: 'Giá linh kiện (đ)',
                 hintText: 'Không có linh kiện thì nhập 0',

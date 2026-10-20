@@ -89,7 +89,8 @@ class ReviewRemoteDataSource {
 
       final Map<String, dynamic> data = jsonDecode(response.body);
 
-      if (response.statusCode == 201 && data['data'] != null) {
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          data['data'] != null) {
         return ReviewModel.fromJson(data['data']);
       } else {
         final message = data['message'] ?? 'Không thể gửi đánh giá';

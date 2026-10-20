@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// Báo giá của Thợ gửi cho một phiếu yêu cầu sửa chữa (UC-QUO-04 -> UC-QUO-09)
+// 1 bản ghi = 1 báo giá của 1 Thợ cho 1 phiếu yêu cầu (UC-QUO-04 -> UC-QUO-09)
 const quotationSchema = new mongoose.Schema(
   {
     // Phiếu yêu cầu được báo giá

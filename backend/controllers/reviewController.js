@@ -102,12 +102,30 @@ const createReview = async (req, res) => {
       });
     }
 
-    // 7. Kiểm tra đơn hàng đã từng được đánh giá chưa (mỗi đơn chỉ đánh giá 1 lần)
+    // 7. Kiểm tra đơn hàng đã từng được đánh giá chưa (nếu có thì cập nhật)
     const existingReview = await Review.findOne({ bookingId });
     if (existingReview) {
-      return res.status(400).json({
-        success: false,
-        message: 'Đơn hàng này đã được bạn gửi đánh giá trước đó rồi',
+      if (existingReview.customerId.toString() !== customerId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Đơn hàng này đã được đánh giá bởi khách hàng khác',
+        });
+      }
+
+      // Cập nhật đánh giá hiện tại
+      existingReview.rating = Number(rating);
+      existingReview.tags = Array.isArray(tags) ? tags : [];
+      existingReview.comment = (comment || '').trim();
+      await existingReview.save();
+
+      const populatedReview = await Review.findById(existingReview._id)
+        .populate('customerId', 'fullName email')
+        .populate('technicianId', 'fullName email rating reviewCount');
+
+      return res.status(200).json({
+        success: true,
+        message: 'Cập nhật đánh giá dịch vụ thành công!',
+        data: populatedReview,
       });
     }
 

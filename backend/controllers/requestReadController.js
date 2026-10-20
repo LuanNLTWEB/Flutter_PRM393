@@ -4,9 +4,13 @@ const ServiceCategory = require('../models/ServiceCategory');
 const Quotation = require('../models/Quotation');
 
 const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
-const VALID_STATUS = ['OPEN', 'QUOTED', 'ACCEPTED', 'CANCELLED'];
+const VALID_STATUS = ['OPEN', 'QUOTED', 'ACCEPTED', 'ARRIVED', 'CANCELLED'];
 const VALID_URGENCY = ['low', 'medium', 'high', 'emergency'];
 const MAX_FEED_ITEMS = 200;
+
+// Yêu cầu OPEN và QUOTED đều còn nhận báo giá (chỉ ACCEPTED/CANCELLED mới chặn thợ),
+// nên feed mặc định lấy cả hai để nhiều thợ cùng báo giá và khách mới so sánh được (UC-QUO-07).
+const DEFAULT_FEED_STATUSES = ['OPEN', 'QUOTED'];
 
 const URGENCY_RANK = { emergency: 4, high: 3, medium: 2, low: 1 };
 
@@ -47,16 +51,19 @@ const populateRequest = (query) =>
     .populate('customerId', CUSTOMER_PUBLIC_FIELDS);
 
 /**
- * @desc    Thợ xem danh sách yêu cầu đang mở quanh khu vực (UC-QUO-01)
+ * @desc    Thợ xem danh sách yêu cầu còn nhận báo giá quanh khu vực (UC-QUO-01)
  *          + lọc theo danh mục dịch vụ/mức độ khẩn cấp (UC-QUO-02)
+ *          Mặc định trả về cả OPEN và QUOTED để nhiều thợ cùng báo giá (UC-QUO-07).
+ *          Kèm `quotesCount` (số thợ đang báo giá) và `hasQuoted`.
  *          Sắp xếp: nếu có tọa độ thì theo khoảng cách, không thì theo mức độ khẩn cấp
- * @route   GET /api/requests/nearby?status=&categorySlug=&urgency=&lat=&lng=&radiusKm=&page=&limit=
+ * @route   GET /api/requests/nearby?status=OPEN,QUOTED&categorySlug=&urgency=&lat=&lng=&radiusKm=&page=&limit=
  * @access  Private (technician)
  */
+// START UC-QUO-01 + UC-QUO-02
 const getNearbyRequests = async (req, res) => {
   try {
     const {
-      status = 'OPEN',
+      status = DEFAULT_FEED_STATUSES.join(','),
       categorySlug,
       urgency,
       lat,
@@ -66,15 +73,21 @@ const getNearbyRequests = async (req, res) => {
       limit = 20,
     } = req.query;
 
-    if (!VALID_STATUS.includes(status)) {
+    const statuses = String(status)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (statuses.length === 0 || statuses.some((s) => !VALID_STATUS.includes(s))) {
       return res.status(400).json({
         success: false,
         message: 'Trạng thái yêu cầu không hợp lệ',
       });
     }
 
-    const filter = { status };
+    const filter = { status: { $in: statuses } };
 
+    // Lọc theo chuyên môn / danh mục dịch vụ (UC-QUO-02)
     if (categorySlug) {
       const category = await ServiceCategory.findOne({ slug: categorySlug });
       if (!category) {
@@ -144,14 +157,47 @@ const getNearbyRequests = async (req, res) => {
     const startIndex = (pageNumber - 1) * pageSize;
     const paged = requests.slice(startIndex, startIndex + pageSize);
 
+    const requestIds = paged.map((item) => item._id);
+
+    // Số thợ đang báo giá cho từng phiếu (chỉ đếm, không lộ giá hay thông tin thợ)
+    let quoteCountMap = {};
+    // Các phiếu mà chính thợ đang xem đã gửi báo giá rồi
+    let myQuotedIds = new Set();
+
+    if (requestIds.length > 0) {
+      const [quoteCounts, myQuotes] = await Promise.all([
+        Quotation.aggregate([
+          { $match: { requestId: { $in: requestIds }, status: { $ne: 'RETRACTED' } } },
+          { $group: { _id: '$requestId', count: { $sum: 1 } } },
+        ]),
+        Quotation.find({
+          requestId: { $in: requestIds },
+          technicianId: req.user._id,
+          status: { $ne: 'RETRACTED' },
+        })
+          .select('requestId')
+          .lean(),
+      ]);
+
+      quoteCounts.forEach((qc) => {
+        quoteCountMap[qc._id.toString()] = qc.count;
+      });
+      myQuotedIds = new Set(myQuotes.map((q) => q.requestId.toString()));
+    }
+
     // Che thông tin liên hệ của khách hàng cho Thợ
-    const masked = paged.map((item) => ({
-      ...item,
-      contactPhone: '',
-      location: item.location
-        ? { ...item.location, address: '', latitude: null, longitude: null }
-        : item.location,
-    }));
+    const masked = paged.map((item) => {
+      const id = item._id.toString();
+      return {
+        ...item,
+        quotesCount: quoteCountMap[id] || 0,
+        hasQuoted: myQuotedIds.has(id),
+        contactPhone: '',
+        location: item.location
+          ? { ...item.location, address: '', latitude: null, longitude: null }
+          : item.location,
+      };
+    });
 
     return res.status(200).json({
       success: true,
@@ -173,14 +219,17 @@ const getNearbyRequests = async (req, res) => {
     });
   }
 };
+// END UC-QUO-01 + UC-QUO-02
 
 /**
  * @desc    Xem chi tiết 1 phiếu yêu cầu (UC-QUO-03)
  *          - Chủ yêu cầu: xem đầy đủ
  *          - Thợ: ẩn SĐT & địa chỉ cho tới khi nào thợ đó được chốt
+ *          Kèm `quotesCount` và `hasQuoted`
  * @route   GET /api/requests/:id
  * @access  Private (user, technician, staff, admin)
  */
+// START UC-QUO-03
 const getRequestDetail = async (req, res) => {
   try {
     const { id } = req.params;
@@ -209,16 +258,17 @@ const getRequestDetail = async (req, res) => {
     let payload = request;
 
     if (role === 'technician') {
-      // Thợ chỉ được thấy địa chỉ & SĐT khi mình là thợ đã được chốt
-      let hasWon = false;
-      if (request.status === 'ACCEPTED') {
-        const accepted = await Quotation.findOne({
-          requestId: request._id,
-          technicianId: req.user._id,
-          status: 'ACCEPTED',
-        });
-        hasWon = Boolean(accepted);
-      }
+      // Thợ chỉ được thấy địa chỉ & SĐT khi mình là thợ đã được chốt.
+      // Check theo quotation (không theo status đơn) để vẫn thấy địa chỉ
+      // khi đơn đã tiến sang ON_THE_WAY / IN_PROGRESS / COMPLETED.
+      const accepted = await Quotation.findOne({
+        requestId: request._id,
+        technicianId: req.user._id,
+        status: 'ACCEPTED',
+      })
+        .select('_id')
+        .lean();
+      const hasWon = Boolean(accepted);
 
       if (!hasWon) {
         payload = maskForTechnician(request);
@@ -229,6 +279,29 @@ const getRequestDetail = async (req, res) => {
         message: 'Bạn không có quyền xem phiếu yêu cầu này',
       });
     }
+
+    // Số thợ đang báo giá + cờ đánh dấu thợ đang xem đã gửi báo giá rồi (UC-QUO-07)
+    const [quoteCount, myQuote] = await Promise.all([
+      Quotation.countDocuments({
+        requestId: request._id,
+        status: { $ne: 'RETRACTED' },
+      }),
+      role === 'technician'
+        ? Quotation.findOne({
+            requestId: request._id,
+            technicianId: req.user._id,
+            status: { $ne: 'RETRACTED' },
+          })
+            .select('_id')
+            .lean()
+        : null,
+    ]);
+
+    payload = {
+      ...payload,
+      quotesCount: quoteCount,
+      hasQuoted: Boolean(myQuote),
+    };
 
     return res.status(200).json({
       success: true,
@@ -244,6 +317,7 @@ const getRequestDetail = async (req, res) => {
     });
   }
 };
+// END UC-QUO-03
 
 module.exports = {
   getNearbyRequests,

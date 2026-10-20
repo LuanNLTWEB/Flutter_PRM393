@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/directions.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../repair_request/data/models/repair_request_model.dart';
 import '../../../repair_request/data/models/service_category_model.dart';
 import '../../../repair_request/presentation/providers/repair_request_provider.dart';
+import '../../../repair_request/presentation/widgets/schedule_time_slot_picker.dart';
 import '../../data/datasources/quotation_remote_datasource.dart';
 import '../providers/quotation_provider.dart';
 import '../widgets/quotation_format.dart';
@@ -117,13 +119,18 @@ class _NearbyRequestsScreenState extends State<NearbyRequestsScreen> {
                       final request = provider.nearbyRequests[index - 1];
                       return _RequestCard(
                         request: request,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                RequestDetailScreen(requestId: request.id, request: request),
-                          ),
-                        ),
+                        // Gửi/thu hồi báo giá ở màn chi tiết sẽ đổi trạng thái
+                        // phiếu, nên phải tải lại feed khi quay lại.
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RequestDetailScreen(
+                                  requestId: request.id, request: request),
+                            ),
+                          );
+                          if (context.mounted) _load(refresh: true);
+                        },
                       );
                     },
                   ),
@@ -349,6 +356,24 @@ class _RequestCard extends StatelessWidget {
 
   const _RequestCard({required this.request, required this.onTap});
 
+  /// Mở Google Maps chỉ đường tới nhà khách (UC-MAP-01)
+  Future<void> _openDirections(BuildContext context) async {
+    final loc = request.location;
+    final ok = await openGoogleMapsDirections(
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      address: loc.address,
+    );
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không mở được Google Maps — chưa có địa chỉ khách'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -428,15 +453,102 @@ class _RequestCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
+            if (request.hasQuoted || request.quotesCount > 0) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (request.hasQuoted)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle,
+                              size: 12, color: AppTheme.primaryColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Đã báo giá của bạn',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (request.quotesCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.secondaryColor.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${request.quotesCount} thợ đã báo giá',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFB45309),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
             Row(
               children: [
-                const Icon(Icons.lock_outline,
-                    size: 14, color: AppTheme.textSecondaryColor),
-                const SizedBox(width: 4),
-                const Text(
-                  'Địa chỉ & SĐT ẩn đến khi được chốt',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondaryColor),
-                ),
+                if (request.location.address.isNotEmpty) ...[
+                  // Đã được chốt — thấy địa chỉ + nút mở Google Maps (UC-MAP-01)
+                  const Icon(Icons.location_on_outlined,
+                      size: 14, color: AppTheme.primaryColor),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      request.location.address,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.primaryColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.navigation_outlined, size: 15),
+                    label: const Text(
+                      'Chỉ đường',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                    onPressed: () => _openDirections(context),
+                  ),
+                ] else ...[
+                  const Icon(Icons.lock_outline,
+                      size: 14, color: AppTheme.textSecondaryColor),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Địa chỉ & SĐT ẩn đến khi được chốt',
+                    style: TextStyle(
+                        fontSize: 11, color: AppTheme.textSecondaryColor),
+                  ),
+                ],
                 const Spacer(),
                 Text(
                   request.statusDisplay,
@@ -523,10 +635,821 @@ class _MyQuoteCard extends StatelessWidget {
     }
   }
 
+  String _formatDateTime(DateTime dt) {
+    final d = dt.day.toString().padLeft(2, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '$d/$m/${dt.year} $hh:$mm';
+  }
+
+  /// Khu vực xác nhận / đổi lịch hẹn — chỉ hiện khi Thợ được chốt (UC-LIC-01)
+  Widget _buildAppointmentSection(BuildContext context) {
+    final request = item.request;
+    final provider = context.watch<QuotationProvider>();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.event_available_outlined,
+                  size: 16, color: Colors.blue),
+              const SizedBox(width: 6),
+              const Text(
+                'Lịch hẹn',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.blue,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _appointmentStatusColor
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  request.appointmentStatusDisplay,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: _appointmentStatusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (request.preferredTime != null)
+            Row(
+              children: [
+                const Icon(Icons.schedule, size: 14,
+                    color: AppTheme.textSecondaryColor),
+                const SizedBox(width: 4),
+                Text(
+                  'Giờ khách đề xuất: ${_formatDateTime(request.preferredTime!)}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+              ],
+            )
+          else
+            const Text(
+              'Khách chưa chọn giờ hẹn',
+              style: TextStyle(
+                fontSize: 12.5,
+                color: AppTheme.textSecondaryColor,
+              ),
+            ),
+          if (request.appointmentStatus == 'RESCHEDULED' &&
+              request.proposedTime != null) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.swap_horiz, size: 14,
+                    color: Colors.orange.shade700),
+                const SizedBox(width: 4),
+                Text(
+                  'Đề xuất của bạn: ${_formatDateTime(request.proposedTime!)}',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+              ],
+            ),
+            if (request.rescheduleNote.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Lý do: ${request.rescheduleNote}',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontStyle: FontStyle.italic,
+                    color: AppTheme.textSecondaryColor,
+                  ),
+                ),
+              ),
+          ],
+          // Khách vừa từ chối khung giờ đề xuất — hiển thị lý do (nếu có)
+          if (request.appointmentStatus == 'PENDING' &&
+              request.rescheduleRejectNote.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border:
+                    Border.all(color: Colors.red.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.cancel_outlined,
+                      size: 14, color: Colors.red.shade700),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Khách từ chối khung giờ bạn đề xuất: '
+                      '${request.rescheduleRejectNote}',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Colors.red.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (request.appointmentStatus != 'CONFIRMED') ...[
+            const SizedBox(height: 10),
+            // Giờ hẹn đã qua — không thể xác nhận, cần đề xuất khung giờ mới
+            if (_isPreferredTimePast) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border:
+                      Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 14, color: Colors.red.shade700),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Giờ hẹn đã qua — hãy bấm "Đổi lịch hẹn" để đề xuất khung giờ mới.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Colors.red.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (request.appointmentStatus == 'RESCHEDULED') ...[
+              // Đang chờ Khách phản hồi — chỉ cho phép đề xuất khung giờ khác
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.hourglass_top,
+                        size: 14, color: Colors.orange.shade800),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Đang chờ khách phản hồi khung giờ bạn đề xuất. '
+                        'Bạn có thể đề xuất khung giờ khác nếu cần.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orange.shade800,
+                    side: BorderSide(color: Colors.orange.shade400),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.swap_horiz, size: 16),
+                  label: const Text(
+                    'Đề xuất khung giờ khác',
+                    style: TextStyle(
+                        fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
+                  onPressed: provider.isSubmitting
+                      ? null
+                      : () => _showRescheduleSheet(context),
+                ),
+              ),
+            ] else
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange.shade800,
+                        side: BorderSide(color: Colors.orange.shade400),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.swap_horiz, size: 16),
+                      label: const Text(
+                        'Đổi lịch hẹn',
+                        style: TextStyle(
+                            fontSize: 12.5, fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: provider.isSubmitting
+                          ? null
+                          : () => _showRescheduleSheet(context),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade600,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.check_circle_outline, size: 16),
+                      label: const Text(
+                        'Đồng ý giờ hẹn',
+                        style: TextStyle(
+                            fontSize: 12.5, fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: (provider.isSubmitting ||
+                              request.preferredTime == null ||
+                              _isPreferredTimePast)
+                          ? null
+                          : () => _confirmAppointment(context),
+                    ),
+                  ),
+                ],
+              ),
+          ] else if (request.status == 'ACCEPTED') ...[
+            // Lịch hẹn đã xác nhận — thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.navigation, size: 16),
+                label: const Text(
+                  'Đang trên đường đến nhà khách',
+                  style: TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                onPressed: provider.isSubmitting
+                    ? null
+                    : () => _markOnTheWay(context),
+              ),
+            ),
+          ] else if (request.status == 'ON_THE_WAY') ...[
+            // Đã bấm di chuyển — hiển thị trạng thái + nút báo đã đến (UC-ARR-01)
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.navigation,
+                      size: 14, color: Colors.blue.shade700),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Bạn đang trên đường đến nhà khách',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.place_outlined, size: 16),
+                label: const Text(
+                  'Đã có mặt tại hiện trường',
+                  style: TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                onPressed: provider.isSubmitting
+                    ? null
+                    : () => _markArrived(context),
+              ),
+            ),
+          ] else if (request.status == 'ARRIVED') ...[
+            // Đã có mặt — thợ bấm bắt đầu sửa chữa (UC-WRK-02)
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade400),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.place_outlined,
+                      size: 14, color: Colors.amber.shade800),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Bạn đã có mặt tại hiện trường',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.amber.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.build_outlined, size: 16),
+                label: const Text(
+                  'Bắt đầu sửa chữa',
+                  style: TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                onPressed: provider.isSubmitting
+                    ? null
+                    : () => _markWorking(context),
+              ),
+            ),
+          ] else if (request.status == 'IN_PROGRESS') ...[
+            // Đã có mặt — đang sửa chữa
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.indigo.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.indigo.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.home_repair_service_outlined,
+                      size: 14, color: Colors.indigo.shade700),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Bạn đang sửa chữa tại hiện trường',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.indigo.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Color get _appointmentStatusColor {
+    switch (item.request.appointmentStatus) {
+      case 'CONFIRMED':
+        return Colors.green.shade700;
+      case 'RESCHEDULED':
+        return Colors.orange.shade800;
+      default:
+        return Colors.blue.shade700;
+    }
+  }
+
+  /// Giờ hẹn khách đề xuất đã qua — không thể xác nhận nữa
+  bool get _isPreferredTimePast {
+    final t = item.request.preferredTime;
+    return t != null && t.isBefore(DateTime.now());
+  }
+
+  Future<void> _confirmAppointment(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Đồng ý giờ hẹn?'),
+        content: Text(
+          item.request.preferredTime != null
+              ? 'Bạn xác nhận sẽ đến nhà khách vào ${_formatDateTime(item.request.preferredTime!)}?'
+              : 'Bạn xác nhận đồng ý với lịch hẹn này?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.confirmAppointment(
+      token: token,
+      requestId: item.request.id,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Xác nhận lịch hẹn thành công')
+              : (provider.errorMessage ?? 'Xác nhận lịch hẹn thất bại'),
+        ),
+        backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
+  Future<void> _markOnTheWay(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Bắt đầu di chuyển?'),
+        content: const Text(
+          'Bạn xác nhận đang trên đường đến nhà khách? Khách sẽ thấy trạng thái mới của đơn.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.markOnTheWay(
+      token: token,
+      requestId: item.request.id,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đã cập nhật trạng thái di chuyển')
+              : (provider.errorMessage ?? 'Cập nhật trạng thái di chuyển thất bại'),
+        ),
+        backgroundColor: ok ? Colors.blue.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
+  /// Thợ bấm "Đã có mặt tại hiện trường" (UC-ARR-01)
+  Future<void> _markArrived(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Đã có mặt?'),
+        content: const Text(
+          'Bạn xác nhận đã có mặt tại nhà khách? Đơn sẽ chuyển sang trạng thái Đang sửa chữa và khách sẽ được thông báo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.markArrived(
+      token: token,
+      requestId: item.request.id,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đã cập nhật trạng thái đã có mặt')
+              : (provider.errorMessage ?? 'Cập nhật trạng thái đã có mặt thất bại'),
+        ),
+        backgroundColor: ok ? Colors.indigo.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
+  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+  Future<void> _markWorking(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Bắt đầu sửa chữa?'),
+        content: const Text(
+          'Bạn xác nhận bắt đầu sửa chữa? Đơn sẽ chuyển sang trạng thái Đang sửa chữa và khách sẽ được thông báo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.markWorking(
+      token: token,
+      requestId: item.request.id,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đã cập nhật: đang sửa chữa')
+              : (provider.errorMessage ?? 'Cập nhật trạng thái thất bại'),
+        ),
+        backgroundColor: ok ? Colors.teal.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
+  Future<void> _showRescheduleSheet(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    DateTime? picked;
+    final noteController = TextEditingController();
+
+    final proposed = await showModalBottomSheet<DateTime>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 16,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.swap_horiz, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Text(
+                          'Đề xuất khung giờ mới',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      item.request.preferredTime != null
+                          ? 'Khách đề xuất: ${_formatDateTime(item.request.preferredTime!)}'
+                          : 'Khách chưa chọn giờ hẹn',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ScheduleTimeSlotPicker(
+                      onScheduleChanged: (schedule) =>
+                          setSheetState(() => picked = schedule),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteController,
+                      maxLength: 300,
+                      decoration: const InputDecoration(
+                        labelText: 'Lý do đổi lịch (không bắt buộc)',
+                        hintText: 'VD: Tôi bận khung giờ đó, đề xuất 14h cùng ngày',
+                        border: OutlineInputBorder(),
+                        counterText: '',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: picked == null
+                            ? null
+                            : () => Navigator.pop(sheetCtx, picked),
+                        child: const Text(
+                          'Gửi đề xuất',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (proposed == null || !context.mounted) return;
+
+    // Mirror validate backend: ≥15 phút, ≤14 ngày
+    final now = DateTime.now();
+    if (!proposed.isAfter(now)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Khung giờ đề xuất phải ở tương lai'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (proposed.isBefore(now.add(const Duration(minutes: 15)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Khung giờ đề xuất cần cách hiện tại ít nhất 15 phút'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (proposed.isAfter(now.add(const Duration(days: 14)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Khung giờ đề xuất không được vượt quá 14 ngày'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.proposeAppointment(
+      token: token,
+      requestId: item.request.id,
+      proposedTime: proposed,
+      note: noteController.text.trim(),
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đề xuất khung giờ mới thành công')
+              : (provider.errorMessage ?? 'Đề xuất khung giờ mới thất bại'),
+        ),
+        backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final request = item.request;
     final quote = item.quote;
+    final isWon = quote.status == 'ACCEPTED';
 
     return InkWell(
       onTap: onTap,
@@ -641,6 +1564,11 @@ class _MyQuoteCard extends StatelessWidget {
                 ),
               ],
             ),
+            // Chỉ hiện khu vực lịch hẹn khi đơn đang trong tiến trình xử lý
+            if (isWon &&
+                ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS']
+                    .contains(request.status))
+              _buildAppointmentSection(context),
           ],
         ),
       ),

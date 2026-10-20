@@ -49,4 +49,31 @@ class OrderHistoryRemoteDataSource {
       throw Exception('Lỗi kết nối máy chủ: $e');
     }
   }
+
+  /// Khách đồng ý / từ chối khung giờ thợ đề xuất (UC-LIC-01)
+  Future<void> respondAppointment({
+    required String token,
+    required String requestId,
+    required String action, // 'accept' | 'reject'
+    String reason = '',
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.respondAppointment(requestId)),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'action': action,
+        if (reason.isNotEmpty) 'reason': reason,
+      }),
+    );
+
+    final Map<String, dynamic> data = jsonDecode(response.body);
+
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Phản hồi lịch hẹn thất bại');
+    }
+  }
 }

@@ -74,11 +74,11 @@ const repairRequestSchema = new mongoose.Schema(
       },
     },
 
-    // Trạng thái yêu cầu: OPEN, QUOTED, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED
+    // Trạng thái yêu cầu: OPEN, QUOTED, ACCEPTED, ON_THE_WAY, ARRIVED, IN_PROGRESS, COMPLETED, CANCELLED
     status: {
       type: String,
       enum: {
-        values: ['OPEN', 'QUOTED', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+        values: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
         message: 'Trạng thái yêu cầu không hợp lệ',
       },
       default: 'OPEN',
@@ -118,6 +118,62 @@ const repairRequestSchema = new mongoose.Schema(
 
     // Thời gian mong muốn
     preferredTime: {
+      type: Date,
+      default: null,
+    },
+
+    // Trạng thái lịch hẹn: PENDING (chờ thợ xác nhận), CONFIRMED (đã xác nhận), RESCHEDULED (thợ đề xuất giờ mới)
+    appointmentStatus: {
+      type: String,
+      enum: {
+        values: ['PENDING', 'CONFIRMED', 'RESCHEDULED'],
+        message: 'Trạng thái lịch hẹn không hợp lệ',
+      },
+      default: 'PENDING',
+    },
+
+    // Giờ mới do Thợ đề xuất (khi appointmentStatus = RESCHEDULED)
+    proposedTime: {
+      type: Date,
+      default: null,
+    },
+
+    // Lý do Thợ đổi lịch (tùy chọn)
+    rescheduleNote: {
+      type: String,
+      trim: true,
+      maxlength: [300, 'Lý do đổi lịch không được vượt quá 300 ký tự'],
+      default: '',
+    },
+
+    // Lý do Khách từ chối khung giờ thợ đề xuất (tùy chọn)
+    rescheduleRejectNote: {
+      type: String,
+      trim: true,
+      maxlength: [300, 'Lý do từ chối không được vượt quá 300 ký tự'],
+      default: '',
+    },
+
+    // Thời điểm Thợ xác nhận lịch hẹn
+    appointmentConfirmedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Thời điểm Thợ bấm "Đang trên đường đến nhà khách"
+    onTheWayAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Thời điểm Thợ bấm "Đã có mặt tại hiện trường"
+    arrivedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Thời điểm Thợ bấm "Bắt đầu sửa chữa"
+    startedAt: {
       type: Date,
       default: null,
     },

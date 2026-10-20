@@ -1,5 +1,7 @@
 const Quotation = require('../models/Quotation');
 const RepairRequest = require('../models/RepairRequest');
+const { createNotificationUtil } = require('./notificationController');
+const mongoose = require('mongoose');
 
 // Trường thông tin công khai của Thợ được phép trả về Khách hàng
 const TECHNICIAN_PUBLIC_FIELDS =
@@ -11,11 +13,24 @@ const isNonNegativeNumber = (value) =>
 const populateTechnician = (query) =>
   query.populate('technicianId', TECHNICIAN_PUBLIC_FIELDS);
 
+/// Thợ đang giữ đơn nào không? (ACCEPTED / ON_THE_WAY / IN_PROGRESS)
+/// Dùng để chặn thợ tiếp nhiều đơn cùng lúc.
+const findActiveJob = (technicianId) =>
+  mongoose.isValidObjectId(technicianId)
+    ? RepairRequest.findOne({
+        assignedTechnicianId: technicianId,
+        status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] },
+      })
+        .select('title')
+        .lean()
+    : Promise.resolve(null);
+
 /**
  * @desc    Thợ gửi báo giá cho phiếu yêu cầu (UC-QUO-04)
  * @route   POST /api/quotations
  * @access  Private (technician)
  */
+// START UC-QUO-04
 const sendQuotation = async (req, res) => {
   try {
     const { requestId, labourCost, partsCost = 0, note = '' } = req.body;
@@ -42,17 +57,24 @@ const sendQuotation = async (req, res) => {
       });
     }
 
-    if (request.status === 'ACCEPTED') {
+    if (!['OPEN', 'QUOTED'].includes(request.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Yêu cầu này đã được chốt thợ, không thể báo giá',
+        message:
+          request.status === 'CANCELLED'
+            ? 'Yêu cầu này đã bị hủy'
+            : 'Yêu cầu này đã được chốt thợ, không thể báo giá',
       });
     }
 
-    if (request.status === 'CANCELLED') {
+    // Thợ chỉ có thể tiếp 1 đơn cùng lúc
+    const activeJob = await findActiveJob(req.user._id);
+    if (activeJob) {
       return res.status(400).json({
         success: false,
-        message: 'Yêu cầu này đã bị hủy',
+        message:
+          `Bạn đang có đơn "${activeJob.title}" đang xử lý. ` +
+          'Mỗi thợ chỉ có thể tiếp 1 đơn cùng lúc.',
       });
     }
 
@@ -93,6 +115,15 @@ const sendQuotation = async (req, res) => {
       await request.save();
     }
 
+    // Gửi thông báo đến khách hàng
+    await createNotificationUtil({
+      recipient: request.customerId,
+      title: 'Có báo giá mới từ thợ! 💰',
+      message: `Thợ ${req.user.fullName || 'kỹ thuật'} vừa gửi báo giá cho yêu cầu "${request.title}". Hãy vào xem chi tiết và so sánh báo giá.`,
+      type: 'QUOTATION',
+      data: { requestId: request._id, quotationId: quotation._id },
+    });
+
     const populated = await populateTechnician(
       Quotation.findById(quotation._id)
     ).lean();
@@ -128,6 +159,8 @@ const sendQuotation = async (req, res) => {
   }
 };
 
+// END UC-QUO-04
+
 /**
  * @desc    Xem danh sách báo giá của 1 yêu cầu (UC-QUO-06)
  *          - Khách hàng: xem toàn bộ báo giá của yêu cầu mình tạo
@@ -135,6 +168,7 @@ const sendQuotation = async (req, res) => {
  * @route   GET /api/quotations?requestId=...
  * @access  Private (user, technician)
  */
+// START UC-QUO-06
 const getQuotationsByRequest = async (req, res) => {
   try {
     const { requestId } = req.query;
@@ -192,11 +226,14 @@ const getQuotationsByRequest = async (req, res) => {
   }
 };
 
+// END UC-QUO-06
+
 /**
  * @desc    Thợ chỉnh sửa báo giá đã gửi (UC-QUO-05)
  * @route   PUT /api/quotations/:id
  * @access  Private (technician - chủ báo giá)
  */
+// START UC-QUO-05.a
 const updateQuotation = async (req, res) => {
   try {
     const { labourCost, partsCost = 0, note = '' } = req.body;
@@ -238,6 +275,17 @@ const updateQuotation = async (req, res) => {
       });
     }
 
+    // Thợ chỉ có thể tiếp 1 đơn cùng lúc
+    const activeJob = await findActiveJob(req.user._id);
+    if (activeJob) {
+      return res.status(400).json({
+        success: false,
+        message:
+          `Bạn đang có đơn "${activeJob.title}" đang xử lý. ` +
+          'Mỗi thợ chỉ có thể tiếp 1 đơn cùng lúc.',
+      });
+    }
+
     quotation.labourCost = labourCost;
     quotation.partsCost = partsCost;
     quotation.note = (note || '').trim();
@@ -271,12 +319,15 @@ const updateQuotation = async (req, res) => {
   }
 };
 
+// END UC-QUO-05.a
+
 /**
  * @desc    Thợ thu hồi báo giá đã gửi (UC-QUO-05)
  *          Nếu không còn báo giá nào đang mở thì yêu cầu quay lại OPEN
  * @route   PATCH /api/quotations/:id/retract
  * @access  Private (technician - chủ báo giá)
  */
+// START UC-QUO-05.b
 const retractQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
@@ -332,12 +383,15 @@ const retractQuotation = async (req, res) => {
   }
 };
 
+// END UC-QUO-05.b
+
 /**
  * @desc    Khách hàng chấp nhận 1 báo giá, chốt thợ (UC-QUO-08)
  *          Báo giá còn lại bị từ chối tự động, yêu cầu chuyển sang ACCEPTED
  * @route   POST /api/quotations/:id/accept
  * @access  Private (user - chủ yêu cầu)
  */
+// START UC-QUO-08
 const acceptQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
@@ -363,17 +417,13 @@ const acceptQuotation = async (req, res) => {
       });
     }
 
-    if (request.status === 'ACCEPTED') {
+    if (!['OPEN', 'QUOTED'].includes(request.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Yêu cầu này đã được chốt thợ trước đó',
-      });
-    }
-
-    if (request.status === 'CANCELLED') {
-      return res.status(400).json({
-        success: false,
-        message: 'Yêu cầu này đã bị hủy',
+        message:
+          request.status === 'CANCELLED'
+            ? 'Yêu cầu này đã bị hủy'
+            : 'Yêu cầu này đã được chốt thợ trước đó',
       });
     }
 
@@ -381,6 +431,17 @@ const acceptQuotation = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Báo giá này không còn ở trạng thái có thể chấp nhận',
+      });
+    }
+
+    // Thợ chỉ có thể tiếp 1 đơn cùng lúc — chặn khách chốt thợ đang bận
+    const activeJob = await findActiveJob(quotation.technicianId);
+    if (activeJob) {
+      return res.status(400).json({
+        success: false,
+        message:
+          `Thợ đang có đơn "${activeJob.title}" đang xử lý. ` +
+          'Mỗi thợ chỉ có thể tiếp 1 đơn cùng lúc, vui lòng chọn thợ khác.',
       });
     }
 
@@ -401,8 +462,14 @@ const acceptQuotation = async (req, res) => {
     );
 
     request.status = 'ACCEPTED';
-    // Gán thợ thắng báo giá để thợ xem được đơn và thực hiện nghiệm thu.
+    // Gán thợ được chốt + reset trạng thái lịch hẹn về chờ thợ xác nhận
     request.assignedTechnicianId = quotation.technicianId;
+    request.appointmentStatus = 'PENDING';
+    request.proposedTime = null;
+    request.rescheduleNote = '';
+    request.rescheduleRejectNote = '';
+    request.appointmentConfirmedAt = null;
+    request.onTheWayAt = null;
     await request.save();
 
     const populated = await populateTechnician(
@@ -424,12 +491,15 @@ const acceptQuotation = async (req, res) => {
   }
 };
 
+// END UC-QUO-08
+
 /**
  * @desc    Khách hàng từ chối 1 báo giá (UC-QUO-09)
  *          Nếu không còn báo giá nào đang mở thì giải phóng yêu cầu (OPEN)
  * @route   POST /api/quotations/:id/reject
  * @access  Private (user - chủ yêu cầu)
  */
+// START UC-QUO-09
 const rejectQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
@@ -492,6 +562,8 @@ const rejectQuotation = async (req, res) => {
   }
 };
 
+// END UC-QUO-09
+
 /**
  * @desc    Thợ xem danh sách "Yêu cầu đã báo giá" của chính mình (UC-QUO-05)
  *          Mỗi báo giá kèm thông tin phiếu yêu cầu (đã populate)
@@ -499,6 +571,7 @@ const rejectQuotation = async (req, res) => {
  * @route   GET /api/quotations/my-quotes
  * @access  Private (technician)
  */
+// START UC-QUO-05.c
 const getMyQuotations = async (req, res) => {
   try {
     const quotations = await Quotation.find({ technicianId: req.user._id })
@@ -506,7 +579,7 @@ const getMyQuotations = async (req, res) => {
       .limit(200)
       .populate(
         'requestId',
-        'title description urgency status images location contactPhone serviceCategoryId createdAt updatedAt'
+        'title description urgency status images location contactPhone serviceCategoryId preferredTime appointmentStatus proposedTime rescheduleNote rescheduleRejectNote onTheWayAt createdAt updatedAt'
       )
       .lean();
 
@@ -546,6 +619,7 @@ const getMyQuotations = async (req, res) => {
     });
   }
 };
+// END UC-QUO-05.c
 
 module.exports = {
   sendQuotation,
