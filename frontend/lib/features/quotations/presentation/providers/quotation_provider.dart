@@ -473,6 +473,36 @@ class QuotationProvider extends ChangeNotifier {
     }
   }
 
+  /// Thợ bấm "Đã có mặt tại hiện trường" (UC-ARR-01)
+  Future<bool> markArrived({
+    required String token,
+    required String requestId,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await _requestDataSource.markArrived(
+        token: token,
+        requestId: requestId,
+      );
+      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
+            status: 'IN_PROGRESS',
+          ));
+      _successMessage = 'Đã cập nhật: đã có mặt tại hiện trường';
+      _isSubmitting = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isSubmitting = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   void _updateMyQuoteRequest(
     String requestId,
     RepairRequestModel Function(RepairRequestModel) update,

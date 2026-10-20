@@ -55,6 +55,7 @@ class ApiEndpoints {
   static String respondAppointment(String id) =>
       '$baseUrl/requests/$id/appointment/respond';
   static String onTheWay(String id) => '$baseUrl/requests/$id/on-the-way';
+  static String arrived(String id) => '$baseUrl/requests/$id/arrived';
 
   static const String repairRequests = requests;
   static const String myRepairRequests = myRequests;

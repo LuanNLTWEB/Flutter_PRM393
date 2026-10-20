@@ -148,6 +148,12 @@ const repairRequestSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Thời điểm Thợ bấm "Đã có mặt tại hiện trường"
+    arrivedAt: {
+      type: Date,
+      default: null,
+    },
+
     // Ghi chú của khách hàng
     customerNote: {
       type: String,

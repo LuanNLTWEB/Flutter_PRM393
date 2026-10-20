@@ -7,6 +7,7 @@ const {
   proposeAppointment,
   respondAppointment,
   updateOnTheWay,
+  updateArrived,
 } = require('../controllers/repairRequestController');
 const { protect, authorize } = require('../middlewares/auth');
 const upload = require('../middlewares/upload');
@@ -44,6 +45,13 @@ router.patch(
   '/:id/on-the-way',
   authorize('technician'),
   updateOnTheWay
+);
+
+// Thợ bấm "Đã có mặt tại hiện trường" (UC-ARR-01)
+router.patch(
+  '/:id/arrived',
+  authorize('technician'),
+  updateArrived
 );
 
 // Tạo đơn hàng hoàn tất mẫu để kiểm thử đánh giá

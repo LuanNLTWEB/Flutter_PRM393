@@ -941,7 +941,7 @@ class _MyQuoteCard extends StatelessWidget {
               ),
             ),
           ] else if (request.status == 'ON_THE_WAY') ...[
-            // Đã bấm di chuyển — hiển thị trạng thái
+            // Đã bấm di chuyển — hiển thị trạng thái + nút báo đã đến (UC-ARR-01)
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
@@ -963,6 +963,59 @@ class _MyQuoteCard extends StatelessWidget {
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                         color: Colors.blue.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.place_outlined, size: 16),
+                label: const Text(
+                  'Đã có mặt tại hiện trường',
+                  style: TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                onPressed: provider.isSubmitting
+                    ? null
+                    : () => _markArrived(context),
+              ),
+            ),
+          ] else if (request.status == 'IN_PROGRESS') ...[
+            // Đã có mặt — đang sửa chữa
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.indigo.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.indigo.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.home_repair_service_outlined,
+                      size: 14, color: Colors.indigo.shade700),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Bạn đang sửa chữa tại hiện trường',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.indigo.shade800,
                       ),
                     ),
                   ),
@@ -1086,6 +1139,55 @@ class _MyQuoteCard extends StatelessWidget {
               : (provider.errorMessage ?? 'Cập nhật trạng thái di chuyển thất bại'),
         ),
         backgroundColor: ok ? Colors.blue.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
+  /// Thợ bấm "Đã có mặt tại hiện trường" (UC-ARR-01)
+  Future<void> _markArrived(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Đã có mặt?'),
+        content: const Text(
+          'Bạn xác nhận đã có mặt tại nhà khách? Đơn sẽ chuyển sang trạng thái Đang sửa chữa và khách sẽ được thông báo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.markArrived(
+      token: token,
+      requestId: item.request.id,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đã cập nhật trạng thái đã có mặt')
+              : (provider.errorMessage ?? 'Cập nhật trạng thái đã có mặt thất bại'),
+        ),
+        backgroundColor: ok ? Colors.indigo.shade700 : Colors.red.shade600,
       ),
     );
   }

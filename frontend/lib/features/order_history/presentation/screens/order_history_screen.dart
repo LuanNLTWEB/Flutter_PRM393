@@ -644,6 +644,36 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       ],
                     ),
                   ),
+                ] else if (order.status == 'IN_PROGRESS') ...[
+                  // Thợ đã có mặt và đang sửa chữa (UC-ARR-01)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.indigo.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.home_repair_service_outlined,
+                            size: 18, color: Colors.indigo.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            order.preferredTime != null
+                                ? 'Thợ đã có mặt và đang sửa chữa (lịch hẹn ${dateFormat.format(order.preferredTime!)})'
+                                : 'Thợ đã có mặt và đang sửa chữa tại hiện trường',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo.shade900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ] else if (order.appointmentStatus == 'CONFIRMED') ...[
                   // Thợ ĐÃ xác nhận — xanh lá, icon tick, chữ đậm
                   Container(

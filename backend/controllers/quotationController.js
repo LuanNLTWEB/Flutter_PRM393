@@ -12,6 +12,16 @@ const isNonNegativeNumber = (value) =>
 const populateTechnician = (query) =>
   query.populate('technicianId', TECHNICIAN_PUBLIC_FIELDS);
 
+/// Thợ đang giữ đơn nào không? (ACCEPTED / ON_THE_WAY / IN_PROGRESS)
+/// Dùng để chặn thợ tiếp nhiều đơn cùng lúc.
+const findActiveJob = (technicianId) =>
+  RepairRequest.findOne({
+    assignedTechnicianId: technicianId,
+    status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'] },
+  })
+    .select('title')
+    .lean();
+
 /**
  * @desc    Thợ gửi báo giá cho phiếu yêu cầu (UC-QUO-04)
  * @route   POST /api/quotations
@@ -51,6 +61,17 @@ const sendQuotation = async (req, res) => {
           request.status === 'CANCELLED'
             ? 'Yêu cầu này đã bị hủy'
             : 'Yêu cầu này đã được chốt thợ, không thể báo giá',
+      });
+    }
+
+    // Thợ chỉ có thể tiếp 1 đơn cùng lúc
+    const activeJob = await findActiveJob(req.user._id);
+    if (activeJob) {
+      return res.status(400).json({
+        success: false,
+        message:
+          `Bạn đang có đơn "${activeJob.title}" đang xử lý. ` +
+          'Mỗi thợ chỉ có thể tiếp 1 đơn cùng lúc.',
       });
     }
 
@@ -251,6 +272,17 @@ const updateQuotation = async (req, res) => {
       });
     }
 
+    // Thợ chỉ có thể tiếp 1 đơn cùng lúc
+    const activeJob = await findActiveJob(req.user._id);
+    if (activeJob) {
+      return res.status(400).json({
+        success: false,
+        message:
+          `Bạn đang có đơn "${activeJob.title}" đang xử lý. ` +
+          'Mỗi thợ chỉ có thể tiếp 1 đơn cùng lúc.',
+      });
+    }
+
     quotation.labourCost = labourCost;
     quotation.partsCost = partsCost;
     quotation.note = (note || '').trim();
@@ -396,6 +428,17 @@ const acceptQuotation = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Báo giá này không còn ở trạng thái có thể chấp nhận',
+      });
+    }
+
+    // Thợ chỉ có thể tiếp 1 đơn cùng lúc — chặn khách chốt thợ đang bận
+    const activeJob = await findActiveJob(quotation.technicianId);
+    if (activeJob) {
+      return res.status(400).json({
+        success: false,
+        message:
+          `Thợ đang có đơn "${activeJob.title}" đang xử lý. ` +
+          'Mỗi thợ chỉ có thể tiếp 1 đơn cùng lúc, vui lòng chọn thợ khác.',
       });
     }
 

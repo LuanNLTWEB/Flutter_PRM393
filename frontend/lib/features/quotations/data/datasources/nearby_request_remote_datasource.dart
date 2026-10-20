@@ -169,4 +169,20 @@ class NearbyRequestRemoteDataSource {
       throw Exception(data['message'] ?? 'Cập nhật trạng thái di chuyển thất bại');
     }
   }
+
+  /// Thợ bấm "Đã có mặt tại hiện trường" (UC-ARR-01)
+  Future<void> markArrived({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.arrived(requestId)),
+      headers: _headers(token),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Cập nhật trạng thái đã có mặt thất bại');
+    }
+  }
 }

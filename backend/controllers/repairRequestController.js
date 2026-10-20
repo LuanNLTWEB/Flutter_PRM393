@@ -726,6 +726,69 @@ const updateOnTheWay = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Thợ bấm "Đã có mặt tại hiện trường" (UC-ARR-01)
+ *          Chuyển status từ ON_THE_WAY sang IN_PROGRESS
+ * @route   PATCH /api/requests/:id/arrived
+ * @access  Private (technician - thợ được chốt)
+ */
+const updateArrived = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.status !== 'ON_THE_WAY') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể báo đã có mặt khi đang trên đường đến nhà khách',
+      });
+    }
+
+    if (!(await isAssignedTechnician(request, req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thợ được chốt cho yêu cầu này',
+      });
+    }
+
+    request.status = 'IN_PROGRESS';
+    request.arrivedAt = new Date();
+    await request.save();
+
+    // Gửi thông báo đến khách hàng
+    await createNotificationUtil({
+      recipient: request.customerId,
+      title: 'Thợ đã có mặt! 📍',
+      message: `Thợ ${req.user.fullName || 'kỹ thuật'} đã có mặt tại hiện trường cho yêu cầu "${request.title}". Vui lòng đón tiếp thợ.`,
+      type: 'ORDER_STATUS',
+      data: { requestId: request._id, status: 'IN_PROGRESS' },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã cập nhật: đã có mặt tại hiện trường',
+      data: {
+        status: request.status,
+        arrivedAt: request.arrivedAt,
+      },
+    });
+  } catch (error) {
+    console.error('updateArrived error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi cập nhật trạng thái đã có mặt',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createRepairRequest,
   getMyRepairRequests,
@@ -733,4 +796,5 @@ module.exports = {
   proposeAppointment,
   respondAppointment,
   updateOnTheWay,
+  updateArrived,
 };
