@@ -315,8 +315,39 @@ void main() {
 
       expect(find.text('Hủy yêu cầu'), findsNothing);
     });
+
+    testWidgets('RequestItemCardWidget renders cancelled status bar and not waiting quotes bar when CANCELLED', (tester) async {
+      final cancelledRequest = RepairRequestModel(
+        id: 'req_canc_1',
+        customerId: 'user_1',
+        serviceCategoryId: 'cat_1',
+        title: 'Sửa chập điện cầu dao',
+        description: 'Cầu dao tổng bị nhảy liên tục',
+        status: 'CANCELLED',
+        urgency: 'high',
+        cancellationReason: 'Đã tự khắc phục được sự cố',
+        contactPhone: '0901234567',
+        location: const RepairLocationModel(address: '789 Đường Số 3, Quận 5'),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: RequestItemCardWidget(
+              request: cancelledRequest,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Đã hủy: Đã tự khắc phục được sự cố'), findsOneWidget);
+      expect(find.text('Đang mở - Chờ thợ gửi báo giá...'), findsNothing);
+    });
   });
 }
+
 
 
 

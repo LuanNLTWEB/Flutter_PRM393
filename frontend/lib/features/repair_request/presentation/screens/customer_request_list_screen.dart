@@ -27,11 +27,14 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
   late TabController _tabController;
 
   final List<String> _tabs = [
-    'Chờ báo giá',
-    'Đã chốt thợ',
-    'Đã hủy',
     'Tất cả',
+    'Chờ báo giá',
+    'Đã báo giá',
+    'Đã chốt thợ',
+    'Đã hoàn tất',
+    'Đã hủy',
   ];
+
 
   @override
   void initState() {
@@ -73,27 +76,30 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
     List<RepairRequestModel> list,
     int tabIndex,
   ) {
-    switch (tabIndex) {
-      case 0: // Chờ báo giá (UC-REQ-07)
-        return list
-            .where((r) => r.status == 'OPEN' || r.status == 'QUOTED')
-            .toList();
-      case 1: // Đã chốt thợ
+    final tabName = _tabs[tabIndex];
+    switch (tabName) {
+      case 'Chờ báo giá':
+        return list.where((r) => r.status == 'OPEN').toList();
+      case 'Đã báo giá':
+        return list.where((r) => r.status == 'QUOTED').toList();
+      case 'Đã chốt thợ':
         return list
             .where((r) =>
                 r.status == 'ACCEPTED' ||
                 r.status == 'ON_THE_WAY' ||
                 r.status == 'ARRIVED' ||
-                r.status == 'IN_PROGRESS' ||
-                r.status == 'COMPLETED')
+                r.status == 'IN_PROGRESS')
             .toList();
-      case 2: // Đã hủy
+      case 'Đã hoàn tất':
+        return list.where((r) => r.status == 'COMPLETED').toList();
+      case 'Đã hủy':
         return list.where((r) => r.status == 'CANCELLED').toList();
-      case 3: // Tất cả
+      case 'Tất cả':
       default:
         return list;
     }
   }
+
 
   void _showRequestDetailModal(RepairRequestModel request) {
     showModalBottomSheet(
@@ -552,8 +558,12 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
                                 backgroundColor: Colors.green,
                               ),
                             );
-                            _tabController.animateTo(2);
+                            final cancelIndex = _tabs.indexOf('Đã hủy');
+                            if (cancelIndex != -1) {
+                              _tabController.animateTo(cancelIndex);
+                            }
                           } else {
+
                             final err = repairProvider.cancelError ?? 'Không thể hủy yêu cầu';
                             messenger.showSnackBar(
                               SnackBar(
@@ -670,6 +680,19 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
             Tab(
               child: Row(
                 children: [
+                  const Text('Tất cả'),
+                  const SizedBox(width: 6),
+                  _buildCountBadge(
+                    allRequests.length,
+                    Colors.blue.shade700,
+                    Colors.blue.shade50,
+                  ),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                children: [
                   const Text('Chờ báo giá'),
                   const SizedBox(width: 6),
                   _buildCountBadge(
@@ -683,10 +706,36 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
             Tab(
               child: Row(
                 children: [
+                  const Text('Đã báo giá'),
+                  const SizedBox(width: 6),
+                  _buildCountBadge(
+                    provider.quotedRequests.length,
+                    Colors.indigo.shade700,
+                    Colors.indigo.shade50,
+                  ),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                children: [
                   const Text('Đã chốt thợ'),
                   const SizedBox(width: 6),
                   _buildCountBadge(
                     provider.acceptedRequests.length,
+                    Colors.teal.shade700,
+                    Colors.teal.shade50,
+                  ),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                children: [
+                  const Text('Đã hoàn tất'),
+                  const SizedBox(width: 6),
+                  _buildCountBadge(
+                    provider.completedRequests.length,
                     Colors.green.shade700,
                     Colors.green.shade50,
                   ),
@@ -706,20 +755,8 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
                 ],
               ),
             ),
-            Tab(
-              child: Row(
-                children: [
-                  const Text('Tất cả'),
-                  const SizedBox(width: 6),
-                  _buildCountBadge(
-                    allRequests.length,
-                    Colors.blue.shade700,
-                    Colors.blue.shade50,
-                  ),
-                ],
-              ),
-            ),
           ],
+
         ),
       ),
       body: provider.isLoadingRequests && allRequests.isEmpty
@@ -805,23 +842,34 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
     if (items.isEmpty) {
       String emptyMessage;
       IconData emptyIcon;
-      switch (tabIndex) {
-        case 0: // Chờ báo giá
-          emptyMessage = 'Bạn chưa có yêu cầu nào đang mở chờ thợ gửi báo giá';
+      final tabName = _tabs[tabIndex];
+      switch (tabName) {
+        case 'Chờ báo giá':
+          emptyMessage = 'Bạn chưa có yêu cầu nào đang chờ thợ gửi báo giá';
           emptyIcon = Icons.hourglass_empty_rounded;
           break;
-        case 1: // Đã chốt
+        case 'Đã báo giá':
+          emptyMessage = 'Chưa có yêu cầu nào nhận được báo giá từ thợ';
+          emptyIcon = Icons.local_offer_outlined;
+          break;
+        case 'Đã chốt thợ':
           emptyMessage = 'Bạn chưa có yêu cầu nào đã chốt thợ';
           emptyIcon = Icons.assignment_turned_in_outlined;
           break;
-        case 2: // Đã hủy
+        case 'Đã hoàn tất':
+          emptyMessage = 'Bạn chưa có yêu cầu nào đã hoàn tất sửa chữa';
+          emptyIcon = Icons.check_circle_outline;
+          break;
+        case 'Đã hủy':
           emptyMessage = 'Không có yêu cầu nào đã hủy';
           emptyIcon = Icons.cancel_presentation_outlined;
           break;
+        case 'Tất cả':
         default:
           emptyMessage = 'Bạn chưa tạo yêu cầu sửa chữa nào';
           emptyIcon = Icons.post_add_outlined;
       }
+
 
       return RefreshIndicator(
         onRefresh: () => _loadRequests(refresh: true),

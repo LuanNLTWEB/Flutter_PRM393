@@ -165,19 +165,25 @@ class RepairRequestProvider extends ChangeNotifier {
 
   // Lọc theo trạng thái yêu cầu
   List<RepairRequestModel> get openRequests =>
-      _myRequests.where((r) => r.status == 'OPEN' || r.status == 'QUOTED').toList();
+      _myRequests.where((r) => r.status == 'OPEN').toList();
+
+  List<RepairRequestModel> get quotedRequests =>
+      _myRequests.where((r) => r.status == 'QUOTED').toList();
 
   List<RepairRequestModel> get acceptedRequests => _myRequests
       .where((r) =>
           r.status == 'ACCEPTED' ||
           r.status == 'ON_THE_WAY' ||
           r.status == 'ARRIVED' ||
-          r.status == 'IN_PROGRESS' ||
-          r.status == 'COMPLETED')
+          r.status == 'IN_PROGRESS')
       .toList();
+
+  List<RepairRequestModel> get completedRequests =>
+      _myRequests.where((r) => r.status == 'COMPLETED').toList();
 
   List<RepairRequestModel> get cancelledRequests =>
       _myRequests.where((r) => r.status == 'CANCELLED').toList();
+
 
   // Reset lỗi gửi yêu cầu
   void clearSubmitError() {
