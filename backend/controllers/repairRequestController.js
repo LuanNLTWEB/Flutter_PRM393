@@ -852,9 +852,91 @@ const updateWorking = async (req, res) => {
   }
 };
 
+// Hủy phiếu yêu cầu trước khi chốt thợ
+const cancelRepairRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cancellationReason, reason } = req.body;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu sửa chữa',
+      });
+    }
+
+    if (request.customerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền hủy phiếu yêu cầu này',
+      });
+    }
+
+    if (request.status === 'CANCELLED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Phiếu yêu cầu này đã được hủy trước đó',
+      });
+    }
+
+    if (request.status !== 'OPEN' && request.status !== 'QUOTED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể hủy yêu cầu sau khi đã chốt thợ hoặc đang xử lý',
+      });
+    }
+
+    const cancelReasonText = (cancellationReason || reason || 'Khách hàng hủy yêu cầu').trim();
+
+    request.status = 'CANCELLED';
+    request.cancelledAt = new Date();
+    request.cancellationReason = cancelReasonText;
+    await request.save();
+
+    await Quotation.updateMany(
+      { requestId: request._id, status: 'SENT' },
+      { status: 'REJECTED', resolvedAt: new Date() }
+    );
+
+    try {
+      const sentQuotes = await Quotation.find({ requestId: request._id });
+      for (const quote of sentQuotes) {
+        if (quote.technicianId) {
+          await createNotificationUtil({
+            recipient: quote.technicianId,
+            title: 'Yêu cầu sửa chữa đã bị hủy',
+            message: `Khách hàng đã hủy phiếu yêu cầu "${request.title}".`,
+            type: 'ORDER_STATUS',
+            data: { requestId: request._id, status: 'CANCELLED' },
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.warn('Gửi thông báo hủy đơn cho thợ thất bại:', notifErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Hủy phiếu yêu cầu sửa chữa thành công',
+      data: {
+        repairRequest: request,
+      },
+    });
+  } catch (error) {
+    console.error('cancelRepairRequest error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi hủy yêu cầu sửa chữa',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createRepairRequest,
   getMyRepairRequests,
+  cancelRepairRequest,
   confirmAppointment,
   proposeAppointment,
   respondAppointment,
@@ -862,3 +944,4 @@ module.exports = {
   updateArrived,
   updateWorking,
 };
+

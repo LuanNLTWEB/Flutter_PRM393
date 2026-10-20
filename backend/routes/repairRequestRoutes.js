@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   createRepairRequest,
   getMyRepairRequests,
+  cancelRepairRequest,
   confirmAppointment,
   proposeAppointment,
   respondAppointment,
@@ -21,6 +22,10 @@ router.get('/my-requests', getMyRepairRequests);
 
 // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường (UC-REQ-03, 04, 05)
 router.post('/', authorize('user'), upload.array('images', 5), createRepairRequest);
+
+// Hủy phiếu yêu cầu trước khi chốt thợ (UC-REQ-09)
+router.patch('/:id/cancel', authorize('user'), cancelRepairRequest);
+
 
 // Thợ xác nhận / đổi lịch hẹn (UC-LIC-01)
 router.patch(

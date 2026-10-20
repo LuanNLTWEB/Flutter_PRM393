@@ -244,4 +244,37 @@ class RepairRequestRemoteDataSource {
       throw Exception('Không thể kết nối đến máy chủ: $e');
     }
   }
+
+  // Hủy phiếu yêu cầu trước khi chốt thợ
+  Future<RepairRequestModel> cancelRepairRequest({
+    required String token,
+    required String requestId,
+    String? reason,
+  }) async {
+    try {
+      final response = await client.patch(
+        Uri.parse(ApiEndpoints.cancelRepairRequest(requestId)),
+        headers: _headers(token),
+        body: jsonEncode({
+          'cancellationReason': reason ?? 'Khách hàng hủy yêu cầu',
+        }),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        final requestData = data['data']?['repairRequest'];
+        if (requestData != null) {
+          return RepairRequestModel.fromJson(requestData as Map<String, dynamic>);
+        }
+        throw Exception('Dữ liệu yêu cầu không hợp lệ');
+      } else {
+        throw Exception(data['message'] ?? 'Không thể hủy yêu cầu sửa chữa');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
 }
+
