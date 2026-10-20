@@ -219,4 +219,45 @@ class RepairRequestProvider extends ChangeNotifier {
     _selectedStatusFilter = filter;
     notifyListeners();
   }
+
+  // State hủy yêu cầu sửa chữa
+  bool _isCancelling = false;
+  String? _cancelError;
+
+  bool get isCancelling => _isCancelling;
+  String? get cancelError => _cancelError;
+
+  // Hủy phiếu yêu cầu trước khi chốt thợ
+  Future<bool> cancelRepairRequest({
+    required String token,
+    required String requestId,
+    String? reason,
+  }) async {
+    _isCancelling = true;
+    _cancelError = null;
+    notifyListeners();
+
+    try {
+      final updated = await _dataSource.cancelRepairRequest(
+        token: token,
+        requestId: requestId,
+        reason: reason,
+      );
+
+      final index = _myRequests.indexWhere((r) => r.id == requestId);
+      if (index != -1) {
+        _myRequests[index] = updated;
+      }
+
+      _isCancelling = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isCancelling = false;
+      _cancelError = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
 }
+

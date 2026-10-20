@@ -7,12 +7,15 @@ import '../../../quotations/presentation/screens/request_quotations_screen.dart'
 class RequestItemCardWidget extends StatelessWidget {
   final RepairRequestModel request;
   final VoidCallback? onDetailPressed;
+  final VoidCallback? onCancelPressed;
 
   const RequestItemCardWidget({
     super.key,
     required this.request,
     this.onDetailPressed,
+    this.onCancelPressed,
   });
+
 
   String _formatDateTime(DateTime dt) {
     final day = dt.day.toString().padLeft(2, '0');
@@ -383,6 +386,28 @@ class RequestItemCardWidget extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    if ((request.status == 'OPEN' || request.status == 'QUOTED') &&
+                        onCancelPressed != null) ...[
+                      OutlinedButton.icon(
+                        key: ValueKey('cancel_button_${request.id}'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red.shade700,
+                          side: BorderSide(color: Colors.red.shade300),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: const Icon(Icons.cancel_outlined, size: 14),
+                        label: const Text(
+                          'Hủy yêu cầu',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        onPressed: onCancelPressed,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         foregroundColor: AppTheme.primaryColor,
@@ -395,6 +420,7 @@ class RequestItemCardWidget extends StatelessWidget {
                     ),
                   ],
                 ),
+
               ],
             ),
           ),

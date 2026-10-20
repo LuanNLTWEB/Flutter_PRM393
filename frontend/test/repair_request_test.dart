@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/features/repair_request/data/models/repair_request_model.dart';
+import 'package:frontend/features/repair_request/data/models/service_category_model.dart';
 import 'package:frontend/features/repair_request/presentation/providers/repair_request_provider.dart';
+
 import 'package:frontend/features/repair_request/presentation/widgets/add_address_dialog.dart';
 import 'package:frontend/features/repair_request/presentation/widgets/image_picker_box_widget.dart';
-import 'package:frontend/features/repair_request/data/models/service_category_model.dart';
 import 'package:frontend/features/repair_request/presentation/screens/create_repair_request_screen.dart';
+import 'package:frontend/features/repair_request/presentation/widgets/request_item_card_widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend/features/auth/presentation/providers/auth_provider.dart';
 
+
 void main() {
+
   group('Repair Request Tests', () {
     test('RepairRequestModel parses images correctly from JSON', () {
       final json = {
@@ -220,7 +224,99 @@ void main() {
 
       expect(find.text('Địa chỉ cụ thể phải bao gồm chữ hoặc số hợp lệ (số nhà, tên đường)'), findsOneWidget);
     });
+
+    test('RepairRequestModel parses cancellationReason and cancelledAt correctly from JSON', () {
+      final json = {
+        '_id': 'req_cancel_1',
+        'customerId': 'user_123',
+        'serviceCategoryId': 'cat_123',
+        'title': 'Sửa quạt trần rung lắc mạnh',
+        'description': 'Quạt trần rung lắc nguy hiểm khi bật số 3',
+        'urgency': 'high',
+        'status': 'CANCELLED',
+        'cancellationReason': 'Đã tự khắc phục được sự cố',
+        'cancelledAt': '2026-10-19T14:30:00.000Z',
+        'createdAt': '2026-10-19T10:00:00.000Z',
+        'updatedAt': '2026-10-19T14:30:00.000Z',
+      };
+
+      final model = RepairRequestModel.fromJson(json);
+
+      expect(model.id, 'req_cancel_1');
+      expect(model.status, 'CANCELLED');
+      expect(model.cancellationReason, 'Đã tự khắc phục được sự cố');
+      expect(model.cancelledAt, isNotNull);
+      expect(model.statusDisplay, 'Đã hủy');
+    });
+
+    testWidgets('RequestItemCardWidget displays cancel button for OPEN request and triggers onCancelPressed', (tester) async {
+      bool cancelCalled = false;
+      final openRequest = RepairRequestModel(
+        id: 'req_open_1',
+        customerId: 'user_1',
+        serviceCategoryId: 'cat_1',
+        title: 'Sửa đường ống nước bồn rửa chén',
+        description: 'Ống nước dưới bồn rửa bị rò rỉ nước',
+        status: 'OPEN',
+        urgency: 'medium',
+        contactPhone: '0901234567',
+        location: const RepairLocationModel(address: '123 Đường Số 1, Quận 1'),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: RequestItemCardWidget(
+              request: openRequest,
+              onCancelPressed: () {
+                cancelCalled = true;
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Hủy yêu cầu'), findsOneWidget);
+      await tester.tap(find.text('Hủy yêu cầu'));
+      await tester.pumpAndSettle();
+
+      expect(cancelCalled, isTrue);
+    });
+
+    testWidgets('RequestItemCardWidget hides cancel button when request is ACCEPTED or CANCELLED', (tester) async {
+      final acceptedRequest = RepairRequestModel(
+        id: 'req_acc_1',
+        customerId: 'user_1',
+        serviceCategoryId: 'cat_1',
+        title: 'Sửa bồn cầu rỉ nước',
+        description: 'Bồn cầu bị rỉ nước liên tục',
+        status: 'ACCEPTED',
+        urgency: 'low',
+        contactPhone: '0901234567',
+        location: const RepairLocationModel(address: '456 Đường Số 2, Quận 3'),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: RequestItemCardWidget(
+              request: acceptedRequest,
+              onCancelPressed: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Hủy yêu cầu'), findsNothing);
+    });
   });
 }
+
 
 
