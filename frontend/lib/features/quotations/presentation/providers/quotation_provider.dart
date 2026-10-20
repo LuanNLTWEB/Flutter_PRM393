@@ -391,6 +391,8 @@ class QuotationProvider extends ChangeNotifier {
       _updateMyQuoteRequest(requestId, (request) => request.copyWith(
             appointmentStatus: 'CONFIRMED',
             proposedTime: null,
+            rescheduleNote: '',
+            rescheduleRejectNote: '',
           ));
       _successMessage = 'Xác nhận lịch hẹn thành công';
       _isSubmitting = false;

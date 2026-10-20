@@ -226,14 +226,17 @@ class RepairRequestModel {
     }
   }
 
+  /// Sentinel để phân biệt "không truyền" với "truyền null" trong copyWith
+  static const Object _unset = Object();
+
   RepairRequestModel copyWith({
     String? status,
     String? appointmentStatus,
-    DateTime? preferredTime,
-    DateTime? proposedTime,
-    String? rescheduleNote,
-    String? rescheduleRejectNote,
-    DateTime? onTheWayAt,
+    Object? preferredTime = _unset,
+    Object? proposedTime = _unset,
+    Object? rescheduleNote = _unset,
+    Object? rescheduleRejectNote = _unset,
+    Object? onTheWayAt = _unset,
     int? quotesCount,
     bool? hasQuoted,
   }) {
@@ -249,15 +252,25 @@ class RepairRequestModel {
       location: location,
       status: status ?? this.status,
       contactPhone: contactPhone,
-      preferredTime: preferredTime ?? this.preferredTime,
+      preferredTime: identical(preferredTime, _unset)
+          ? this.preferredTime
+          : preferredTime as DateTime?,
       appointmentStatus: appointmentStatus ?? this.appointmentStatus,
-      proposedTime: proposedTime ?? this.proposedTime,
-      rescheduleNote: rescheduleNote ?? this.rescheduleNote,
-      rescheduleRejectNote: rescheduleRejectNote ?? this.rescheduleRejectNote,
+      proposedTime: identical(proposedTime, _unset)
+          ? this.proposedTime
+          : proposedTime as DateTime?,
+      rescheduleNote: identical(rescheduleNote, _unset)
+          ? this.rescheduleNote
+          : (rescheduleNote as String?) ?? '',
+      rescheduleRejectNote: identical(rescheduleRejectNote, _unset)
+          ? this.rescheduleRejectNote
+          : (rescheduleRejectNote as String?) ?? '',
       customerNote: customerNote,
       cancelledAt: cancelledAt,
       cancellationReason: cancellationReason,
-      onTheWayAt: onTheWayAt ?? this.onTheWayAt,
+      onTheWayAt: identical(onTheWayAt, _unset)
+          ? this.onTheWayAt
+          : onTheWayAt as DateTime?,
       quotesCount: quotesCount ?? this.quotesCount,
       hasQuoted: hasQuoted ?? this.hasQuoted,
       createdAt: createdAt,

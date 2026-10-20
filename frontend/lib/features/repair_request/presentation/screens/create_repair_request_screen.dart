@@ -720,6 +720,37 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
       return;
     }
 
+    //_mirror validate của backend: ≥15 phút, ≤14 ngày
+    final now = DateTime.now();
+    if (!_preferredTime!.isAfter(now)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Thời gian hẹn phải ở tương lai, vui lòng chọn lại'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (_preferredTime!.isBefore(now.add(const Duration(minutes: 15)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Thời gian hẹn cần cách hiện tại ít nhất 15 phút'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (_preferredTime!.isAfter(now.add(const Duration(days: 14)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Thời gian hẹn không được vượt quá 14 ngày'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final auth = context.read<AuthProvider>();
     if (auth.isAuthenticated && auth.currentUser != null && auth.currentUser!.role != 'user') {
       final roleName = auth.currentUser!.roleDisplay;

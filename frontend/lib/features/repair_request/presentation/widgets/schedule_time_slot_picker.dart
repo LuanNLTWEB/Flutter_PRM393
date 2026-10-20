@@ -97,6 +97,29 @@ class _ScheduleTimeSlotPickerState extends State<ScheduleTimeSlotPicker> {
       confirmText: 'CHỌN',
     );
     if (picked == null) return;
+
+    // Không cho chọn giờ đã qua trong hôm nay
+    if (_isToday()) {
+      final pickedDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        picked.hour,
+        picked.minute,
+      );
+      if (!pickedDateTime.isAfter(DateTime.now())) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Giờ bạn chọn đã qua, vui lòng chọn giờ khác'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     setState(() => _selectedTime = picked);
     _emitSelection();
   }

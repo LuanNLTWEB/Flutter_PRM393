@@ -704,6 +704,33 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                     ),
                   ),
                 ],
+              ] else if (order.status == 'CANCELLED') ...[
+                // Đơn đã hủy — ghi chú riêng, không hiển thị nhầm "đang tiến trình"
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.cancel_outlined,
+                          size: 16, color: Colors.red.shade700),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Đơn hàng đã bị hủy.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ] else if (order.status != 'OPEN' && order.status != 'QUOTED') ...[
                 // Đơn chưa hoàn tất khác: Hiển thị ghi chú trạng thái
                 Container(

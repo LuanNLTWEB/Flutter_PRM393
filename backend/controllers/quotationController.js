@@ -44,17 +44,13 @@ const sendQuotation = async (req, res) => {
       });
     }
 
-    if (request.status === 'ACCEPTED') {
+    if (!['OPEN', 'QUOTED'].includes(request.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Yêu cầu này đã được chốt thợ, không thể báo giá',
-      });
-    }
-
-    if (request.status === 'CANCELLED') {
-      return res.status(400).json({
-        success: false,
-        message: 'Yêu cầu này đã bị hủy',
+        message:
+          request.status === 'CANCELLED'
+            ? 'Yêu cầu này đã bị hủy'
+            : 'Yêu cầu này đã được chốt thợ, không thể báo giá',
       });
     }
 
@@ -386,17 +382,13 @@ const acceptQuotation = async (req, res) => {
       });
     }
 
-    if (request.status === 'ACCEPTED') {
+    if (!['OPEN', 'QUOTED'].includes(request.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Yêu cầu này đã được chốt thợ trước đó',
-      });
-    }
-
-    if (request.status === 'CANCELLED') {
-      return res.status(400).json({
-        success: false,
-        message: 'Yêu cầu này đã bị hủy',
+        message:
+          request.status === 'CANCELLED'
+            ? 'Yêu cầu này đã bị hủy'
+            : 'Yêu cầu này đã được chốt thợ trước đó',
       });
     }
 
@@ -431,6 +423,7 @@ const acceptQuotation = async (req, res) => {
     request.rescheduleNote = '';
     request.rescheduleRejectNote = '';
     request.appointmentConfirmedAt = null;
+    request.onTheWayAt = null;
     await request.save();
 
     const populated = await populateTechnician(

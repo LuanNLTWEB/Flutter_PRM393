@@ -120,12 +120,48 @@ const createRepairRequest = async (req, res) => {
       normalizedUrgency = rawUrgency;
     }
 
+    if (!preferredTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn thời gian hẹn thợ đến nhà',
+      });
+    }
+
     let parsedPreferredTime = null;
     if (preferredTime) {
       const dt = new Date(preferredTime);
       if (!isNaN(dt.getTime())) {
         parsedPreferredTime = dt;
       }
+    }
+
+    if (!parsedPreferredTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian hẹn không hợp lệ',
+      });
+    }
+
+    const now = Date.now();
+    const minTime = now + 15 * 60 * 1000; // ít nhất 15 phút nữa
+    const maxTime = now + 14 * 24 * 60 * 60 * 1000; // tối đa 14 ngày
+    if (parsedPreferredTime.getTime() <= now) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian hẹn phải ở tương lai',
+      });
+    }
+    if (parsedPreferredTime.getTime() < minTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian hẹn cần cách thời điểm hiện tại ít nhất 15 phút',
+      });
+    }
+    if (parsedPreferredTime.getTime() > maxTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian hẹn không được vượt quá 14 ngày kể từ bây giờ',
+      });
     }
 
     let imageUrls = [];
@@ -392,10 +428,18 @@ const confirmAppointment = async (req, res) => {
       });
     }
 
+    if (request.preferredTime.getTime() <= Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Giờ hẹn đã qua, vui lòng đề xuất khung giờ mới',
+      });
+    }
+
     request.appointmentStatus = 'CONFIRMED';
     request.appointmentConfirmedAt = new Date();
     request.proposedTime = null;
     request.rescheduleNote = '';
+    request.rescheduleRejectNote = '';
     await request.save();
 
     return res.status(200).json({
@@ -465,10 +509,23 @@ const proposeAppointment = async (req, res) => {
       });
     }
 
-    if (dt.getTime() <= Date.now()) {
+    const now = Date.now();
+    if (dt.getTime() <= now) {
       return res.status(400).json({
         success: false,
         message: 'Khung giờ đề xuất phải ở tương lai',
+      });
+    }
+    if (dt.getTime() < now + 15 * 60 * 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Khung giờ đề xuất cần cách thời điểm hiện tại ít nhất 15 phút',
+      });
+    }
+    if (dt.getTime() > now + 14 * 24 * 60 * 60 * 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Khung giờ đề xuất không được vượt quá 14 ngày kể từ bây giờ',
       });
     }
 
@@ -533,6 +590,13 @@ const respondAppointment = async (req, res) => {
       });
     }
 
+    if (!['ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'].includes(request.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Yêu cầu này không còn ở trạng thái có thể phản hồi lịch hẹn',
+      });
+    }
+
     if (request.appointmentStatus !== 'RESCHEDULED' || !request.proposedTime) {
       return res.status(400).json({
         success: false,
@@ -541,6 +605,13 @@ const respondAppointment = async (req, res) => {
     }
 
     if (action === 'accept') {
+      if (request.proposedTime.getTime() <= Date.now()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Giờ đề xuất đã qua, vui lòng nhờ thợ đề xuất khung giờ mới',
+        });
+      }
+
       request.preferredTime = request.proposedTime;
       request.appointmentStatus = 'CONFIRMED';
       request.appointmentConfirmedAt = new Date();

@@ -729,6 +729,37 @@ class _MyQuoteCard extends StatelessWidget {
           ],
           if (request.appointmentStatus != 'CONFIRMED') ...[
             const SizedBox(height: 10),
+            // Giờ hẹn đã qua — không thể xác nhận, cần đề xuất khung giờ mới
+            if (_isPreferredTimePast) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border:
+                      Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 14, color: Colors.red.shade700),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Giờ hẹn đã qua — hãy bấm "Đổi lịch hẹn" để đề xuất khung giờ mới.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Colors.red.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             if (request.appointmentStatus == 'RESCHEDULED') ...[
               // Đang chờ Khách phản hồi — chỉ cho phép đề xuất khung giờ khác
               Container(
@@ -821,7 +852,8 @@ class _MyQuoteCard extends StatelessWidget {
                             fontSize: 12.5, fontWeight: FontWeight.w700),
                       ),
                       onPressed: (provider.isSubmitting ||
-                              request.preferredTime == null)
+                              request.preferredTime == null ||
+                              _isPreferredTimePast)
                           ? null
                           : () => _confirmAppointment(context),
                     ),
@@ -898,6 +930,12 @@ class _MyQuoteCard extends StatelessWidget {
       default:
         return Colors.blue.shade700;
     }
+  }
+
+  /// Giờ hẹn khách đề xuất đã qua — không thể xác nhận nữa
+  bool get _isPreferredTimePast {
+    final t = item.request.preferredTime;
+    return t != null && t.isBefore(DateTime.now());
   }
 
   Future<void> _confirmAppointment(BuildContext context) async {
@@ -1098,6 +1136,37 @@ class _MyQuoteCard extends StatelessWidget {
 
     if (proposed == null || !context.mounted) return;
 
+    // Mirror validate backend: ≥15 phút, ≤14 ngày
+    final now = DateTime.now();
+    if (!proposed.isAfter(now)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Khung giờ đề xuất phải ở tương lai'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (proposed.isBefore(now.add(const Duration(minutes: 15)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Khung giờ đề xuất cần cách hiện tại ít nhất 15 phút'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (proposed.isAfter(now.add(const Duration(days: 14)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Khung giờ đề xuất không được vượt quá 14 ngày'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final provider = context.read<QuotationProvider>();
     final ok = await provider.proposeAppointment(
       token: token,
@@ -1237,7 +1306,11 @@ class _MyQuoteCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (isWon) _buildAppointmentSection(context),
+            // Chỉ hiện khu vực lịch hẹn khi đơn đang trong tiến trình xử lý
+            if (isWon &&
+                ['ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS']
+                    .contains(request.status))
+              _buildAppointmentSection(context),
           ],
         ),
       ),
