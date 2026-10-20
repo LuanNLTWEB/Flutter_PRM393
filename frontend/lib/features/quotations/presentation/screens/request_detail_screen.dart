@@ -191,6 +191,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           ),
           const SizedBox(height: 12),
           _buildSection(
+            title: 'Lịch hẹn',
+            child: _buildAppointment(request),
+          ),
+          const SizedBox(height: 12),
+          _buildSection(
             title: 'Liên hệ',
             child: Text(
               request.contactPhone.isEmpty
@@ -312,6 +317,105 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         ],
       ),
     );
+  }
+
+  /// Lịch hẹn sửa chữa — để thợ biết khách muốn thợ đến lúc nào (UC-LIC-01)
+  Widget _buildAppointment(RepairRequestModel request) {
+    final t = request.preferredTime;
+    final isPast = t != null && t.isBefore(DateTime.now());
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.schedule,
+                size: 16,
+                color: t == null
+                    ? AppTheme.textSecondaryColor
+                    : isPast
+                        ? Colors.red.shade700
+                        : AppTheme.primaryColor),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                t == null
+                    ? 'Khách chưa chọn giờ hẹn'
+                    : 'Khách mong muốn thợ đến: ${_formatDateTime(t)}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: t == null
+                      ? AppTheme.textSecondaryColor
+                      : isPast
+                          ? Colors.red.shade700
+                          : AppTheme.textPrimaryColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (isPast) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Khung giờ này đã qua — lịch hẹn cần được đề xuất lại.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.red.shade700,
+            ),
+          ),
+        ],
+        if (request.appointmentStatus == 'CONFIRMED') ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.check_circle_outline,
+                  size: 14, color: Colors.green.shade700),
+              const SizedBox(width: 6),
+              Text(
+                'Lịch hẹn đã được xác nhận',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green.shade800,
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (request.appointmentStatus == 'RESCHEDULED' &&
+            request.proposedTime != null) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.swap_horiz,
+                  size: 14, color: Colors.orange.shade700),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Thợ đề xuất khung giờ mới: '
+                  '${_formatDateTime(request.proposedTime!)} (chờ khách phản hồi)',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final d = dt.day.toString().padLeft(2, '0');
+    final m = dt.month.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '$d/$m/${dt.year} $hh:$mm';
   }
 
   Widget _buildImages() {
