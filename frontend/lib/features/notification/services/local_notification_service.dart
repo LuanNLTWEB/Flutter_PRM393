@@ -104,6 +104,11 @@ class LocalNotificationService {
         message =
             'Thợ kỹ thuật đang di chuyển đến nhà bạn cho đơn "${order.title}". Vui lòng chuẩn bị và chú ý điện thoại.';
         break;
+      case 'ARRIVED':
+        title = 'Thợ đã có mặt! 📍';
+        message =
+            'Thợ kỹ thuật đã có mặt tại hiện trường cho đơn "${order.title}". Vui lòng đón tiếp thợ.';
+        break;
       case 'IN_PROGRESS':
         title = 'Đang tiến hành sửa chữa 🔧';
         message =
@@ -169,6 +174,8 @@ class LocalNotificationService {
     switch (status.toUpperCase()) {
       case 'ON_THE_WAY':
         return Icons.moped_outlined;
+      case 'ARRIVED':
+        return Icons.place_outlined;
       case 'IN_PROGRESS':
         return Icons.build_outlined;
       case 'COMPLETED':
@@ -188,6 +195,8 @@ class LocalNotificationService {
     switch (status.toUpperCase()) {
       case 'ON_THE_WAY':
         return Colors.orange;
+      case 'ARRIVED':
+        return Colors.amber.shade800;
       case 'IN_PROGRESS':
         return Colors.blue;
       case 'COMPLETED':

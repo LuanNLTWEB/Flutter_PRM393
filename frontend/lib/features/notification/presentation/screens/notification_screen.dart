@@ -625,6 +625,22 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
             ListTile(
               leading: const CircleAvatar(
+                backgroundColor: Colors.amber,
+                foregroundColor: Colors.white,
+                child: Icon(Icons.place),
+              ),
+              title: const Text('Thợ đã có mặt (ARRIVED)'),
+              subtitle: const Text('Bắn thông báo thợ đã đến hiện trường'),
+              onTap: () {
+                Navigator.pop(ctx);
+                LocalNotificationService.instance.simulateStatusNotification(
+                  'ARRIVED',
+                  context: context,
+                );
+              },
+            ),
+            ListTile(
+              leading: const CircleAvatar(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
                 child: Icon(Icons.build),

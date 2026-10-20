@@ -187,6 +187,8 @@ class RepairRequestModel {
         return 'Đã chốt thợ';
       case 'ON_THE_WAY':
         return 'Đang trên đường';
+      case 'ARRIVED':
+        return 'Đã có mặt';
       case 'IN_PROGRESS':
         return 'Đang sửa chữa';
       case 'COMPLETED':

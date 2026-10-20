@@ -17,7 +17,7 @@ const populateTechnician = (query) =>
 const findActiveJob = (technicianId) =>
   RepairRequest.findOne({
     assignedTechnicianId: technicianId,
-    status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'] },
+    status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] },
   })
     .select('title')
     .lean();

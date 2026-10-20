@@ -185,4 +185,20 @@ class NearbyRequestRemoteDataSource {
       throw Exception(data['message'] ?? 'Cập nhật trạng thái đã có mặt thất bại');
     }
   }
+
+  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+  Future<void> markWorking({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.working(requestId)),
+      headers: _headers(token),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Cập nhật trạng thái bắt đầu sửa chữa thất bại');
+    }
+  }
 }

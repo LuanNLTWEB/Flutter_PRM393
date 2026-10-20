@@ -284,9 +284,9 @@ const getMyRepairRequests = async (req, res) => {
     } else if (tab === 'WAITING_QUOTES' || tab === 'OPEN') {
       statusFilter = { status: { $in: ['OPEN', 'QUOTED'] } };
     } else if (tab === 'PROCESSING') {
-      statusFilter = { status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'] } };
+      statusFilter = { status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] } };
     } else if (tab === 'ACCEPTED') {
-      statusFilter = { status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'] } };
+      statusFilter = { status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] } };
     } else if (tab === 'COMPLETED') {
       statusFilter = { status: 'COMPLETED' };
     } else if (tab === 'CANCELLED') {
@@ -309,7 +309,7 @@ const getMyRepairRequests = async (req, res) => {
       }),
       RepairRequest.countDocuments({
         ...baseFilter,
-        status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'] },
+        status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] },
       }),
       RepairRequest.countDocuments({ ...baseFilter, status: 'COMPLETED' }),
       RepairRequest.countDocuments({ ...baseFilter, status: 'CANCELLED' }),
@@ -590,7 +590,7 @@ const respondAppointment = async (req, res) => {
       });
     }
 
-    if (!['ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS'].includes(request.status)) {
+    if (!['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(request.status)) {
       return res.status(400).json({
         success: false,
         message: 'Yêu cầu này không còn ở trạng thái có thể phản hồi lịch hẹn',
@@ -758,7 +758,7 @@ const updateArrived = async (req, res) => {
       });
     }
 
-    request.status = 'IN_PROGRESS';
+    request.status = 'ARRIVED';
     request.arrivedAt = new Date();
     await request.save();
 
@@ -768,7 +768,7 @@ const updateArrived = async (req, res) => {
       title: 'Thợ đã có mặt! 📍',
       message: `Thợ ${req.user.fullName || 'kỹ thuật'} đã có mặt tại hiện trường cho yêu cầu "${request.title}". Vui lòng đón tiếp thợ.`,
       type: 'ORDER_STATUS',
-      data: { requestId: request._id, status: 'IN_PROGRESS' },
+      data: { requestId: request._id, status: 'ARRIVED' },
     });
 
     return res.status(200).json({
@@ -789,6 +789,69 @@ const updateArrived = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+ *          Chuyển status từ ARRIVED sang IN_PROGRESS
+ * @route   PATCH /api/requests/:id/working
+ * @access  Private (technician - thợ được chốt)
+ */
+const updateWorking = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.status !== 'ARRIVED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể bắt đầu sửa chữa khi đã có mặt tại hiện trường',
+      });
+    }
+
+    if (!(await isAssignedTechnician(request, req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thợ được chốt cho yêu cầu này',
+      });
+    }
+
+    request.status = 'IN_PROGRESS';
+    request.startedAt = new Date();
+    await request.save();
+
+    // Gửi thông báo đến khách hàng
+    await createNotificationUtil({
+      recipient: request.customerId,
+      title: 'Thợ bắt đầu sửa chữa 🔧',
+      message: `Thợ ${req.user.fullName || 'kỹ thuật'} đã bắt đầu sửa chữa cho yêu cầu "${request.title}".`,
+      type: 'ORDER_STATUS',
+      data: { requestId: request._id, status: 'IN_PROGRESS' },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã cập nhật: đang sửa chữa',
+      data: {
+        status: request.status,
+        startedAt: request.startedAt,
+      },
+    });
+  } catch (error) {
+    console.error('updateWorking error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi cập nhật trạng thái bắt đầu sửa chữa',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createRepairRequest,
   getMyRepairRequests,
@@ -797,4 +860,5 @@ module.exports = {
   respondAppointment,
   updateOnTheWay,
   updateArrived,
+  updateWorking,
 };

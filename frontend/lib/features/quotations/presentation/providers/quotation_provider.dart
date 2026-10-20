@@ -489,9 +489,39 @@ class QuotationProvider extends ChangeNotifier {
         requestId: requestId,
       );
       _updateMyQuoteRequest(requestId, (request) => request.copyWith(
-            status: 'IN_PROGRESS',
+            status: 'ARRIVED',
           ));
       _successMessage = 'Đã cập nhật: đã có mặt tại hiện trường';
+      _isSubmitting = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isSubmitting = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+  Future<bool> markWorking({
+    required String token,
+    required String requestId,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await _requestDataSource.markWorking(
+        token: token,
+        requestId: requestId,
+      );
+      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
+            status: 'IN_PROGRESS',
+          ));
+      _successMessage = 'Đã cập nhật: đang sửa chữa';
       _isSubmitting = false;
       notifyListeners();
       return true;

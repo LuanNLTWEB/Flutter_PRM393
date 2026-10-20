@@ -68,6 +68,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
         return Colors.blue.shade700;
       case 'ON_THE_WAY':
         return Colors.teal.shade700;
+      case 'ARRIVED':
+        return Colors.amber.shade800;
       case 'ACCEPTED':
         return Colors.teal.shade700;
       default:
@@ -640,6 +642,36 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                               ),
                             ),
                           ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (order.status == 'ARRIVED') ...[
+                  // Thợ đã có mặt, chờ bắt đầu sửa chữa (UC-ARR-01)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.shade400),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.place_outlined,
+                            size: 18, color: Colors.amber.shade800),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            order.preferredTime != null
+                                ? 'Thợ đã có mặt (lịch hẹn ${dateFormat.format(order.preferredTime!)}) — sắp bắt đầu sửa chữa'
+                                : 'Thợ đã có mặt tại hiện trường — sắp bắt đầu sửa chữa',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber.shade900,
+                            ),
+                          ),
                         ),
                       ],
                     ),

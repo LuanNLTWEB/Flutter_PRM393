@@ -993,6 +993,59 @@ class _MyQuoteCard extends StatelessWidget {
                     : () => _markArrived(context),
               ),
             ),
+          ] else if (request.status == 'ARRIVED') ...[
+            // Đã có mặt — thợ bấm bắt đầu sửa chữa (UC-WRK-02)
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade400),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.place_outlined,
+                      size: 14, color: Colors.amber.shade800),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Bạn đã có mặt tại hiện trường',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.amber.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.build_outlined, size: 16),
+                label: const Text(
+                  'Bắt đầu sửa chữa',
+                  style: TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                onPressed: provider.isSubmitting
+                    ? null
+                    : () => _markWorking(context),
+              ),
+            ),
           ] else if (request.status == 'IN_PROGRESS') ...[
             // Đã có mặt — đang sửa chữa
             const SizedBox(height: 10),
@@ -1188,6 +1241,55 @@ class _MyQuoteCard extends StatelessWidget {
               : (provider.errorMessage ?? 'Cập nhật trạng thái đã có mặt thất bại'),
         ),
         backgroundColor: ok ? Colors.indigo.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
+  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+  Future<void> _markWorking(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Bắt đầu sửa chữa?'),
+        content: const Text(
+          'Bạn xác nhận bắt đầu sửa chữa? Đơn sẽ chuyển sang trạng thái Đang sửa chữa và khách sẽ được thông báo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.markWorking(
+      token: token,
+      requestId: item.request.id,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đã cập nhật: đang sửa chữa')
+              : (provider.errorMessage ?? 'Cập nhật trạng thái thất bại'),
+        ),
+        backgroundColor: ok ? Colors.teal.shade700 : Colors.red.shade600,
       ),
     );
   }
@@ -1464,7 +1566,7 @@ class _MyQuoteCard extends StatelessWidget {
             ),
             // Chỉ hiện khu vực lịch hẹn khi đơn đang trong tiến trình xử lý
             if (isWon &&
-                ['ACCEPTED', 'ON_THE_WAY', 'IN_PROGRESS']
+                ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS']
                     .contains(request.status))
               _buildAppointmentSection(context),
           ],

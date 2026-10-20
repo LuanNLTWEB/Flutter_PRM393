@@ -8,6 +8,7 @@ const {
   respondAppointment,
   updateOnTheWay,
   updateArrived,
+  updateWorking,
 } = require('../controllers/repairRequestController');
 const { protect, authorize } = require('../middlewares/auth');
 const upload = require('../middlewares/upload');
@@ -52,6 +53,13 @@ router.patch(
   '/:id/arrived',
   authorize('technician'),
   updateArrived
+);
+
+// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+router.patch(
+  '/:id/working',
+  authorize('technician'),
+  updateWorking
 );
 
 // Tạo đơn hàng hoàn tất mẫu để kiểm thử đánh giá

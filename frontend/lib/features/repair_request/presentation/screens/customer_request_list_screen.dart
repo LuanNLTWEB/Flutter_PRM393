@@ -83,6 +83,7 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
             .where((r) =>
                 r.status == 'ACCEPTED' ||
                 r.status == 'ON_THE_WAY' ||
+                r.status == 'ARRIVED' ||
                 r.status == 'IN_PROGRESS' ||
                 r.status == 'COMPLETED')
             .toList();

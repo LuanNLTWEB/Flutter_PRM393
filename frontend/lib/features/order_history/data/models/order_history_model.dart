@@ -104,6 +104,8 @@ class OrderHistoryModel {
         return 'Đã chọn thợ';
       case 'ON_THE_WAY':
         return 'Thợ đang trên đường đến';
+      case 'ARRIVED':
+        return 'Thợ đã có mặt';
       case 'IN_PROGRESS':
         return 'Đang sửa chữa';
       case 'COMPLETED':

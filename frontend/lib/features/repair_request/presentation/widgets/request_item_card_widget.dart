@@ -33,6 +33,8 @@ class RequestItemCardWidget extends StatelessWidget {
         return Colors.green.shade700;
       case 'ON_THE_WAY':
         return Colors.indigo.shade600;
+      case 'ARRIVED':
+        return Colors.amber.shade800;
       case 'IN_PROGRESS':
         return Colors.teal.shade700;
       case 'COMPLETED':
@@ -54,6 +56,8 @@ class RequestItemCardWidget extends StatelessWidget {
         return Colors.green.shade50;
       case 'ON_THE_WAY':
         return Colors.indigo.shade50;
+      case 'ARRIVED':
+        return Colors.amber.shade50;
       case 'IN_PROGRESS':
         return Colors.teal.shade50;
       case 'COMPLETED':

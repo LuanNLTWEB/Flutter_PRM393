@@ -4,7 +4,7 @@ const ServiceCategory = require('../models/ServiceCategory');
 const Quotation = require('../models/Quotation');
 
 const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
-const VALID_STATUS = ['OPEN', 'QUOTED', 'ACCEPTED', 'CANCELLED'];
+const VALID_STATUS = ['OPEN', 'QUOTED', 'ACCEPTED', 'ARRIVED', 'CANCELLED'];
 const VALID_URGENCY = ['low', 'medium', 'high', 'emergency'];
 const MAX_FEED_ITEMS = 200;
 
