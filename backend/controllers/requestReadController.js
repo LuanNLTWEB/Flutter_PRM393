@@ -258,16 +258,17 @@ const getRequestDetail = async (req, res) => {
     let payload = request;
 
     if (role === 'technician') {
-      // Thợ chỉ được thấy địa chỉ & SĐT khi mình là thợ đã được chốt
-      let hasWon = false;
-      if (request.status === 'ACCEPTED') {
-        const accepted = await Quotation.findOne({
-          requestId: request._id,
-          technicianId: req.user._id,
-          status: 'ACCEPTED',
-        });
-        hasWon = Boolean(accepted);
-      }
+      // Thợ chỉ được thấy địa chỉ & SĐT khi mình là thợ đã được chốt.
+      // Check theo quotation (không theo status đơn) để vẫn thấy địa chỉ
+      // khi đơn đã tiến sang ON_THE_WAY / IN_PROGRESS / COMPLETED.
+      const accepted = await Quotation.findOne({
+        requestId: request._id,
+        technicianId: req.user._id,
+        status: 'ACCEPTED',
+      })
+        .select('_id')
+        .lean();
+      const hasWon = Boolean(accepted);
 
       if (!hasWon) {
         payload = maskForTechnician(request);

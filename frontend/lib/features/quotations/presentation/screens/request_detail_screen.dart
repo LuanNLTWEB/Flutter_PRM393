@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/directions.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../repair_request/data/models/repair_request_model.dart';
 import '../../data/models/quotation_model.dart';
@@ -106,6 +107,24 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     if (mounted) await _load();
   }
 
+  /// Mở Google Maps chỉ đường tới nhà khách (UC-MAP-01)
+  Future<void> _openDirections(RepairRequestModel request) async {
+    final loc = request.location;
+    final ok = await openGoogleMapsDirections(
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      address: loc.address,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không mở được Google Maps — chưa có địa chỉ khách'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _openImage(String url) {
     showDialog<void>(
       context: context,
@@ -176,17 +195,47 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           const SizedBox(height: 12),
           _buildSection(
             title: 'Địa chỉ sửa chữa',
-            child: Text(
-              request.location.address.isEmpty
-                  ? 'Địa chỉ được bảo vệ đến khi thợ được chốt'
-                  : request.location.address,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: request.location.address.isEmpty
-                    ? AppTheme.textSecondaryColor
-                    : AppTheme.textPrimaryColor,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  request.location.address.isEmpty
+                      ? 'Địa chỉ được bảo vệ đến khi thợ được chốt'
+                      : request.location.address,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: request.location.address.isEmpty
+                        ? AppTheme.textSecondaryColor
+                        : AppTheme.textPrimaryColor,
+                  ),
+                ),
+                if (request.location.address.isNotEmpty &&
+                    role != 'user') ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryColor,
+                        side: BorderSide(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.5)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(Icons.navigation_outlined, size: 18),
+                      label: const Text(
+                        'Chỉ đường tới khách bằng Google Maps',
+                        style: TextStyle(
+                            fontSize: 13.5, fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: () => _openDirections(request),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 12),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/directions.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../repair_request/data/models/repair_request_model.dart';
 import '../../../repair_request/data/models/service_category_model.dart';
@@ -355,6 +356,24 @@ class _RequestCard extends StatelessWidget {
 
   const _RequestCard({required this.request, required this.onTap});
 
+  /// Mở Google Maps chỉ đường tới nhà khách (UC-MAP-01)
+  Future<void> _openDirections(BuildContext context) async {
+    final loc = request.location;
+    final ok = await openGoogleMapsDirections(
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      address: loc.address,
+    );
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không mở được Google Maps — chưa có địa chỉ khách'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -488,13 +507,48 @@ class _RequestCard extends StatelessWidget {
             ],
             Row(
               children: [
-                const Icon(Icons.lock_outline,
-                    size: 14, color: AppTheme.textSecondaryColor),
-                const SizedBox(width: 4),
-                const Text(
-                  'Địa chỉ & SĐT ẩn đến khi được chốt',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textSecondaryColor),
-                ),
+                if (request.location.address.isNotEmpty) ...[
+                  // Đã được chốt — thấy địa chỉ + nút mở Google Maps (UC-MAP-01)
+                  const Icon(Icons.location_on_outlined,
+                      size: 14, color: AppTheme.primaryColor),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      request.location.address,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimaryColor,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.primaryColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.navigation_outlined, size: 15),
+                    label: const Text(
+                      'Chỉ đường',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
+                    onPressed: () => _openDirections(context),
+                  ),
+                ] else ...[
+                  const Icon(Icons.lock_outline,
+                      size: 14, color: AppTheme.textSecondaryColor),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Địa chỉ & SĐT ẩn đến khi được chốt',
+                    style: TextStyle(
+                        fontSize: 11, color: AppTheme.textSecondaryColor),
+                  ),
+                ],
                 const Spacer(),
                 Text(
                   request.statusDisplay,
