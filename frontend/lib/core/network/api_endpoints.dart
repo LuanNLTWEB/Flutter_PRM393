@@ -55,6 +55,9 @@ class ApiEndpoints {
       '$baseUrl/requests/$id/appointment/respond';
   static String onTheWay(String id) => '$baseUrl/requests/$id/on-the-way';
 
+  // Hóa đơn & dữ liệu offline (UC-OFF-01)
+  static const String myInvoices = '$baseUrl/invoices/my';
+
   static const String repairRequests = requests;
   static const String myRepairRequests = myRequests;
   static String repairRequestDetail(String id) => requestDetail(id);

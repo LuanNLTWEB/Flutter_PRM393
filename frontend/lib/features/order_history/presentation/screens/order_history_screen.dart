@@ -9,6 +9,7 @@ import '../../../quotations/presentation/screens/request_quotations_screen.dart'
 import '../../data/models/order_history_model.dart';
 import '../providers/order_history_provider.dart';
 import '../../../repair_request/presentation/screens/service_category_screen.dart';
+import '../../../invoice/presentation/screens/invoices_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -390,6 +391,27 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
 
             // KHU VỰC THAO TÁC ĐÁNH GIÁ (CHUẨN NGHIỆP VỤ UC-RAT-01)
             if (order.isCompleted && order.assignedTechnicianId != null) ...[
+              if (context.read<AuthProvider>().currentUser?.role == 'user') ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primaryColor,
+                      side: const BorderSide(color: AppTheme.primaryColor),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                    label: const Text('Xem hóa đơn (có thể xem offline)'),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const InvoicesScreen()),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
               if (!order.isReviewed) ...[
                 // Chưa đánh giá: Hiện nút vàng nổi bật để khách đánh giá thợ
                 SizedBox(

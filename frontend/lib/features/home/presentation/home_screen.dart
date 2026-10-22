@@ -18,6 +18,7 @@ import '../../repair_request/presentation/providers/repair_request_provider.dart
 import '../../quotations/presentation/screens/nearby_requests_screen.dart';
 import '../../notification/presentation/providers/notification_provider.dart';
 import '../../notification/presentation/screens/notification_screen.dart';
+import '../../invoice/presentation/screens/invoices_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -82,6 +83,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          if (!isTech)
+            IconButton(
+              tooltip: 'Hóa đơn đã lưu',
+              icon: const Icon(Icons.receipt_long_outlined),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const InvoicesScreen()),
+              ),
+            ),
           // Nút bấm Thông báo (UC-NOT-02)
           Consumer<NotificationProvider>(
             builder: (context, notifProvider, _) {
