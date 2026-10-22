@@ -114,7 +114,14 @@ const changePassword = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user._id);
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới không được trùng với mật khẩu hiện tại',
+      });
+    }
+
+    const user = await User.findById(req.user._id).select('+password');
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -207,4 +214,3 @@ module.exports = {
   changePassword,
   uploadAvatar,
 };
-
