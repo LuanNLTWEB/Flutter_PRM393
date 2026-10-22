@@ -61,6 +61,11 @@ class ApiEndpoints {
   // Hóa đơn & dữ liệu offline (UC-OFF-01)
   static const String myInvoices = '$baseUrl/invoices/my';
 
+  // Tiếp nhận & xử lý khiếu nại (UC-STF-03)
+  static const String complaints = '$baseUrl/complaints';
+  static const String manageComplaints = '$baseUrl/complaints/manage';
+  static String handleComplaint(String id) => '$baseUrl/complaints/$id/handle';
+
   static const String repairRequests = requests;
   static const String myRepairRequests = myRequests;
   static String repairRequestDetail(String id) => requestDetail(id);
