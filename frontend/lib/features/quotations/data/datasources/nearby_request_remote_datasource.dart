@@ -201,4 +201,27 @@ class NearbyRequestRemoteDataSource {
       throw Exception(data['message'] ?? 'Cập nhật trạng thái bắt đầu sửa chữa thất bại');
     }
   }
+
+  /// Thợ khai báo chi phí phát sinh — nhiều mục/lần (UC-WRK-05)
+  Future<List<Map<String, dynamic>>> declareAdditionalCost({
+    required String token,
+    required String requestId,
+    required List<Map<String, dynamic>> items,
+    String note = '',
+  }) async {
+    final response = await client.post(
+      Uri.parse(ApiEndpoints.declareCost(requestId)),
+      headers: _headers(token),
+      body: jsonEncode({'items': items, 'note': note}),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 201 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Khai báo chi phí phát sinh thất bại');
+    }
+    final rawList = data['data']?['costs'];
+    return (rawList is List ? rawList : const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  }
 }

@@ -933,6 +933,177 @@ const cancelRepairRequest = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Thợ khai báo chi phí phát sinh (phụ tùng cần thay + giá thực tế) (UC-WRK-05)
+ * @route   POST /api/requests/:id/costs
+ * @access  Private (technician - thợ được chốt, đơn đang IN_PROGRESS)
+ */
+const declareAdditionalCost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // items: [{ name, quantity, unitPrice }], note áp dụng chung cho các mục
+    const { items, note } = req.body;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.status !== 'IN_PROGRESS') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể khai báo chi phí phát sinh khi đơn đang sửa chữa',
+      });
+    }
+
+    if (!(await isAssignedTechnician(request, req.user._id))) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không phải thợ được chốt cho yêu cầu này',
+      });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập ít nhất 1 hạng mục chi phí phát sinh',
+      });
+    }
+
+    if (items.length > 20) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mỗi lần chỉ được khai báo tối đa 20 hạng mục',
+      });
+    }
+
+    if (note != null && typeof note !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ghi chú chi phí phát sinh không hợp lệ',
+      });
+    }
+
+    const costNote = (note || '').trim();
+    if (costNote.length > 300) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ghi chú chi phí không được vượt quá 300 ký tự',
+      });
+    }
+
+    const existingNames = new Set(
+      request.additionalCosts.map((cost) => cost.name.trim().toLowerCase())
+    );
+    const submittedNames = new Set();
+    const maxQuantity = 10000;
+    const maxUnitPrice = 1000000000;
+    const maxTotal = 10000000000;
+    let batchTotal = 0;
+    const costDocs = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i] || {};
+      const name = typeof item.name === 'string' ? item.name.trim() : '';
+      if (!name) {
+        return res.status(400).json({
+          success: false,
+          message: `Hạng mục ${i + 1}: vui lòng nhập tên phụ tùng / hạng mục`,
+        });
+      }
+      if (name.length > 200) {
+        return res.status(400).json({
+          success: false,
+          message: `Hạng mục ${i + 1}: tên phụ tùng không được vượt quá 200 ký tự`,
+        });
+      }
+
+      const normalizedName = name.toLowerCase();
+      if (existingNames.has(normalizedName) || submittedNames.has(normalizedName)) {
+        return res.status(400).json({
+          success: false,
+          message: `Hạng mục "${name}" đã được khai báo trước đó`,
+        });
+      }
+      submittedNames.add(normalizedName);
+
+      const qty = Number(item.quantity ?? 1);
+      if (!Number.isInteger(qty) || qty < 1 || qty > maxQuantity) {
+        return res.status(400).json({
+          success: false,
+          message: `Hạng mục "${name}": số lượng phải là số nguyên từ 1 đến ${maxQuantity}`,
+        });
+      }
+
+      const price = Number(item.unitPrice);
+      if (!Number.isFinite(price) || price <= 0 || price > maxUnitPrice) {
+        return res.status(400).json({
+          success: false,
+          message: `Hạng mục "${name}": đơn giá phải lớn hơn 0 và không vượt quá ${maxUnitPrice.toLocaleString('vi-VN')}₫`,
+        });
+      }
+
+      batchTotal += qty * price;
+      if (!Number.isSafeInteger(batchTotal) || batchTotal > maxTotal) {
+        return res.status(400).json({
+          success: false,
+          message: `Tổng chi phí phát sinh không được vượt quá ${maxTotal.toLocaleString('vi-VN')}₫`,
+        });
+      }
+
+      costDocs.push({
+        name,
+        quantity: qty,
+        unitPrice: price,
+        note: costNote,
+        status: 'PENDING',
+        declaredAt: new Date(),
+      });
+    }
+
+    request.additionalCosts.push(...costDocs);
+    await request.save();
+
+    const saved = request.additionalCosts.slice(-costDocs.length);
+    const total = Math.round(
+      saved.reduce((sum, c) => sum + c.quantity * c.unitPrice, 0)
+    ).toLocaleString('vi-VN');
+
+    // Thông báo cho khách hàng phê duyệt (UC-WRK-05)
+    try {
+      await createNotificationUtil({
+        recipient: request.customerId,
+        title: 'Có chi phí phát sinh cần phê duyệt',
+        message: `Thợ ${req.user.fullName || 'kỹ thuật'} khai báo ${saved.length} hạng mục chi phí phát sinh (tổng ${total}₫) cho yêu cầu "${request.title}". Vui lòng đồng ý hoặc từ chối từng mục.`,
+        type: 'ORDER_STATUS',
+        data: {
+          requestId: request._id,
+          status: request.status,
+          action: 'COST_PENDING',
+          costIds: saved.map((c) => c._id),
+        },
+      });
+    } catch (notifErr) {
+      console.warn('Gửi thông báo chi phí phát sinh thất bại:', notifErr.message);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Khai báo chi phí phát sinh thành công, chờ khách phê duyệt',
+      data: { costs: saved },
+    });
+  } catch (error) {
+    console.error('declareAdditionalCost error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi khai báo chi phí phát sinh',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createRepairRequest,
   getMyRepairRequests,
@@ -943,5 +1114,5 @@ module.exports = {
   updateOnTheWay,
   updateArrived,
   updateWorking,
+  declareAdditionalCost,
 };
-

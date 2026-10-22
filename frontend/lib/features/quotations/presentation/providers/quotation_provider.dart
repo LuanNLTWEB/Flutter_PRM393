@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../data/datasources/nearby_request_remote_datasource.dart';
 import '../../data/datasources/quotation_remote_datasource.dart';
 import '../../data/models/quotation_model.dart';
@@ -530,6 +530,53 @@ class QuotationProvider extends ChangeNotifier {
       _isSubmitting = false;
       notifyListeners();
       return false;
+    }
+  }
+
+  /// Thợ khai báo chi phí phát sinh — nhiều mục/lần (UC-WRK-05)
+  Future<bool> declareAdditionalCost({
+    required String token,
+    required String requestId,
+    required List<Map<String, dynamic>> items,
+    String note = '',
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final costJsonList = await _requestDataSource.declareAdditionalCost(
+        token: token,
+        requestId: requestId,
+        items: items,
+        note: note,
+      );
+      final newCosts = costJsonList.map(AdditionalCostModel.fromJson).toList();
+      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
+            additionalCosts: [...request.additionalCosts, ...newCosts],
+          ));
+      for (final cost in newCosts) {
+        _appendSelectedCost(requestId, cost);
+      }
+      _successMessage = 'Đã khai báo ${newCosts.length} mục chi phí phát sinh, chờ khách phê duyệt';
+      _isSubmitting = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isSubmitting = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void _appendSelectedCost(String requestId, AdditionalCostModel cost) {
+    final selected = _selectedRequest;
+    if (selected != null && selected.id == requestId) {
+      _selectedRequest = selected.copyWith(
+        additionalCosts: [...selected.additionalCosts, cost],
+      );
     }
   }
 

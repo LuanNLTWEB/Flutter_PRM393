@@ -22,6 +22,7 @@ class RepairRequestModel {
   final DateTime? cancelledAt;
   final String cancellationReason;
   final DateTime? onTheWayAt; // thời điểm thợ bấm "Đang trên đường"
+  final List<AdditionalCostModel> additionalCosts; // chi phí phát sinh (UC-WRK-05)
   final int quotesCount; // số lượng báo giá của thợ gửi đến
   final bool hasQuoted; // thợ đang xem đã tự gửi báo giá cho phiếu này chưa
   final DateTime createdAt;
@@ -48,6 +49,7 @@ class RepairRequestModel {
     this.cancelledAt,
     this.cancellationReason = '',
     this.onTheWayAt,
+    this.additionalCosts = const [],
     this.quotesCount = 0,
     this.hasQuoted = false,
     required this.createdAt,
@@ -141,6 +143,12 @@ class RepairRequestModel {
       onTheWayAt: json['onTheWayAt'] != null
           ? DateTime.tryParse(json['onTheWayAt'])?.toLocal()
           : null,
+      additionalCosts: json['additionalCosts'] is List
+          ? (json['additionalCosts'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map(AdditionalCostModel.fromJson)
+              .toList()
+          : const [],
       quotesCount: json['quotesCount'] is int
           ? json['quotesCount']
           : (json['quotesCount'] is num
@@ -239,6 +247,7 @@ class RepairRequestModel {
     Object? rescheduleNote = _unset,
     Object? rescheduleRejectNote = _unset,
     Object? onTheWayAt = _unset,
+    Object? additionalCosts = _unset,
     int? quotesCount,
     bool? hasQuoted,
   }) {
@@ -273,6 +282,9 @@ class RepairRequestModel {
       onTheWayAt: identical(onTheWayAt, _unset)
           ? this.onTheWayAt
           : onTheWayAt as DateTime?,
+      additionalCosts: identical(additionalCosts, _unset)
+          ? this.additionalCosts
+          : (additionalCosts as List<AdditionalCostModel>),
       quotesCount: quotesCount ?? this.quotesCount,
       hasQuoted: hasQuoted ?? this.hasQuoted,
       createdAt: createdAt,
@@ -307,5 +319,80 @@ class RepairLocationModel {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
     };
+  }
+}
+
+/// Chi phí phát sinh Thợ khai báo khi đang sửa chữa (UC-WRK-05)
+class AdditionalCostModel {
+  final String id;
+  final String name;
+  final int quantity;
+  final double unitPrice;
+  final String note;
+  final String status; // 'PENDING', 'APPROVED', 'REJECTED'
+  final String customerNote;
+  final DateTime? declaredAt;
+  final DateTime? decidedAt;
+
+  const AdditionalCostModel({
+    required this.id,
+    required this.name,
+    this.quantity = 1,
+    required this.unitPrice,
+    this.note = '',
+    this.status = 'PENDING',
+    this.customerNote = '',
+    this.declaredAt,
+    this.decidedAt,
+  });
+
+  double get total => quantity * unitPrice;
+
+  bool get isPending => status == 'PENDING';
+
+  String get statusDisplay {
+    switch (status) {
+      case 'APPROVED':
+        return 'Đã đồng ý';
+      case 'REJECTED':
+        return 'Đã từ chối';
+      case 'PENDING':
+      default:
+        return 'Chờ khách phê duyệt';
+    }
+  }
+
+  factory AdditionalCostModel.fromJson(Map<String, dynamic> json) {
+    return AdditionalCostModel(
+      id: json['_id'] ?? json['id'] ?? '',
+      name: json['name'] ?? '',
+      quantity: json['quantity'] is num ? (json['quantity'] as num).toInt() : 1,
+      unitPrice: json['unitPrice'] is num
+          ? (json['unitPrice'] as num).toDouble()
+          : 0,
+      note: json['note'] ?? '',
+      status: json['status'] ?? 'PENDING',
+      customerNote: json['customerNote'] ?? '',
+      declaredAt: json['declaredAt'] != null
+          ? DateTime.tryParse(json['declaredAt'])?.toLocal()
+          : null,
+      decidedAt: json['decidedAt'] != null
+          ? DateTime.tryParse(json['decidedAt'])?.toLocal()
+          : null,
+    );
+  }
+
+  AdditionalCostModel copyWith({String? status, String? customerNote}) {
+    return AdditionalCostModel(
+      id: id,
+      name: name,
+      quantity: quantity,
+      unitPrice: unitPrice,
+      note: note,
+      status: status ?? this.status,
+      customerNote: customerNote ?? this.customerNote,
+      declaredAt: declaredAt,
+      decidedAt: decidedAt,
+    );
   }
 }

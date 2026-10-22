@@ -1075,6 +1075,34 @@ class _MyQuoteCard extends StatelessWidget {
                 ],
               ),
             ),
+            // Chi phí phát sinh đã khai báo (UC-WRK-05)
+            if (request.additionalCosts.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ...request.additionalCosts.map(_buildCostTile),
+            ],
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.orange.shade800,
+                  side: BorderSide(color: Colors.orange.shade400),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.add_card_outlined, size: 16),
+                label: const Text(
+                  'Khai báo chi phí phát sinh',
+                  style: TextStyle(
+                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                onPressed: provider.isSubmitting
+                    ? null
+                    : () => _declareAdditionalCost(context),
+              ),
+            ),
           ],
         ],
       ),
@@ -1290,6 +1318,112 @@ class _MyQuoteCard extends StatelessWidget {
               : (provider.errorMessage ?? 'Cập nhật trạng thái thất bại'),
         ),
         backgroundColor: ok ? Colors.teal.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
+  Widget _buildCostTile(AdditionalCostModel cost) {
+    final Color borderColor;
+    final Color statusColor;
+    switch (cost.status) {
+      case 'APPROVED':
+        borderColor = Colors.green.shade300;
+        statusColor = Colors.green.shade800;
+        break;
+      case 'REJECTED':
+        borderColor = Colors.red.shade200;
+        statusColor = Colors.red.shade700;
+        break;
+      case 'PENDING':
+      default:
+        borderColor = Colors.orange.shade300;
+        statusColor = Colors.orange.shade900;
+        break;
+    }
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${cost.name} x${cost.quantity}',
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  formatVnd(cost.total),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: borderColor),
+            ),
+            child: Text(
+              cost.statusDisplay,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: statusColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Thợ khai báo chi phí phát sinh — nhiều mục trong 1 lần (UC-WRK-05)
+  Future<void> _declareAdditionalCost(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => const _DeclareCostDialog(),
+    );
+    if (result == null || !context.mounted) return;
+
+    final items = (result['items'] as List).cast<Map<String, dynamic>>();
+    final note = result['note'] as String? ?? '';
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.declareAdditionalCost(
+      token: token,
+      requestId: item.request.id,
+      items: items,
+      note: note,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đã khai báo chi phí phát sinh')
+              : (provider.errorMessage ?? 'Khai báo chi phí thất bại'),
+        ),
+        backgroundColor: ok ? Colors.orange.shade700 : Colors.red.shade600,
       ),
     );
   }
@@ -1660,6 +1794,243 @@ class _ErrorState extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 1 dòng nhập phụ tùng trong dialog khai báo chi phí
+class _CostDraftRow {
+  final nameCtrl = TextEditingController();
+  final qtyCtrl = TextEditingController(text: '1');
+  final priceCtrl = TextEditingController();
+
+  void dispose() {
+    nameCtrl.dispose();
+    qtyCtrl.dispose();
+    priceCtrl.dispose();
+  }
+}
+
+/// Dialog khai báo nhiều hạng mục chi phí phát sinh trong 1 lần (UC-WRK-05)
+/// Trả về `{'items': List<Map<String, dynamic>>, 'note': String}` hoặc null nếu hủy.
+class _DeclareCostDialog extends StatefulWidget {
+  const _DeclareCostDialog();
+
+  @override
+  State<_DeclareCostDialog> createState() => _DeclareCostDialogState();
+}
+
+class _DeclareCostDialogState extends State<_DeclareCostDialog> {
+  static const int _maxRows = 20;
+
+  final List<_CostDraftRow> _rows = [_CostDraftRow()];
+  final TextEditingController _noteCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    for (final row in _rows) {
+      row.dispose();
+    }
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  num get _total => _rows.fold<num>(0, (sum, row) {
+        final qty = int.tryParse(row.qtyCtrl.text.trim()) ?? 0;
+        final price = parseVndInput(row.priceCtrl.text) ?? 0;
+        return sum + (qty > 0 ? price * qty : 0);
+      });
+
+  void _submit() {
+    final items = <Map<String, dynamic>>[];
+    for (var i = 0; i < _rows.length; i++) {
+      final row = _rows[i];
+      final name = row.nameCtrl.text.trim();
+      final qty = int.tryParse(row.qtyCtrl.text.trim()) ?? 0;
+      final price = parseVndInput(row.priceCtrl.text);
+      if (name.isEmpty || qty < 1 || price == null || price <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Hạng mục ${i + 1}: vui lòng nhập tên, số lượng ≥ 1 và đơn giá hợp lệ',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      items.add({'name': name, 'quantity': qty, 'unitPrice': price});
+    }
+    Navigator.pop(context, {'items': items, 'note': _noteCtrl.text.trim()});
+  }
+
+  Widget _buildRow(int index) {
+    final row = _rows[index];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(10, 6, 4, 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Hạng mục ${index + 1}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                icon:
+                    Icon(Icons.close, size: 18, color: Colors.red.shade400),
+                tooltip: 'Xóa hạng mục',
+                onPressed: _rows.length <= 1
+                    ? null
+                    : () {
+                        setState(() {
+                          _rows.removeAt(index).dispose();
+                        });
+                      },
+              ),
+            ],
+          ),
+          TextField(
+            controller: row.nameCtrl,
+            maxLength: 200,
+            style: const TextStyle(fontSize: 13.5),
+            decoration: const InputDecoration(
+              labelText: 'Phụ tùng / hạng mục *',
+              hintText: 'VD: Cụm van nước nóng',
+              border: OutlineInputBorder(),
+              isDense: true,
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              SizedBox(
+                width: 70,
+                child: TextField(
+                  controller: row.qtyCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 13.5),
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'SL *',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: row.priceCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 13.5),
+                  inputFormatters: [const ThousandsSeparatorFormatter()],
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Đơn giá (₫) *',
+                    hintText: 'VD: 250.000',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Khai báo chi phí phát sinh'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < _rows.length; i++) _buildRow(i),
+              if (_rows.length < _maxRows)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () =>
+                        setState(() => _rows.add(_CostDraftRow())),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Thêm hạng mục'),
+                  ),
+                ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Tổng cộng:',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    formatVnd(_total),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _noteCtrl,
+                maxLength: 300,
+                maxLines: 2,
+                style: const TextStyle(fontSize: 13.5),
+                decoration: const InputDecoration(
+                  labelText: 'Ghi chú chung (tùy chọn)',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  counterText: '',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange.shade700,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: _submit,
+          child: Text('Gửi khai báo (${_rows.length} mục)'),
+        ),
+      ],
     );
   }
 }

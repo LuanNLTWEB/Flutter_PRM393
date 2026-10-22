@@ -179,6 +179,72 @@ const repairRequestSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+
+    // Chi phí phát sinh Thợ khai báo khi đang sửa chữa (UC-WRK-05)
+    additionalCosts: [
+      {
+        // Tên phụ tùng / hạng mục phát sinh
+        name: {
+          type: String,
+          required: [true, 'Tên phụ tùng phát sinh là bắt buộc'],
+          trim: true,
+          maxlength: [200, 'Tên phụ tùng không được vượt quá 200 ký tự'],
+        },
+
+        // Số lượng cần thay
+        quantity: {
+          type: Number,
+          required: true,
+          min: [1, 'Số lượng phải từ 1'],
+          default: 1,
+        },
+
+        // Đơn giá thực tế phát sinh (VNĐ)
+        unitPrice: {
+          type: Number,
+          required: [true, 'Đơn giá phát sinh là bắt buộc'],
+          min: [0, 'Đơn giá không được là số âm'],
+        },
+
+        // Ghi chú thêm của Thợ (tùy chọn)
+        note: {
+          type: String,
+          trim: true,
+          maxlength: [300, 'Ghi chú không được vượt quá 300 ký tự'],
+          default: '',
+        },
+
+        // Trạng thái phê duyệt: PENDING (chờ khách), APPROVED (đồng ý), REJECTED (từ chối)
+        status: {
+          type: String,
+          enum: {
+            values: ['PENDING', 'APPROVED', 'REJECTED'],
+            message: 'Trạng thái chi phí phát sinh không hợp lệ',
+          },
+          default: 'PENDING',
+        },
+
+        // Lý do Khách từ chối (tùy chọn)
+        customerNote: {
+          type: String,
+          trim: true,
+          maxlength: [300, 'Lý do từ chối không được vượt quá 300 ký tự'],
+          default: '',
+        },
+
+        // Thời điểm Thợ khai báo
+        declaredAt: {
+          type: Date,
+          default: Date.now,
+        },
+
+        // Thời điểm Khách đồng ý / từ chối
+        decidedAt: {
+          type: Date,
+          default: null,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

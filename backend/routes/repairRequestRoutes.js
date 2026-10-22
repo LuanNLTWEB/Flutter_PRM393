@@ -10,6 +10,7 @@ const {
   updateOnTheWay,
   updateArrived,
   updateWorking,
+  declareAdditionalCost,
 } = require('../controllers/repairRequestController');
 const { protect, authorize } = require('../middlewares/auth');
 const upload = require('../middlewares/upload');
@@ -65,6 +66,13 @@ router.patch(
   '/:id/working',
   authorize('technician'),
   updateWorking
+);
+
+// Thợ khai báo chi phí phát sinh (UC-WRK-05)
+router.post(
+  '/:id/costs',
+  authorize('technician'),
+  declareAdditionalCost
 );
 
 // Tạo đơn hàng hoàn tất mẫu để kiểm thử đánh giá
