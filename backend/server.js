@@ -24,6 +24,7 @@ const repairRequestRoutes = require('./routes/repairRequestRoutes');
 const quotationRoutes = require('./routes/quotationRoutes');
 const requestReadRoutes = require('./routes/requestReadRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const invoiceRoutes = require('./routes/invoiceRoutes');
 
 // Health Check Route
 app.get('/api/health', (req, res) => {
@@ -47,6 +48,7 @@ app.use('/api/repair-requests', repairRequestRoutes);
 app.use('/api/requests', requestReadRoutes);
 app.use('/api/quotations', quotationRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Global Error Handler cho Upload và các Middleware
 app.use((err, req, res, next) => {
