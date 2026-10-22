@@ -634,6 +634,11 @@ class _CreateRepairRequestScreenState extends State<CreateRepairRequestScreen> {
                             if (!hasAlphaNumeric) {
                               return 'Địa chỉ cụ thể phải bao gồm chữ hoặc số hợp lệ (số nhà, tên đường)';
                             }
+                            // Bắt buộc có tên đường — chỉ số nhà (vd "123") thì
+                            // Google Maps không geocode được, dễ chọn nhầm địa điểm
+                            if (!RegExp(r'[a-zA-ZÀ-ỹà-ỹ]').hasMatch(val)) {
+                              return 'Cần nhập thêm tên đường (VD: Số 123/45 đường Lê Lợi)';
+                            }
                             if (_isSpamContent(val)) {
                               return 'Địa chỉ không hợp lệ, vui lòng không nhập ký tự lặp hoặc vô nghĩa';
                             }
