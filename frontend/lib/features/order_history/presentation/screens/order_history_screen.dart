@@ -7,6 +7,7 @@ import '../../../review/presentation/screens/create_review_screen.dart';
 import '../../../review/presentation/screens/technician_reviews_screen.dart';
 import '../../../quotations/presentation/screens/request_quotations_screen.dart';
 import '../../data/models/order_history_model.dart';
+import 'order_detail_screen.dart';
 import '../providers/order_history_provider.dart';
 import '../../../repair_request/presentation/screens/service_category_screen.dart';
 import '../../../invoice/presentation/screens/invoices_screen.dart';
@@ -234,16 +235,32 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
         order.createdAt != null ? dateFormat.format(order.createdAt!) : '';
     final statusColor = _getStatusColor(order.status);
 
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+    // Bấm vào card → xem chi tiết đơn hàng (nơi có phần phê duyệt chi phí)
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)),
+        );
+        // Tải lại danh sách để phản ánh trạng thái chi phí sau khi duyệt
+        if (!context.mounted) return;
+        final token = context.read<AuthProvider>().token ?? '';
+        if (token.isNotEmpty) {
+          final tab = _tabs[_tabController.index];
+          context.read<OrderHistoryProvider>().fetchOrders(token, tab: tab);
+        }
+      },
+      child: Card(
+        elevation: 0,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.grey.shade200),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Dòng tiêu đề & Trạng thái
@@ -845,6 +862,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
             ],
           ],
         ),
+      ),
       ),
     );
   }

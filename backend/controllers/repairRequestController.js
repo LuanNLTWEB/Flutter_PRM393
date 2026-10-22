@@ -995,8 +995,10 @@ const declareAdditionalCost = async (req, res) => {
       });
     }
 
+    const normalizeCostName = (value) =>
+      value.replace(/\s+/g, ' ').trim().toLowerCase();
     const existingNames = new Set(
-      request.additionalCosts.map((cost) => cost.name.trim().toLowerCase())
+      request.additionalCosts.map((cost) => normalizeCostName(cost.name))
     );
     const submittedNames = new Set();
     const maxQuantity = 10000;
@@ -1020,7 +1022,7 @@ const declareAdditionalCost = async (req, res) => {
         });
       }
 
-      const normalizedName = name.toLowerCase();
+      const normalizedName = normalizeCostName(name);
       if (existingNames.has(normalizedName) || submittedNames.has(normalizedName)) {
         return res.status(400).json({
           success: false,
@@ -1046,7 +1048,7 @@ const declareAdditionalCost = async (req, res) => {
       }
 
       batchTotal += qty * price;
-      if (!Number.isSafeInteger(batchTotal) || batchTotal > maxTotal) {
+      if (!Number.isFinite(batchTotal) || batchTotal > maxTotal) {
         return res.status(400).json({
           success: false,
           message: `Tổng chi phí phát sinh không được vượt quá ${maxTotal.toLocaleString('vi-VN')}₫`,
@@ -1060,6 +1062,20 @@ const declareAdditionalCost = async (req, res) => {
         note: costNote,
         status: 'PENDING',
         declaredAt: new Date(),
+      });
+    }
+
+    const existingTotal = request.additionalCosts.reduce(
+      (sum, cost) => sum + Number(cost.quantity) * Number(cost.unitPrice),
+      0
+    );
+    if (
+      !Number.isFinite(existingTotal) ||
+      existingTotal + batchTotal > maxTotal
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Tổng chi phí phát sinh của đơn không được vượt quá ${maxTotal.toLocaleString('vi-VN')}₫`,
       });
     }
 
@@ -1104,6 +1120,120 @@ const declareAdditionalCost = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Khách đồng ý / từ chối chi phí phát sinh (UC-WRK-06)
+ * @route   PATCH /api/requests/:id/costs/:costId
+ * @access  Private (customer - chủ phiếu yêu cầu)
+ */
+const respondAdditionalCost = async (req, res) => {
+  try {
+    const { id, costId } = req.params;
+    const { action, note } = req.body; // action: 'APPROVE' | 'REJECT'
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu',
+      });
+    }
+
+    if (request.customerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền phê duyệt chi phí của phiếu này',
+      });
+    }
+
+    if (request.status !== 'IN_PROGRESS') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể phê duyệt chi phí khi đơn đang sửa chữa',
+      });
+    }
+
+    if (!['APPROVE', 'REJECT'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thao tác phê duyệt không hợp lệ',
+      });
+    }
+
+    if (note != null && typeof note !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ghi chú phản hồi chi phí không hợp lệ',
+      });
+    }
+
+    const customerNote = (note || '').trim();
+    if (customerNote.length > 300) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ghi chú phản hồi chi phí không được vượt quá 300 ký tự',
+      });
+    }
+
+    const cost = request.additionalCosts.id(costId);
+    if (!cost) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy chi phí phát sinh',
+      });
+    }
+
+    if (cost.status !== 'PENDING') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chi phí phát sinh này đã được xử lý trước đó',
+      });
+    }
+
+    cost.status = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+    cost.customerNote = customerNote;
+    cost.decidedAt = new Date();
+    await request.save();
+
+    // Thông báo kết quả cho thợ
+    try {
+      if (request.assignedTechnicianId) {
+        await createNotificationUtil({
+          recipient: request.assignedTechnicianId,
+          title: action === 'APPROVE' ? 'Chi phí phát sinh được đồng ý' : 'Chi phí phát sinh bị từ chối',
+          message: action === 'APPROVE'
+            ? `Khách hàng đã đồng ý chi phí phát sinh "${cost.name}" cho yêu cầu "${request.title}".`
+            : `Khách hàng từ chối chi phí phát sinh "${cost.name}" cho yêu cầu "${request.title}".${cost.customerNote ? ` Lý do: ${cost.customerNote}` : ''}`,
+          type: 'ORDER_STATUS',
+          data: {
+            requestId: request._id,
+            status: request.status,
+            action: 'COST_DECIDED',
+            costStatus: cost.status,
+            costId: cost._id,
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Gửi thông báo kết quả chi phí thất bại:', notifErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: action === 'APPROVE'
+        ? 'Đã đồng ý chi phí phát sinh'
+        : 'Đã từ chối chi phí phát sinh',
+      data: { cost },
+    });
+  } catch (error) {
+    console.error('respondAdditionalCost error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi phê duyệt chi phí phát sinh',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createRepairRequest,
   getMyRepairRequests,
@@ -1115,4 +1245,5 @@ module.exports = {
   updateArrived,
   updateWorking,
   declareAdditionalCost,
+  respondAdditionalCost,
 };

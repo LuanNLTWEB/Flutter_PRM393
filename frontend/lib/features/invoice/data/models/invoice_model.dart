@@ -8,6 +8,7 @@ class InvoiceModel {
   final String address;
   final double labourCost;
   final double partsCost;
+  final double additionalCostTotal; // chi phí phát sinh đã khách đồng ý (UC-WRK-06)
   final double total;
   final String quotationNote;
   final DateTime? completedAt;
@@ -23,6 +24,7 @@ class InvoiceModel {
     required this.address,
     required this.labourCost,
     required this.partsCost,
+    this.additionalCostTotal = 0,
     required this.total,
     required this.quotationNote,
     this.completedAt,
@@ -45,6 +47,8 @@ class InvoiceModel {
       address: (json['address'] ?? 'Chưa cập nhật địa chỉ').toString(),
       labourCost: (costs['labourCost'] as num?)?.toDouble() ?? 0,
       partsCost: (costs['partsCost'] as num?)?.toDouble() ?? 0,
+      additionalCostTotal:
+          (costs['additionalCostTotal'] as num?)?.toDouble() ?? 0,
       total: (costs['total'] as num?)?.toDouble() ?? 0,
       quotationNote: (json['quotationNote'] ?? '').toString(),
       completedAt: _parseDate(json['completedAt']),
@@ -53,18 +57,23 @@ class InvoiceModel {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'invoiceNumber': invoiceNumber,
-    'requestTitle': requestTitle,
-    'serviceCategoryName': serviceCategoryName,
-    'technicianName': technicianName,
-    'technicianPhone': technicianPhone,
-    'address': address,
-    'costs': {'labourCost': labourCost, 'partsCost': partsCost, 'total': total},
-    'quotationNote': quotationNote,
-    'completedAt': completedAt?.toUtc().toIso8601String(),
-    'issuedAt': issuedAt?.toUtc().toIso8601String(),
-  };
+        'id': id,
+        'invoiceNumber': invoiceNumber,
+        'requestTitle': requestTitle,
+        'serviceCategoryName': serviceCategoryName,
+        'technicianName': technicianName,
+        'technicianPhone': technicianPhone,
+        'address': address,
+        'costs': {
+          'labourCost': labourCost,
+          'partsCost': partsCost,
+          'additionalCostTotal': additionalCostTotal,
+          'total': total,
+        },
+        'quotationNote': quotationNote,
+        'completedAt': completedAt?.toUtc().toIso8601String(),
+        'issuedAt': issuedAt?.toUtc().toIso8601String(),
+      };
 
   static DateTime? _parseDate(dynamic value) {
     if (value == null) return null;

@@ -224,4 +224,25 @@ class NearbyRequestRemoteDataSource {
         .whereType<Map<String, dynamic>>()
         .toList();
   }
+
+  /// Khách đồng ý / từ chối chi phí phát sinh (UC-WRK-06)
+  Future<Map<String, dynamic>> respondAdditionalCost({
+    required String token,
+    required String requestId,
+    required String costId,
+    required String action, // 'APPROVE' | 'REJECT'
+    String note = '',
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.respondCost(requestId, costId)),
+      headers: _headers(token),
+      body: jsonEncode({'action': action, 'note': note}),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Phê duyệt chi phí phát sinh thất bại');
+    }
+    return (data['data']?['cost'] as Map<String, dynamic>?) ?? {};
+  }
 }

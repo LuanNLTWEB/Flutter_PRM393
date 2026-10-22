@@ -58,6 +58,8 @@ class ApiEndpoints {
   static String arrived(String id) => '$baseUrl/requests/$id/arrived';
   static String working(String id) => '$baseUrl/requests/$id/working';
   static String declareCost(String id) => '$baseUrl/requests/$id/costs';
+  static String respondCost(String id, String costId) =>
+      '$baseUrl/requests/$id/costs/$costId';
 
   // Hóa đơn & dữ liệu offline (UC-OFF-01)
   static const String myInvoices = '$baseUrl/invoices/my';

@@ -580,6 +580,59 @@ class QuotationProvider extends ChangeNotifier {
     }
   }
 
+  void _replaceSelectedCost(String requestId, AdditionalCostModel cost) {
+    final selected = _selectedRequest;
+    if (selected != null && selected.id == requestId) {
+      _selectedRequest = selected.copyWith(
+        additionalCosts: selected.additionalCosts
+            .map((c) => c.id == cost.id ? cost : c)
+            .toList(),
+      );
+    }
+  }
+
+  /// Khách đồng ý / từ chối chi phí phát sinh (UC-WRK-06)
+  Future<bool> respondAdditionalCost({
+    required String token,
+    required String requestId,
+    required String costId,
+    required String action, // 'APPROVE' | 'REJECT'
+    String note = '',
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final costJson = await _requestDataSource.respondAdditionalCost(
+        token: token,
+        requestId: requestId,
+        costId: costId,
+        action: action,
+        note: note,
+      );
+      final cost = AdditionalCostModel.fromJson(costJson);
+      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
+            additionalCosts: request.additionalCosts
+                .map((c) => c.id == cost.id ? cost : c)
+                .toList(),
+          ));
+      _replaceSelectedCost(requestId, cost);
+      _successMessage = action == 'APPROVE'
+          ? 'Đã đồng ý chi phí phát sinh'
+          : 'Đã từ chối chi phí phát sinh';
+      _isSubmitting = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isSubmitting = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   void _updateMyQuoteRequest(
     String requestId,
     RepairRequestModel Function(RepairRequestModel) update,

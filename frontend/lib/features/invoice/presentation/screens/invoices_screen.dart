@@ -400,6 +400,11 @@ class _InvoiceDetailSheet extends StatelessWidget {
                 label: 'Linh kiện',
                 amount: currency.format(invoice.partsCost),
               ),
+              if (invoice.additionalCostTotal > 0)
+                _CostRow(
+                  label: 'Chi phí phát sinh (đã duyệt)',
+                  amount: currency.format(invoice.additionalCostTotal),
+                ),
               const Divider(height: 24),
               _CostRow(
                 label: 'Tổng thanh toán',

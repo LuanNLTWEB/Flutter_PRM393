@@ -1355,20 +1355,29 @@ class _MyQuoteCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${cost.name} x${cost.quantity}',
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w700),
+              Text(
+                '${cost.name} x${cost.quantity}',
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${formatVnd(cost.unitPrice)}/cái',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: statusColor,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  formatVnd(cost.total),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                'Thành tiền: ${formatVnd(cost.total)}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6B7280),
                 ),
+              ),
               ],
             ),
           ),

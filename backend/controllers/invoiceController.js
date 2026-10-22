@@ -40,7 +40,18 @@ const getMyInvoices = async (req, res) => {
       // đã lưu ở danh mục, không tự thêm chi phí linh kiện.
       const labourCost = Number(quotation?.labourCost ?? category?.basePrice ?? 0);
       const partsCost = Number(quotation?.partsCost ?? 0);
-      const total = Number(quotation?.total ?? labourCost + partsCost);
+
+      // Cộng các chi phí phát sinh Thợ khai báo đã được khách đồng ý
+      // (UC-WRK-05 khai báo, UC-WRK-06 phê duyệt)
+      const approvedAdditionalCosts = (request.additionalCosts || []).filter(
+        (cost) => cost.status === 'APPROVED'
+      );
+      const additionalCostTotal = approvedAdditionalCosts.reduce(
+        (sum, cost) => sum + Number(cost.quantity) * Number(cost.unitPrice),
+        0
+      );
+      const total =
+        Number(quotation?.total ?? labourCost + partsCost) + additionalCostTotal;
 
       return {
         id: request._id,
@@ -53,8 +64,15 @@ const getMyInvoices = async (req, res) => {
         costs: {
           labourCost,
           partsCost,
+          additionalCostTotal,
           total,
         },
+        additionalCosts: approvedAdditionalCosts.map((cost) => ({
+          name: cost.name,
+          quantity: cost.quantity,
+          unitPrice: cost.unitPrice,
+          total: Number(cost.quantity) * Number(cost.unitPrice),
+        })),
         quotationNote: quotation?.note || '',
         completedAt: request.updatedAt,
         issuedAt: request.updatedAt,

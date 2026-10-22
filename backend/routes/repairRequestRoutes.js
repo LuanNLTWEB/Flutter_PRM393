@@ -11,6 +11,7 @@ const {
   updateArrived,
   updateWorking,
   declareAdditionalCost,
+  respondAdditionalCost,
 } = require('../controllers/repairRequestController');
 const { protect, authorize } = require('../middlewares/auth');
 const upload = require('../middlewares/upload');
@@ -73,6 +74,13 @@ router.post(
   '/:id/costs',
   authorize('technician'),
   declareAdditionalCost
+);
+
+// Khách đồng ý / từ chối chi phí phát sinh (UC-WRK-06)
+router.patch(
+  '/:id/costs/:costId',
+  authorize('user'),
+  respondAdditionalCost
 );
 
 // Tạo đơn hàng hoàn tất mẫu để kiểm thử đánh giá
