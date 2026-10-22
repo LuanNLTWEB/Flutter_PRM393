@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../quotations/presentation/widgets/additional_cost_section.dart';
 import '../../data/models/order_history_model.dart';
+import '../providers/order_history_provider.dart';
 
 /// Chi tiết 1 đơn trong "Lịch sử đơn" của Khách hàng.
 /// Hiển thị thông tin đơn + phần phê duyệt chi phí phát sinh
@@ -35,65 +39,129 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   Widget _sectionTitle(String title) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textSecondaryColor,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      title,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppTheme.textSecondaryColor,
+      ),
+    ),
+  );
 
   Widget _infoCard({
     required IconData icon,
     required String label,
     required String value,
-  }) =>
-      Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 18, color: AppTheme.primaryColor),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+  }) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.grey.shade50,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: Colors.grey.shade200),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: AppTheme.primaryColor),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondaryColor,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   String _formatDate(DateTime? dt) {
     if (dt == null) return '';
     return DateFormat('HH:mm, dd/MM/yyyy').format(dt);
+  }
+
+  Future<void> _cancelOnsite(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Báo hủy tại chỗ?'),
+        content: TextField(
+          controller: reasonController,
+          maxLength: 300,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'Lý do hủy *',
+            hintText: 'VD: Thiết bị hư hỏng quá nặng, cần kiểm tra thêm',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Để sau'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              final value = reasonController.text.trim();
+              if (value.length < 10) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Lý do phải có ít nhất 10 ký tự'),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Xác nhận hủy'),
+          ),
+        ],
+      ),
+    );
+    reasonController.dispose();
+    if (reason == null || !context.mounted) return;
+
+    final provider = context.read<OrderHistoryProvider>();
+    final ok = await provider.cancelOnsite(token, order.id, reason: reason);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đã báo hủy tại chỗ')
+              : (provider.errorMessage ?? 'Báo hủy tại chỗ thất bại'),
+        ),
+        backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade600,
+      ),
+    );
+    if (ok) Navigator.pop(context);
   }
 
   @override
@@ -141,7 +209,9 @@ class OrderDetailScreen extends StatelessWidget {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
@@ -255,12 +325,14 @@ class OrderDetailScreen extends StatelessWidget {
                     if (order.assignedTechnicianRating != null)
                       Row(
                         children: [
-                          const Icon(Icons.star_rounded,
-                              size: 16, color: Colors.amber),
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 16,
+                            color: Colors.amber,
+                          ),
                           const SizedBox(width: 2),
                           Text(
-                            order.assignedTechnicianRating!
-                                .toStringAsFixed(1),
+                            order.assignedTechnicianRating!.toStringAsFixed(1),
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -288,6 +360,22 @@ class OrderDetailScreen extends StatelessWidget {
                   label: 'Ghi chú của thợ',
                   value: order.rescheduleNote,
                 ),
+            ],
+
+            if (order.status == 'ARRIVED' || order.status == 'IN_PROGRESS') ...[
+              const SizedBox(height: 4),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red.shade700,
+                    side: BorderSide(color: Colors.red.shade300),
+                  ),
+                  child: const Text('Báo hủy tại chỗ'),
+                  onPressed: () => _cancelOnsite(context),
+                ),
+              ),
+              const SizedBox(height: 10),
             ],
 
             // Chi phí phát sinh — Khách Đồng ý / Từ chối (UC-WRK-06)

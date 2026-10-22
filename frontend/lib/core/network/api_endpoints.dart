@@ -13,7 +13,8 @@ class ApiEndpoints {
   // Technician Public & Self Endpoints
   static const String publicTechnicians = '$baseUrl/technicians';
   static String publicTechnicianDetail(String id) => '$baseUrl/technicians/$id';
-  static const String technicianAvailability = '$baseUrl/technicians/status/availability';
+  static const String technicianAvailability =
+      '$baseUrl/technicians/status/availability';
   static const String updateTechnicianSkills = '$baseUrl/technicians/skills';
 
   // Admin & Staff KYC Endpoints
@@ -22,26 +23,35 @@ class ApiEndpoints {
   static String adminUserRole(String id) => '$baseUrl/admin/users/$id/role';
   static String adminUserStatus(String id) => '$baseUrl/admin/users/$id/status';
   static const String adminKYCTechnicians = '$baseUrl/admin/technicians/kyc';
-  static String adminApproveTechnician(String id) => '$baseUrl/admin/technicians/$id/approve';
-  static String adminRejectTechnician(String id) => '$baseUrl/admin/technicians/$id/reject';
+  static String adminApproveTechnician(String id) =>
+      '$baseUrl/admin/technicians/$id/approve';
+  static String adminRejectTechnician(String id) =>
+      '$baseUrl/admin/technicians/$id/reject';
 
   // Review Endpoints (UC-RAT-01 & UC-RAT-02)
   static const String reviewTags = '$baseUrl/reviews/tags';
   static const String technicians = '$baseUrl/reviews/technicians';
   static const String createReview = '$baseUrl/reviews';
   static const String myReviews = '$baseUrl/reviews/my-reviews';
-  static String technicianReviews(String technicianId) => '$baseUrl/reviews/technician/$technicianId';
-  static String replyReview(String reviewId) => '$baseUrl/reviews/$reviewId/reply';
+  static String technicianReviews(String technicianId) =>
+      '$baseUrl/reviews/technician/$technicianId';
+  static String replyReview(String reviewId) =>
+      '$baseUrl/reviews/$reviewId/reply';
 
   // Danh mục dịch vụ
   static const String serviceCategories = '$baseUrl/categories';
-  static String serviceCategoryDetail(String identifier) => '$baseUrl/categories/$identifier';
-  static String searchServiceCategories(String keyword) => '$baseUrl/categories/search?keyword=$keyword';
+  static String serviceCategoryDetail(String identifier) =>
+      '$baseUrl/categories/$identifier';
+  static String searchServiceCategories(String keyword) =>
+      '$baseUrl/categories/search?keyword=$keyword';
   // Quản lý Danh mục dịch vụ cho Staff/Admin (UC-STF-02)
   static const String adminServiceCategories = '$baseUrl/categories/manage';
-  static String adminUpdateServiceCategory(String id) => '$baseUrl/categories/$id';
-  static String adminToggleServiceCategory(String id) => '$baseUrl/categories/$id/status';
-  static String adminDeleteServiceCategory(String id) => '$baseUrl/categories/$id';
+  static String adminUpdateServiceCategory(String id) =>
+      '$baseUrl/categories/$id';
+  static String adminToggleServiceCategory(String id) =>
+      '$baseUrl/categories/$id/status';
+  static String adminDeleteServiceCategory(String id) =>
+      '$baseUrl/categories/$id';
 
   // Yêu cầu sửa chữa
   static const String requests = '$baseUrl/requests';
@@ -57,6 +67,8 @@ class ApiEndpoints {
   static String onTheWay(String id) => '$baseUrl/requests/$id/on-the-way';
   static String arrived(String id) => '$baseUrl/requests/$id/arrived';
   static String working(String id) => '$baseUrl/requests/$id/working';
+  static String onsiteCancel(String id) =>
+      '$baseUrl/requests/$id/onsite-cancel';
   static String declareCost(String id) => '$baseUrl/requests/$id/costs';
   static String respondCost(String id, String costId) =>
       '$baseUrl/requests/$id/costs/$costId';
@@ -86,10 +98,13 @@ class ApiEndpoints {
 
   // Thông báo (UC-NOT-01 & UC-NOT-02)
   static const String notifications = '$baseUrl/notifications';
-  static const String unreadNotificationCount = '$baseUrl/notifications/unread-count';
-  static String markNotificationAsRead(String id) => '$baseUrl/notifications/$id/read';
-  static const String markAllNotificationsAsRead = '$baseUrl/notifications/read-all';
+  static const String unreadNotificationCount =
+      '$baseUrl/notifications/unread-count';
+  static String markNotificationAsRead(String id) =>
+      '$baseUrl/notifications/$id/read';
+  static const String markAllNotificationsAsRead =
+      '$baseUrl/notifications/read-all';
   static String deleteNotification(String id) => '$baseUrl/notifications/$id';
-  static const String clearAllNotifications = '$baseUrl/notifications/clear-all';
+  static const String clearAllNotifications =
+      '$baseUrl/notifications/clear-all';
 }
-

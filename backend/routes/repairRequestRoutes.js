@@ -12,6 +12,7 @@ const {
   updateWorking,
   declareAdditionalCost,
   respondAdditionalCost,
+  cancelOnsiteRepair,
 } = require('../controllers/repairRequestController');
 const { protect, authorize } = require('../middlewares/auth');
 const upload = require('../middlewares/upload');
@@ -81,6 +82,13 @@ router.patch(
   '/:id/costs/:costId',
   authorize('user'),
   respondAdditionalCost
+);
+
+// Thợ/Khách báo hủy tại chỗ khi thiết bị quá nặng, cần đưa về xưởng (UC-WRK-07)
+router.patch(
+  '/:id/onsite-cancel',
+  authorize('user', 'technician'),
+  cancelOnsiteRepair
 );
 
 // Tạo đơn hàng hoàn tất mẫu để kiểm thử đánh giá

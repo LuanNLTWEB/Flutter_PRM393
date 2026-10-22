@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../data/datasources/nearby_request_remote_datasource.dart';
 import '../../data/datasources/quotation_remote_datasource.dart';
 import '../../data/models/quotation_model.dart';
@@ -13,9 +14,10 @@ class QuotationProvider extends ChangeNotifier {
   QuotationProvider({
     QuotationRemoteDataSource? quotationDataSource,
     NearbyRequestRemoteDataSource? requestDataSource,
-  })  : _quotationDataSource =
-            quotationDataSource ?? QuotationRemoteDataSource(),
-        _requestDataSource = requestDataSource ?? NearbyRequestRemoteDataSource();
+  }) : _quotationDataSource =
+           quotationDataSource ?? QuotationRemoteDataSource(),
+       _requestDataSource =
+           requestDataSource ?? NearbyRequestRemoteDataSource();
 
   // Feed yêu cầu cho Thợ (UC-QUO-01 / UC-QUO-02)
   List<RepairRequestModel> _nearbyRequests = [];
@@ -98,7 +100,7 @@ class QuotationProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-// END UC-QUO-01
+  // END UC-QUO-01
 
   // START UC-QUO-03: Tải chi tiết sự cố
   /// Tải chi tiết phiếu yêu cầu (UC-QUO-03)
@@ -111,8 +113,10 @@ class QuotationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _selectedRequest =
-          await _requestDataSource.fetchRequestDetail(token: token, id: id);
+      _selectedRequest = await _requestDataSource.fetchRequestDetail(
+        token: token,
+        id: id,
+      );
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {
@@ -133,8 +137,10 @@ class QuotationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result =
-          await _quotationDataSource.fetchQuotations(token: token, requestId: requestId);
+      final result = await _quotationDataSource.fetchQuotations(
+        token: token,
+        requestId: requestId,
+      );
       _quotations = result.quotations;
       _requestStatus = result.requestStatus;
     } catch (e) {
@@ -238,9 +244,11 @@ class QuotationProvider extends ChangeNotifier {
           .map((q) => q.id == updated.id ? updated : q)
           .toList();
       _myQuotes = _myQuotes
-          .map((item) => item.quote.id == updated.id
-              ? MyQuotationItem(quote: updated, request: item.request)
-              : item)
+          .map(
+            (item) => item.quote.id == updated.id
+                ? MyQuotationItem(quote: updated, request: item.request)
+                : item,
+          )
           .toList();
 
       _successMessage = 'Cập nhật báo giá thành công';
@@ -274,16 +282,19 @@ class QuotationProvider extends ChangeNotifier {
           .map((q) => q.id == id ? _copyWithStatus(q, 'RETRACTED') : q)
           .toList();
       _myQuotes = _myQuotes
-          .map((item) => item.quote.id == id
-              ? MyQuotationItem(
-                  quote: _copyWithStatus(item.quote, 'RETRACTED'),
-                  request: item.request,
-                )
-              : item)
+          .map(
+            (item) => item.quote.id == id
+                ? MyQuotationItem(
+                    quote: _copyWithStatus(item.quote, 'RETRACTED'),
+                    request: item.request,
+                  )
+                : item,
+          )
           .toList();
 
       // Hết báo giá đang mở thì yêu cầu quay lại trạng thái OPEN
-      if (_quotations.isNotEmpty && _quotations.every((q) => q.status != 'SENT')) {
+      if (_quotations.isNotEmpty &&
+          _quotations.every((q) => q.status != 'SENT')) {
         _requestStatus = 'OPEN';
       }
 
@@ -388,12 +399,15 @@ class QuotationProvider extends ChangeNotifier {
         token: token,
         requestId: requestId,
       );
-      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
-            appointmentStatus: 'CONFIRMED',
-            proposedTime: null,
-            rescheduleNote: '',
-            rescheduleRejectNote: '',
-          ));
+      _updateMyQuoteRequest(
+        requestId,
+        (request) => request.copyWith(
+          appointmentStatus: 'CONFIRMED',
+          proposedTime: null,
+          rescheduleNote: '',
+          rescheduleRejectNote: '',
+        ),
+      );
       _successMessage = 'Xác nhận lịch hẹn thành công';
       _isSubmitting = false;
       notifyListeners();
@@ -425,12 +439,15 @@ class QuotationProvider extends ChangeNotifier {
         proposedTime: proposedTime,
         note: note,
       );
-      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
-            appointmentStatus: 'RESCHEDULED',
-            proposedTime: proposedTime,
-            rescheduleNote: note,
-            rescheduleRejectNote: '',
-          ));
+      _updateMyQuoteRequest(
+        requestId,
+        (request) => request.copyWith(
+          appointmentStatus: 'RESCHEDULED',
+          proposedTime: proposedTime,
+          rescheduleNote: note,
+          rescheduleRejectNote: '',
+        ),
+      );
       _successMessage = 'Đề xuất khung giờ mới thành công';
       _isSubmitting = false;
       notifyListeners();
@@ -454,13 +471,11 @@ class QuotationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _requestDataSource.markOnTheWay(
-        token: token,
-        requestId: requestId,
+      await _requestDataSource.markOnTheWay(token: token, requestId: requestId);
+      _updateMyQuoteRequest(
+        requestId,
+        (request) => request.copyWith(status: 'ON_THE_WAY'),
       );
-      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
-            status: 'ON_THE_WAY',
-          ));
       _successMessage = 'Đã cập nhật: đang trên đường đến nhà khách';
       _isSubmitting = false;
       notifyListeners();
@@ -484,13 +499,11 @@ class QuotationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _requestDataSource.markArrived(
-        token: token,
-        requestId: requestId,
+      await _requestDataSource.markArrived(token: token, requestId: requestId);
+      _updateMyQuoteRequest(
+        requestId,
+        (request) => request.copyWith(status: 'ARRIVED'),
       );
-      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
-            status: 'ARRIVED',
-          ));
       _successMessage = 'Đã cập nhật: đã có mặt tại hiện trường';
       _isSubmitting = false;
       notifyListeners();
@@ -514,13 +527,11 @@ class QuotationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _requestDataSource.markWorking(
-        token: token,
-        requestId: requestId,
+      await _requestDataSource.markWorking(token: token, requestId: requestId);
+      _updateMyQuoteRequest(
+        requestId,
+        (request) => request.copyWith(status: 'IN_PROGRESS'),
       );
-      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
-            status: 'IN_PROGRESS',
-          ));
       _successMessage = 'Đã cập nhật: đang sửa chữa';
       _isSubmitting = false;
       notifyListeners();
@@ -553,13 +564,18 @@ class QuotationProvider extends ChangeNotifier {
         note: note,
       );
       final newCosts = costJsonList.map(AdditionalCostModel.fromJson).toList();
-      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
-            additionalCosts: [...request.additionalCosts, ...newCosts],
-          ));
+      _updateMyQuoteRequest(
+        requestId,
+        (request) => request.copyWith(
+          additionalCosts: [...request.additionalCosts, ...newCosts],
+        ),
+      );
       for (final cost in newCosts) {
         _appendSelectedCost(requestId, cost);
       }
-      _successMessage = 'Đã khai báo ${newCosts.length} mục chi phí phát sinh, chờ khách phê duyệt';
+
+      _successMessage =
+          'Đã khai báo ${newCosts.length} mục chi phí phát sinh, chờ khách phê duyệt';
       _isSubmitting = false;
       notifyListeners();
       return true;
@@ -568,6 +584,42 @@ class QuotationProvider extends ChangeNotifier {
       _isSubmitting = false;
       notifyListeners();
       return false;
+    }
+  }
+
+  /// Thợ báo hủy tại chỗ (UC-WRK-07)
+  Future<bool> cancelOnsite({
+    required String token,
+    required String requestId,
+    required String reason,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await _requestDataSource.cancelOnsite(
+        token: token,
+        requestId: requestId,
+        reason: reason,
+      );
+      _updateMyQuoteRequest(
+        requestId,
+        (request) => request.copyWith(status: 'CANCELLED'),
+      );
+      final selected = _selectedRequest;
+      if (selected != null && selected.id == requestId) {
+        _selectedRequest = selected.copyWith(status: 'CANCELLED');
+      }
+      _successMessage = 'Đã báo hủy tại chỗ';
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      _isSubmitting = false;
+      notifyListeners();
     }
   }
 
@@ -613,11 +665,14 @@ class QuotationProvider extends ChangeNotifier {
         note: note,
       );
       final cost = AdditionalCostModel.fromJson(costJson);
-      _updateMyQuoteRequest(requestId, (request) => request.copyWith(
-            additionalCosts: request.additionalCosts
-                .map((c) => c.id == cost.id ? cost : c)
-                .toList(),
-          ));
+      _updateMyQuoteRequest(
+        requestId,
+        (request) => request.copyWith(
+          additionalCosts: request.additionalCosts
+              .map((c) => c.id == cost.id ? cost : c)
+              .toList(),
+        ),
+      );
       _replaceSelectedCost(requestId, cost);
       _successMessage = action == 'APPROVE'
           ? 'Đã đồng ý chi phí phát sinh'
@@ -638,9 +693,14 @@ class QuotationProvider extends ChangeNotifier {
     RepairRequestModel Function(RepairRequestModel) update,
   ) {
     _myQuotes = _myQuotes
-        .map((item) => item.request.id == requestId
-            ? MyQuotationItem(quote: item.quote, request: update(item.request))
-            : item)
+        .map(
+          (item) => item.request.id == requestId
+              ? MyQuotationItem(
+                  quote: item.quote,
+                  request: update(item.request),
+                )
+              : item,
+        )
         .toList();
   }
 

@@ -934,6 +934,112 @@ const cancelRepairRequest = async (req, res) => {
 };
 
 /**
+ * @desc    Thợ hoặc khách báo hủy tại chỗ để đưa thiết bị về xưởng (UC-WRK-07)
+ * @route   PATCH /api/requests/:id/onsite-cancel
+ * @access  Private (customer/technician - đơn đã đến hiện trường hoặc đang sửa)
+ */
+const cancelOnsiteRepair = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const request = await RepairRequest.findById(id);
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu sửa chữa',
+      });
+    }
+
+    if (!['ARRIVED', 'IN_PROGRESS'].includes(request.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể báo hủy tại chỗ khi thợ đã có mặt hoặc đang sửa chữa',
+      });
+    }
+
+    const isCustomer =
+      req.user.role === 'user' &&
+      request.customerId.toString() === req.user._id.toString();
+    const isTechnician =
+      req.user.role === 'technician' &&
+      (await isAssignedTechnician(request, req.user._id));
+
+    if (!isCustomer && !isTechnician) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền báo hủy phiếu yêu cầu này',
+      });
+    }
+
+    if (reason != null && typeof reason !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Lý do hủy không hợp lệ',
+      });
+    }
+
+    const cancellationReason = (reason || '').trim();
+    if (cancellationReason.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập lý do hủy tại chỗ tối thiểu 10 ký tự',
+      });
+    }
+    if (cancellationReason.length > 300) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lý do hủy không được vượt quá 300 ký tự',
+      });
+    }
+
+    request.status = 'CANCELLED';
+    request.cancelledAt = new Date();
+    request.cancellationReason = cancellationReason;
+    request.cancellationInitiatedBy = isCustomer ? 'customer' : 'technician';
+    await request.save();
+
+    const recipient = isCustomer
+      ? request.assignedTechnicianId
+      : request.customerId;
+    if (recipient) {
+      try {
+        await createNotificationUtil({
+          recipient,
+          title: 'Đơn sửa chữa đã được hủy tại chỗ',
+          message: `${isCustomer ? 'Khách hàng' : `Thợ ${req.user.fullName || 'kỹ thuật'}`} đã báo hủy đơn "${request.title}" để đưa thiết bị về xưởng. Lý do: ${cancellationReason}`,
+          type: 'ORDER_STATUS',
+          data: {
+            requestId: request._id,
+            status: 'CANCELLED',
+            action: 'ONSITE_CANCELLED',
+            initiatedBy: request.cancellationInitiatedBy,
+          },
+        });
+      } catch (notificationError) {
+        console.warn(
+          'Gửi thông báo hủy tại chỗ thất bại:',
+          notificationError.message
+        );
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã báo hủy tại chỗ thành công',
+      data: { repairRequest: request },
+    });
+  } catch (error) {
+    console.error('cancelOnsiteRepair error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi báo hủy tại chỗ',
+      error: error.message,
+    });
+  }
+};
+
+/**
  * @desc    Thợ khai báo chi phí phát sinh (phụ tùng cần thay + giá thực tế) (UC-WRK-05)
  * @route   POST /api/requests/:id/costs
  * @access  Private (technician - thợ được chốt, đơn đang IN_PROGRESS)
@@ -1246,4 +1352,5 @@ module.exports = {
   updateWorking,
   declareAdditionalCost,
   respondAdditionalCost,
+  cancelOnsiteRepair,
 };

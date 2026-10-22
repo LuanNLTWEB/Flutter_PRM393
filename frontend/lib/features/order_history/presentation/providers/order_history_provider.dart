@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+
 import '../../data/datasources/order_history_remote_datasource.dart';
 import '../../data/models/order_history_model.dart';
+
 import 'package:frontend/features/notification/services/local_notification_service.dart';
 
 class OrderHistoryProvider extends ChangeNotifier {
   final OrderHistoryRemoteDataSource _dataSource;
 
   OrderHistoryProvider({OrderHistoryRemoteDataSource? dataSource})
-      : _dataSource = dataSource ?? OrderHistoryRemoteDataSource();
+    : _dataSource = dataSource ?? OrderHistoryRemoteDataSource();
 
   List<OrderHistoryModel> _orders = [];
   Map<String, dynamic> _counts = {};
@@ -158,6 +160,34 @@ class OrderHistoryProvider extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
       return false;
+    }
+  }
+
+  /// Khách báo hủy tại chỗ (UC-WRK-07)
+  Future<bool> cancelOnsite(
+    String token,
+    String orderId, {
+    required String reason,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await _dataSource.cancelOnsite(
+        token: token,
+        requestId: orderId,
+        reason: reason,
+      );
+      _successMessage = 'Đã báo hủy tại chỗ';
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
