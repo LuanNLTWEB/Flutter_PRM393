@@ -11,6 +11,7 @@ import 'admin_technician_approval_screen.dart';
 import 'admin_service_category_screen.dart';
 import '../../../notification/presentation/providers/notification_provider.dart';
 import '../../../notification/presentation/screens/notification_screen.dart';
+import '../../../complaint/presentation/screens/admin_complaints_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
 
@@ -114,6 +115,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Tiếp nhận khiếu nại (UC-STF-03)',
+            icon: const Icon(Icons.support_agent_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminComplaintsScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Duyệt hồ sơ Thợ (KYC)',
             icon: const Icon(Icons.assignment_ind_outlined),
