@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
@@ -14,7 +15,6 @@ import '../../technician/presentation/screens/technician_register_screen.dart';
 import '../../technician/presentation/screens/technician_skills_screen.dart';
 import '../../repair_request/presentation/screens/service_category_screen.dart';
 import '../../repair_request/presentation/screens/create_repair_request_screen.dart';
-import '../../repair_request/presentation/screens/customer_request_list_screen.dart';
 import '../../repair_request/data/models/service_category_model.dart';
 import '../../repair_request/presentation/providers/repair_request_provider.dart';
 import '../../quotations/presentation/screens/nearby_requests_screen.dart';
@@ -49,7 +49,8 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, auth, _) {
         if (auth.isAuthenticated) {
           // Admin & Staff xem trang Quản trị & Vận hành (AdminHomeScreen)
-          if (auth.currentUser?.role == 'admin' || auth.currentUser?.role == 'staff') {
+          if (auth.currentUser?.role == 'admin' ||
+              auth.currentUser?.role == 'staff') {
             return const AdminHomeScreen();
           }
           return _buildLoggedInHome(context, auth);
@@ -69,11 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Row(
           children: [
-            Image.asset(
-              AppAssets.logo,
-              height: 32,
-              fit: BoxFit.contain,
-            ),
+            Image.asset(AppAssets.logo, height: 32, fit: BoxFit.contain),
             const SizedBox(width: 8),
             const Text(
               AppConstants.appName,
@@ -113,7 +110,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                       final token = auth.token;
                       if (context.mounted && token != null) {
-                        context.read<NotificationProvider>().fetchUnreadCount(token);
+                        context.read<NotificationProvider>().fetchUnreadCount(
+                          token,
+                        );
                       }
                     },
                   ),
@@ -160,7 +159,10 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               borderRadius: BorderRadius.circular(20),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
@@ -174,8 +176,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     CircleAvatar(
                       radius: 14,
                       backgroundColor: AppTheme.primaryColor,
-                      backgroundImage:
-                          user.avatar.isNotEmpty ? NetworkImage(user.avatar) : null,
+                      backgroundImage: user.avatar.isNotEmpty
+                          ? NetworkImage(user.avatar)
+                          : null,
                       child: user.avatar.isEmpty
                           ? Text(
                               user.initials,
@@ -214,7 +217,9 @@ class _HomeScreenState extends State<HomeScreen> {
             if (context.mounted) {
               await Future.wait([
                 context.read<TechnicianProvider>().fetchPublicTechnicians(),
-                context.read<RepairRequestProvider>().fetchCategories(refresh: true),
+                context.read<RepairRequestProvider>().fetchCategories(
+                  refresh: true,
+                ),
               ]);
             }
           },
@@ -306,8 +311,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           CircleAvatar(
                             radius: 28,
-                            backgroundColor:
-                                AppTheme.primaryColor.withValues(alpha: 0.1),
+                            backgroundColor: AppTheme.primaryColor.withValues(
+                              alpha: 0.1,
+                            ),
                             backgroundImage: user.avatar.isNotEmpty
                                 ? NetworkImage(user.avatar)
                                 : null,
@@ -350,8 +356,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.primaryColor
-                                        .withValues(alpha: 0.08),
+                                    color: AppTheme.primaryColor.withValues(
+                                      alpha: 0.08,
+                                    ),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -381,10 +388,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              icon: const Icon(Icons.account_circle_outlined,
-                                  size: 18),
-                              label: const Text('Xem Hồ sơ',
-                                  style: TextStyle(fontSize: 14)),
+                              icon: const Icon(
+                                Icons.account_circle_outlined,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                'Xem Hồ sơ',
+                                style: TextStyle(fontSize: 14),
+                              ),
                               onPressed: () {
                                 Navigator.push(
                                   context,
@@ -406,14 +417,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              icon: const Icon(Icons.receipt_long_rounded, size: 18),
-                              label: const Text('Lịch sử đơn',
-                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                              icon: const Icon(
+                                Icons.receipt_long_rounded,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                'Lịch sử đơn',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                               onPressed: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const OrderHistoryScreen(),
+                                    builder: (context) =>
+                                        const OrderHistoryScreen(),
                                   ),
                                 );
                               },
@@ -424,8 +444,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             tooltip: 'Đăng xuất',
                             style: IconButton.styleFrom(
                               foregroundColor: Colors.red,
-                              backgroundColor:
-                                  Colors.red.withValues(alpha: 0.08),
+                              backgroundColor: Colors.red.withValues(
+                                alpha: 0.08,
+                              ),
                             ),
                             icon: const Icon(Icons.logout, size: 20),
                             onPressed: () => _confirmLogout(context, auth),
@@ -436,85 +457,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
-
-                // Card danh sách yêu cầu sửa chữa đã tạo (UC-REQ-07)
-                if (!isTech) ...[
-                  InkWell(
-                    key: const Key('home_my_requests_card'),
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const CustomerRequestListScreen(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppTheme.primaryColor.withValues(alpha: 0.08),
-                            AppTheme.primaryColor.withValues(alpha: 0.02),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.assignment_outlined,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Yêu cầu sửa chữa của bạn',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.textPrimaryColor,
-                                  ),
-                                ),
-                                SizedBox(height: 2),
-                                Text(
-                                  'Xem các yêu cầu đang mở chờ thợ gửi báo giá',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.textSecondaryColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 16,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ] else ...[
-                  const SizedBox(height: 6),
-                ],
 
                 // Danh mục dịch vụ sửa chữa nổi bật
                 Row(
@@ -559,7 +501,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Card trạng thái dành riêng cho tài khoản Thợ
   Widget _buildTechnicianStatusCard(
-      BuildContext context, AuthProvider auth, dynamic techProfile) {
+    BuildContext context,
+    AuthProvider auth,
+    dynamic techProfile,
+  ) {
     final status = techProfile?.approvalStatus ?? 'pending';
     final isAvailable = techProfile?.isAvailable ?? false;
     final token = auth.token ?? '';
@@ -685,8 +630,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   activeThumbColor: Colors.green,
                   onChanged: (val) async {
                     final provider = context.read<TechnicianProvider>();
-                    final updated =
-                        await provider.toggleAvailability(token, isAvailable: val);
+                    final updated = await provider.toggleAvailability(
+                      token,
+                      isAvailable: val,
+                    );
                     if (updated != null && context.mounted) {
                       await auth.refreshProfile();
                     }
@@ -711,7 +658,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                 child: Row(
                   children: [
-                    Icon(Icons.handyman_outlined, size: 16, color: Colors.green.shade800),
+                    Icon(
+                      Icons.handyman_outlined,
+                      size: 16,
+                      color: Colors.green.shade800,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -723,7 +674,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                    Icon(Icons.chevron_right, size: 18, color: Colors.green.shade800),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: Colors.green.shade800,
+                    ),
                   ],
                 ),
               ),
@@ -776,7 +731,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: const Text(
               'Chưa có thợ nào trong khu vực này.',
-              style: TextStyle(fontSize: 13, color: AppTheme.textSecondaryColor),
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.textSecondaryColor,
+              ),
             ),
           )
         else
@@ -821,8 +779,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         CircleAvatar(
                           radius: 28,
-                          backgroundColor:
-                              AppTheme.primaryColor.withValues(alpha: 0.1),
+                          backgroundColor: AppTheme.primaryColor.withValues(
+                            alpha: 0.1,
+                          ),
                           backgroundImage: tech.avatar.isNotEmpty
                               ? NetworkImage(tech.avatar)
                               : null,
@@ -862,8 +821,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.star,
-                                size: 14, color: Colors.amber),
+                            const Icon(
+                              Icons.star,
+                              size: 14,
+                              color: Colors.amber,
+                            ),
                             const SizedBox(width: 2),
                             Text(
                               '${prof?.rating ?? 5.0}',
@@ -956,7 +918,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 14.0,
+              vertical: 12.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -974,7 +939,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Icon(icon, color: color, size: 22),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3.5,
+                      ),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(20),
@@ -1051,7 +1019,9 @@ class _HomeScreenState extends State<HomeScreen> {
     RepairRequestProvider provider,
   ) async {
     final auth = context.read<AuthProvider>();
-    if (auth.isAuthenticated && auth.currentUser != null && auth.currentUser!.role != 'user') {
+    if (auth.isAuthenticated &&
+        auth.currentUser != null &&
+        auth.currentUser!.role != 'user') {
       final roleName = auth.currentUser!.roleDisplay;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1079,9 +1049,8 @@ class _HomeScreenState extends State<HomeScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CreateRepairRequestScreen(
-            preselectedCategory: category,
-          ),
+          builder: (_) =>
+              CreateRepairRequestScreen(preselectedCategory: category),
         ),
       );
       return;
@@ -1092,7 +1061,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (provider.rawCategories.isNotEmpty) {
       try {
         matched = provider.rawCategories.firstWhere(
-          (c) => c.slug == category.slug || c.name.toLowerCase().contains(category.name.toLowerCase()),
+          (c) =>
+              c.slug == category.slug ||
+              c.name.toLowerCase().contains(category.name.toLowerCase()),
         );
       } catch (_) {}
     }
@@ -1102,9 +1073,8 @@ class _HomeScreenState extends State<HomeScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CreateRepairRequestScreen(
-            preselectedCategory: selected,
-          ),
+          builder: (_) =>
+              CreateRepairRequestScreen(preselectedCategory: selected),
         ),
       );
       return;
@@ -1133,7 +1103,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (provider.rawCategories.isNotEmpty) {
         try {
           target = provider.rawCategories.firstWhere(
-            (c) => c.slug == category.slug || c.name.toLowerCase().contains(category.name.toLowerCase()),
+            (c) =>
+                c.slug == category.slug ||
+                c.name.toLowerCase().contains(category.name.toLowerCase()),
             orElse: () => provider.rawCategories.first,
           );
         } catch (_) {
@@ -1144,9 +1116,8 @@ class _HomeScreenState extends State<HomeScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CreateRepairRequestScreen(
-            preselectedCategory: target,
-          ),
+          builder: (_) =>
+              CreateRepairRequestScreen(preselectedCategory: target),
         ),
       );
     }
@@ -1233,11 +1204,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const Spacer(),
               // Logo thương hiệu HomeFix
-              Image.asset(
-                AppAssets.logo,
-                height: 160,
-                fit: BoxFit.contain,
-              ),
+              Image.asset(AppAssets.logo, height: 160, fit: BoxFit.contain),
               const SizedBox(height: 16),
               // Tên ứng dụng
               const Text(

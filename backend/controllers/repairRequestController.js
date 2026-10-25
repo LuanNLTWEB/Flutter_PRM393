@@ -281,8 +281,12 @@ const getMyRepairRequests = async (req, res) => {
 
     if (status) {
       statusFilter = { status };
-    } else if (tab === 'WAITING_QUOTES' || tab === 'OPEN') {
+    } else if (tab === 'WAITING_QUOTES') {
       statusFilter = { status: { $in: ['OPEN', 'QUOTED'] } };
+    } else if (tab === 'OPEN') {
+      statusFilter = { status: 'OPEN' };
+    } else if (tab === 'QUOTED') {
+      statusFilter = { status: 'QUOTED' };
     } else if (tab === 'PROCESSING') {
       statusFilter = { status: { $in: ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] } };
     } else if (tab === 'ACCEPTED') {

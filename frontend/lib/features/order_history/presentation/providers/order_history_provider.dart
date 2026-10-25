@@ -17,6 +17,7 @@ class OrderHistoryProvider extends ChangeNotifier {
   String? _errorMessage;
   String? _successMessage;
   String _currentTab = 'ALL';
+  int _fetchVersion = 0;
 
   List<OrderHistoryModel> get orders => _orders;
   Map<String, dynamic> get counts => _counts;
@@ -27,6 +28,7 @@ class OrderHistoryProvider extends ChangeNotifier {
 
   /// Tải danh sách đơn hàng theo tab
   Future<void> fetchOrders(String token, {String tab = 'ALL'}) async {
+    final fetchVersion = ++_fetchVersion;
     _isLoading = true;
     _errorMessage = null;
     _currentTab = tab;
@@ -38,6 +40,8 @@ class OrderHistoryProvider extends ChangeNotifier {
         tab: tab == 'ALL' ? null : tab,
       );
 
+      if (fetchVersion != _fetchVersion) return;
+
       _orders = result['orders'] as List<OrderHistoryModel>? ?? [];
       _counts = result['counts'] as Map<String, dynamic>? ?? {};
 
@@ -47,6 +51,7 @@ class OrderHistoryProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      if (fetchVersion != _fetchVersion) return;
       _isLoading = false;
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
@@ -77,6 +82,7 @@ class OrderHistoryProvider extends ChangeNotifier {
         proposedTime: old.proposedTime,
         rescheduleNote: old.rescheduleNote,
         rescheduleRejectNote: old.rescheduleRejectNote,
+        additionalCosts: old.additionalCosts,
       );
       notifyListeners();
     }
@@ -125,6 +131,7 @@ class OrderHistoryProvider extends ChangeNotifier {
             proposedTime: null,
             rescheduleNote: '',
             rescheduleRejectNote: '',
+            additionalCosts: old.additionalCosts,
           );
           _successMessage = 'Đã đồng ý khung giờ mới với thợ';
         } else {
@@ -147,6 +154,7 @@ class OrderHistoryProvider extends ChangeNotifier {
             proposedTime: null,
             rescheduleNote: '',
             rescheduleRejectNote: reason.trim(),
+            additionalCosts: old.additionalCosts,
           );
           _successMessage = 'Đã từ chối khung giờ mới';
         }
