@@ -11,6 +11,10 @@ const {
   updateArrived,
   updateWorking,
 } = require('../controllers/repairRequestController');
+const {
+  generateCompletionQr,
+  confirmCompletion,
+} = require('../controllers/completionController');
 const { protect, authorize } = require('../middlewares/auth');
 const upload = require('../middlewares/upload');
 
@@ -26,6 +30,18 @@ router.post(
   authorize('technician'),
   upload.array('images', 5),
   uploadCompletionImages
+);
+
+// Thợ tạo QR và Khách quét QR xác nhận nghiệm thu (UC-CFM-02, UC-CFM-03)
+router.post(
+  '/:id/completion-qr',
+  authorize('technician'),
+  generateCompletionQr
+);
+router.post(
+  '/:id/confirm-completion',
+  authorize('user'),
+  confirmCompletion
 );
 
 // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường (UC-REQ-03, 04, 05)

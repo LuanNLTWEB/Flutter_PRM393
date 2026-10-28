@@ -58,7 +58,9 @@ class _UploadCompletionImagesScreenState
   }
 
   int get _remainingSlots =>
-      (5 - widget.existingImageCount - _selectedImages.length).clamp(0, 5).toInt();
+      (5 - widget.existingImageCount - _selectedImages.length)
+          .clamp(0, 5)
+          .toInt();
 
   Future<void> _submit() async {
     if (_selectedImages.isEmpty) {
@@ -70,10 +72,10 @@ class _UploadCompletionImagesScreenState
 
     final token = context.read<AuthProvider>().token ?? '';
     final success = await context.read<CompletionProvider>().uploadImages(
-          token: token,
-          requestId: widget.requestId,
-          images: _selectedImages,
-        );
+      token: token,
+      requestId: widget.requestId,
+      images: _selectedImages,
+    );
 
     if (!mounted) return;
     final provider = context.read<CompletionProvider>();
@@ -114,7 +116,10 @@ class _UploadCompletionImagesScreenState
             const SizedBox(height: 6),
             Text(
               'Đơn hàng đã có ${widget.existingImageCount}/5 ảnh. Còn $_remainingSlots ảnh có thể thêm.',
-              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondaryColor),
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondaryColor,
+              ),
             ),
           ],
           const SizedBox(height: 20),
@@ -154,9 +159,16 @@ class _UploadCompletionImagesScreenState
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.photo_camera_back_outlined, size: 42, color: Colors.grey),
+                  Icon(
+                    Icons.photo_camera_back_outlined,
+                    size: 42,
+                    color: Colors.grey,
+                  ),
                   SizedBox(height: 8),
-                  Text('Chưa có ảnh sau khi sửa', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    'Chưa có ảnh sau khi sửa',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             )
@@ -186,7 +198,9 @@ class _UploadCompletionImagesScreenState
                       child: IconButton(
                         onPressed: provider.isUploading
                             ? null
-                            : () => setState(() => _selectedImages.removeAt(index)),
+                            : () => setState(
+                                () => _selectedImages.removeAt(index),
+                              ),
                         style: IconButton.styleFrom(
                           backgroundColor: Colors.black54,
                           foregroundColor: Colors.white,
@@ -205,10 +219,15 @@ class _UploadCompletionImagesScreenState
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Icon(Icons.cloud_upload_outlined),
-            label: Text(provider.isUploading ? 'Đang tải ảnh...' : 'Gửi ảnh nghiệm thu'),
+            label: Text(
+              provider.isUploading ? 'Đang tải ảnh...' : 'Gửi ảnh nghiệm thu',
+            ),
           ),
         ],
       ),

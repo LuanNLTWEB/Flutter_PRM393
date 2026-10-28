@@ -6,12 +6,13 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/network/api_endpoints.dart';
 import '../../../repair_request/data/models/repair_request_model.dart';
+import '../models/completion_qr_model.dart';
 
 class CompletionRemoteDataSource {
   final http.Client client;
 
   CompletionRemoteDataSource({http.Client? client})
-      : client = client ?? http.Client();
+    : client = client ?? http.Client();
 
   Future<RepairRequestModel> uploadImages({
     required String token,
@@ -35,9 +36,11 @@ class CompletionRemoteDataSource {
       final mediaType = extension == 'png'
           ? MediaType('image', 'png')
           : extension == 'webp'
-              ? MediaType('image', 'webp')
-              : MediaType('image', 'jpeg');
-      final fileName = image.name.contains('.') ? image.name : '${image.name}.jpg';
+          ? MediaType('image', 'webp')
+          : MediaType('image', 'jpeg');
+      final fileName = image.name.contains('.')
+          ? image.name
+          : '${image.name}.jpg';
 
       request.files.add(
         http.MultipartFile.fromBytes(
@@ -62,5 +65,48 @@ class CompletionRemoteDataSource {
     }
 
     throw Exception(data['message'] ?? 'Upload ảnh sau khi sửa thất bại');
+  }
+
+  Future<CompletionQrModel> generateCompletionQr({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await client.post(
+      Uri.parse(ApiEndpoints.completionQr(requestId)),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+    );
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      final rawQr = data['data']?['confirmationQr'];
+      if (rawQr is Map<String, dynamic>) {
+        return CompletionQrModel.fromJson(rawQr);
+      }
+      throw Exception('Không nhận được dữ liệu QR nghiệm thu');
+    }
+
+    throw Exception(data['message'] ?? 'Không thể tạo QR nghiệm thu');
+  }
+
+  Future<void> confirmCompletion({
+    required String token,
+    required String requestId,
+    required String qrToken,
+    required int amount,
+  }) async {
+    final response = await client.post(
+      Uri.parse(ApiEndpoints.confirmCompletion(requestId)),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({'token': qrToken, 'amount': amount}),
+    );
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode == 200 && data['success'] == true) return;
+
+    throw Exception(data['message'] ?? 'Không thể xác nhận nghiệm thu');
   }
 }
