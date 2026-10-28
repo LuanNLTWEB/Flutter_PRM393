@@ -10,8 +10,10 @@ class InvoiceModel {
   final double total;
   final String requestStatus;
   final List<String> completionImages;
+  final List<String> partsInvoiceImages;
   final String? paymentMethod;
   final String paymentStatus;
+  final DateTime? paidAt;
 
   const InvoiceModel({
     required this.requestId,
@@ -25,8 +27,10 @@ class InvoiceModel {
     required this.total,
     required this.requestStatus,
     required this.completionImages,
+    this.partsInvoiceImages = const [],
     required this.paymentMethod,
     required this.paymentStatus,
+    this.paidAt,
   });
 
   factory InvoiceModel.fromJson(Map<String, dynamic> json) {
@@ -45,19 +49,25 @@ class InvoiceModel {
       completionImages: json['completionImages'] != null
           ? List<String>.from(json['completionImages'])
           : const [],
+      partsInvoiceImages: json['partsInvoiceImages'] != null
+          ? List<String>.from(json['partsInvoiceImages'])
+          : const [],
       paymentMethod: json['paymentMethod']?.toString(),
       paymentStatus: json['paymentStatus']?.toString() ?? 'UNPAID',
+      paidAt: json['paidAt'] != null
+          ? DateTime.tryParse(json['paidAt'].toString())
+          : null,
     );
   }
+
+  bool get isPaid => paymentStatus == 'PAID';
 
   String get paymentMethodLabel {
     switch (paymentMethod) {
       case 'CASH':
-        return 'Tiền mặt';
-      case 'BANK_TRANSFER':
-        return 'Chuyển khoản QR';
+        return 'Tiền mặt tại chỗ';
       default:
-        return 'Chưa chọn';
+        return 'Chưa xác nhận';
     }
   }
 }

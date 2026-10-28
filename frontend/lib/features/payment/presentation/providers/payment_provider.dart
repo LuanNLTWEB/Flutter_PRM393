@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../data/datasources/payment_remote_datasource.dart';
 import '../../data/models/invoice_model.dart';
@@ -23,8 +24,6 @@ class PaymentProvider extends ChangeNotifier {
     required String token,
     required String requestId,
   }) async {
-    // Provider được dùng chung trong toàn app; không để hóa đơn của đơn trước
-    // hiển thị nhầm khi mở một request khác hoặc khi request mới bị lỗi.
     _invoice = null;
     _isLoading = true;
     _errorMessage = null;
@@ -46,7 +45,7 @@ class PaymentProvider extends ChangeNotifier {
   Future<bool> selectPaymentMethod({
     required String token,
     required String requestId,
-    required String paymentMethod,
+    String paymentMethod = 'CASH',
   }) async {
     _isSubmitting = true;
     _errorMessage = null;
@@ -57,6 +56,54 @@ class PaymentProvider extends ChangeNotifier {
         token: token,
         requestId: requestId,
         paymentMethod: paymentMethod,
+      );
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      _isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> uploadPartsInvoices({
+    required String token,
+    required String requestId,
+    required List<XFile> images,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _invoice = await _dataSource.uploadPartsInvoiceImages(
+        token: token,
+        requestId: requestId,
+        images: images,
+      );
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      _isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> confirmPaymentReceived({
+    required String token,
+    required String requestId,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _invoice = await _dataSource.confirmPaymentReceived(
+        token: token,
+        requestId: requestId,
       );
       return true;
     } catch (e) {
