@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../../../../core/network/api_endpoints.dart';
 import '../models/order_history_model.dart';
 
@@ -7,7 +9,7 @@ class OrderHistoryRemoteDataSource {
   final http.Client client;
 
   OrderHistoryRemoteDataSource({http.Client? client})
-      : client = client ?? http.Client();
+    : client = client ?? http.Client();
 
   /// Lấy danh sách lịch sử đơn hàng
   Future<Map<String, dynamic>> getMyOrders({
@@ -32,14 +34,12 @@ class OrderHistoryRemoteDataSource {
 
       if (response.statusCode == 200 && data['data'] != null) {
         final content = data['data'];
-        final List<OrderHistoryModel> orders = (content['requests'] as List? ?? [])
-            .map((item) => OrderHistoryModel.fromJson(item))
-            .toList();
+        final List<OrderHistoryModel> orders =
+            (content['requests'] as List? ?? [])
+                .map((item) => OrderHistoryModel.fromJson(item))
+                .toList();
 
-        return {
-          'orders': orders,
-          'counts': content['counts'] ?? {},
-        };
+        return {'orders': orders, 'counts': content['counts'] ?? {}};
       } else {
         final message = data['message'] ?? 'Không thể tải lịch sử đơn hàng';
         throw Exception(message);
@@ -74,6 +74,28 @@ class OrderHistoryRemoteDataSource {
 
     if (response.statusCode != 200 || data['success'] != true) {
       throw Exception(data['message'] ?? 'Phản hồi lịch hẹn thất bại');
+    }
+  }
+
+  /// Khách báo hủy tại chỗ để đưa thiết bị về xưởng (UC-WRK-07)
+  Future<void> cancelOnsite({
+    required String token,
+    required String requestId,
+    required String reason,
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.onsiteCancel(requestId)),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'reason': reason}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Báo hủy tại chỗ thất bại');
     }
   }
 }

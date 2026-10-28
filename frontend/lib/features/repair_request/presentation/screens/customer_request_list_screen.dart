@@ -27,11 +27,14 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
   late TabController _tabController;
 
   final List<String> _tabs = [
-    'Chờ báo giá',
-    'Đã chốt thợ',
-    'Đã hủy',
     'Tất cả',
+    'Chờ báo giá',
+    'Đã báo giá',
+    'Đã chốt thợ',
+    'Đã hoàn tất',
+    'Đã hủy',
   ];
+
 
   @override
   void initState() {
@@ -73,27 +76,30 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
     List<RepairRequestModel> list,
     int tabIndex,
   ) {
-    switch (tabIndex) {
-      case 0: // Chờ báo giá (UC-REQ-07)
-        return list
-            .where((r) => r.status == 'OPEN' || r.status == 'QUOTED')
-            .toList();
-      case 1: // Đã chốt thợ
+    final tabName = _tabs[tabIndex];
+    switch (tabName) {
+      case 'Chờ báo giá':
+        return list.where((r) => r.status == 'OPEN').toList();
+      case 'Đã báo giá':
+        return list.where((r) => r.status == 'QUOTED').toList();
+      case 'Đã chốt thợ':
         return list
             .where((r) =>
                 r.status == 'ACCEPTED' ||
                 r.status == 'ON_THE_WAY' ||
                 r.status == 'ARRIVED' ||
-                r.status == 'IN_PROGRESS' ||
-                r.status == 'COMPLETED')
+                r.status == 'IN_PROGRESS')
             .toList();
-      case 2: // Đã hủy
+      case 'Đã hoàn tất':
+        return list.where((r) => r.status == 'COMPLETED').toList();
+      case 'Đã hủy':
         return list.where((r) => r.status == 'CANCELLED').toList();
-      case 3: // Tất cả
+      case 'Tất cả':
       default:
         return list;
     }
   }
+
 
   void _showRequestDetailModal(RepairRequestModel request) {
     showModalBottomSheet(
@@ -364,6 +370,31 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
                         );
                       },
                     ),
+                    if (request.status == 'OPEN' || request.status == 'QUOTED') ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        key: const Key('modal_cancel_request_button'),
+                        icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                        label: const Text(
+                          'Hủy yêu cầu sửa chữa này',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.red.shade300),
+                          minimumSize: const Size.fromHeight(44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showCancelDialog(request);
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -373,6 +404,195 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
       },
     );
   }
+
+  // Hộp thoại xác nhận hủy yêu cầu sửa chữa
+  void _showCancelDialog(RepairRequestModel request) {
+    String selectedReason = 'Đã tự khắc phục được sự cố';
+    final otherReasonController = TextEditingController();
+    bool isOther = false;
+
+    final reasons = [
+      'Đã tự khắc phục được sự cố',
+      'Thời gian không còn phù hợp',
+      'Tôi muốn thay đổi thông tin yêu cầu',
+      'Lý do khác',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final provider = context.watch<RepairRequestProvider>();
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text(
+                    'Hủy yêu cầu sửa chữa',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Bạn có chắc chắn muốn hủy yêu cầu "${request.title}" không?',
+                      style: const TextStyle(fontSize: 14, color: AppTheme.textPrimaryColor),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Vui lòng chọn lý do hủy:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    ...reasons.map((r) {
+                      final isSelected = isOther ? (r == 'Lý do khác') : (selectedReason == r);
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () {
+                          setDialogState(() {
+                            if (r == 'Lý do khác') {
+                              isOther = true;
+                            } else {
+                              isOther = false;
+                              selectedReason = r;
+                            }
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isSelected
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_off,
+                                size: 20,
+                                color: isSelected
+                                    ? AppTheme.primaryColor
+                                    : Colors.grey.shade500,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(r, style: const TextStyle(fontSize: 13)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    if (isOther) ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        key: const Key('cancel_reason_other_input'),
+                        controller: otherReasonController,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          hintText: 'Nhập lý do hủy cụ thể...',
+                          hintStyle: const TextStyle(fontSize: 13),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: provider.isCancelling ? null : () => Navigator.pop(dialogCtx),
+                  child: const Text('Đóng'),
+                ),
+                ElevatedButton(
+                  key: const Key('confirm_cancel_request_button'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: provider.isCancelling
+                      ? null
+                      : () async {
+                          final auth = context.read<AuthProvider>();
+                          final repairProvider = context.read<RepairRequestProvider>();
+                          final messenger = ScaffoldMessenger.of(context);
+                          final token = auth.token ?? '';
+                          final finalReason = isOther
+                              ? (otherReasonController.text.trim().isNotEmpty
+                                  ? otherReasonController.text.trim()
+                                  : 'Lý do khác')
+                              : selectedReason;
+
+                          final success = await repairProvider.cancelRepairRequest(
+                            token: token,
+                            requestId: request.id,
+                            reason: finalReason,
+                          );
+
+                          if (dialogCtx.mounted) {
+                            Navigator.pop(dialogCtx);
+                          }
+                          if (!mounted) return;
+
+                          if (success) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Đã hủy phiếu yêu cầu thành công'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            final cancelIndex = _tabs.indexOf('Đã hủy');
+                            if (cancelIndex != -1) {
+                              _tabController.animateTo(cancelIndex);
+                            }
+                          } else {
+
+                            final err = repairProvider.cancelError ?? 'Không thể hủy yêu cầu';
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(err),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  child: provider.isCancelling
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Xác nhận hủy'),
+                ),
+              ],
+
+            );
+          },
+        );
+      },
+    );
+  }
+
 
   void _showFullImageDialog(String url) {
     showDialog(
@@ -460,6 +680,19 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
             Tab(
               child: Row(
                 children: [
+                  const Text('Tất cả'),
+                  const SizedBox(width: 6),
+                  _buildCountBadge(
+                    allRequests.length,
+                    Colors.blue.shade700,
+                    Colors.blue.shade50,
+                  ),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                children: [
                   const Text('Chờ báo giá'),
                   const SizedBox(width: 6),
                   _buildCountBadge(
@@ -473,10 +706,36 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
             Tab(
               child: Row(
                 children: [
+                  const Text('Đã báo giá'),
+                  const SizedBox(width: 6),
+                  _buildCountBadge(
+                    provider.quotedRequests.length,
+                    Colors.indigo.shade700,
+                    Colors.indigo.shade50,
+                  ),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                children: [
                   const Text('Đã chốt thợ'),
                   const SizedBox(width: 6),
                   _buildCountBadge(
                     provider.acceptedRequests.length,
+                    Colors.teal.shade700,
+                    Colors.teal.shade50,
+                  ),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                children: [
+                  const Text('Đã hoàn tất'),
+                  const SizedBox(width: 6),
+                  _buildCountBadge(
+                    provider.completedRequests.length,
                     Colors.green.shade700,
                     Colors.green.shade50,
                   ),
@@ -496,20 +755,8 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
                 ],
               ),
             ),
-            Tab(
-              child: Row(
-                children: [
-                  const Text('Tất cả'),
-                  const SizedBox(width: 6),
-                  _buildCountBadge(
-                    allRequests.length,
-                    Colors.blue.shade700,
-                    Colors.blue.shade50,
-                  ),
-                ],
-              ),
-            ),
           ],
+
         ),
       ),
       body: provider.isLoadingRequests && allRequests.isEmpty
@@ -595,23 +842,34 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
     if (items.isEmpty) {
       String emptyMessage;
       IconData emptyIcon;
-      switch (tabIndex) {
-        case 0: // Chờ báo giá
-          emptyMessage = 'Bạn chưa có yêu cầu nào đang mở chờ thợ gửi báo giá';
+      final tabName = _tabs[tabIndex];
+      switch (tabName) {
+        case 'Chờ báo giá':
+          emptyMessage = 'Bạn chưa có yêu cầu nào đang chờ thợ gửi báo giá';
           emptyIcon = Icons.hourglass_empty_rounded;
           break;
-        case 1: // Đã chốt
+        case 'Đã báo giá':
+          emptyMessage = 'Chưa có yêu cầu nào nhận được báo giá từ thợ';
+          emptyIcon = Icons.local_offer_outlined;
+          break;
+        case 'Đã chốt thợ':
           emptyMessage = 'Bạn chưa có yêu cầu nào đã chốt thợ';
           emptyIcon = Icons.assignment_turned_in_outlined;
           break;
-        case 2: // Đã hủy
+        case 'Đã hoàn tất':
+          emptyMessage = 'Bạn chưa có yêu cầu nào đã hoàn tất sửa chữa';
+          emptyIcon = Icons.check_circle_outline;
+          break;
+        case 'Đã hủy':
           emptyMessage = 'Không có yêu cầu nào đã hủy';
           emptyIcon = Icons.cancel_presentation_outlined;
           break;
+        case 'Tất cả':
         default:
           emptyMessage = 'Bạn chưa tạo yêu cầu sửa chữa nào';
           emptyIcon = Icons.post_add_outlined;
       }
+
 
       return RefreshIndicator(
         onRefresh: () => _loadRequests(refresh: true),
@@ -689,8 +947,12 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
             key: ValueKey(request.id),
             request: request,
             onDetailPressed: () => _showRequestDetailModal(request),
+            onCancelPressed: (request.status == 'OPEN' || request.status == 'QUOTED')
+                ? () => _showCancelDialog(request)
+                : null,
           );
         },
+
       ),
     );
   }

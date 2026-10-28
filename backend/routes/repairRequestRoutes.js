@@ -4,12 +4,16 @@ const {
   createRepairRequest,
   getMyRepairRequests,
   uploadCompletionImages,
+  cancelRepairRequest,
   confirmAppointment,
   proposeAppointment,
   respondAppointment,
   updateOnTheWay,
   updateArrived,
   updateWorking,
+  declareAdditionalCost,
+  respondAdditionalCost,
+  cancelOnsiteRepair,
 } = require('../controllers/repairRequestController');
 const {
   generateCompletionQr,
@@ -46,6 +50,10 @@ router.post(
 
 // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường (UC-REQ-03, 04, 05)
 router.post('/', authorize('user'), upload.array('images', 5), createRepairRequest);
+
+// Hủy phiếu yêu cầu trước khi chốt thợ (UC-REQ-09)
+router.patch('/:id/cancel', authorize('user'), cancelRepairRequest);
+
 
 // Thợ xác nhận / đổi lịch hẹn (UC-LIC-01)
 router.patch(
@@ -85,6 +93,27 @@ router.patch(
   '/:id/working',
   authorize('technician'),
   updateWorking
+);
+
+// Thợ khai báo chi phí phát sinh (UC-WRK-05)
+router.post(
+  '/:id/costs',
+  authorize('technician'),
+  declareAdditionalCost
+);
+
+// Khách đồng ý / từ chối chi phí phát sinh (UC-WRK-06)
+router.patch(
+  '/:id/costs/:costId',
+  authorize('user'),
+  respondAdditionalCost
+);
+
+// Thợ/Khách báo hủy tại chỗ khi thiết bị quá nặng, cần đưa về xưởng (UC-WRK-07)
+router.patch(
+  '/:id/onsite-cancel',
+  authorize('user', 'technician'),
+  cancelOnsiteRepair
 );
 
 // Tạo đơn hàng hoàn tất mẫu để kiểm thử đánh giá

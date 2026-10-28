@@ -165,19 +165,25 @@ class RepairRequestProvider extends ChangeNotifier {
 
   // Lọc theo trạng thái yêu cầu
   List<RepairRequestModel> get openRequests =>
-      _myRequests.where((r) => r.status == 'OPEN' || r.status == 'QUOTED').toList();
+      _myRequests.where((r) => r.status == 'OPEN').toList();
+
+  List<RepairRequestModel> get quotedRequests =>
+      _myRequests.where((r) => r.status == 'QUOTED').toList();
 
   List<RepairRequestModel> get acceptedRequests => _myRequests
       .where((r) =>
           r.status == 'ACCEPTED' ||
           r.status == 'ON_THE_WAY' ||
           r.status == 'ARRIVED' ||
-          r.status == 'IN_PROGRESS' ||
-          r.status == 'COMPLETED')
+          r.status == 'IN_PROGRESS')
       .toList();
+
+  List<RepairRequestModel> get completedRequests =>
+      _myRequests.where((r) => r.status == 'COMPLETED').toList();
 
   List<RepairRequestModel> get cancelledRequests =>
       _myRequests.where((r) => r.status == 'CANCELLED').toList();
+
 
   // Reset lỗi gửi yêu cầu
   void clearSubmitError() {
@@ -219,4 +225,45 @@ class RepairRequestProvider extends ChangeNotifier {
     _selectedStatusFilter = filter;
     notifyListeners();
   }
+
+  // State hủy yêu cầu sửa chữa
+  bool _isCancelling = false;
+  String? _cancelError;
+
+  bool get isCancelling => _isCancelling;
+  String? get cancelError => _cancelError;
+
+  // Hủy phiếu yêu cầu trước khi chốt thợ
+  Future<bool> cancelRepairRequest({
+    required String token,
+    required String requestId,
+    String? reason,
+  }) async {
+    _isCancelling = true;
+    _cancelError = null;
+    notifyListeners();
+
+    try {
+      final updated = await _dataSource.cancelRepairRequest(
+        token: token,
+        requestId: requestId,
+        reason: reason,
+      );
+
+      final index = _myRequests.indexWhere((r) => r.id == requestId);
+      if (index != -1) {
+        _myRequests[index] = updated;
+      }
+
+      _isCancelling = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isCancelling = false;
+      _cancelError = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
 }
+

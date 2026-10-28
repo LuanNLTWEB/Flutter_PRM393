@@ -7,12 +7,15 @@ import '../../../quotations/presentation/screens/request_quotations_screen.dart'
 class RequestItemCardWidget extends StatelessWidget {
   final RepairRequestModel request;
   final VoidCallback? onDetailPressed;
+  final VoidCallback? onCancelPressed;
 
   const RequestItemCardWidget({
     super.key,
     required this.request,
     this.onDetailPressed,
+    this.onCancelPressed,
   });
+
 
   String _formatDateTime(DateTime dt) {
     final day = dt.day.toString().padLeft(2, '0');
@@ -84,12 +87,137 @@ class RequestItemCardWidget extends StatelessWidget {
     }
   }
 
-  bool get _canViewQuotes =>
-      request.status == 'OPEN' ||
-      request.status == 'QUOTED' ||
-      request.quotesCount > 0;
+  Widget _buildStatusBar(BuildContext context) {
+
+    Color bgColor;
+    Color borderColor;
+    Color iconColor;
+    Color textColor;
+    IconData icon;
+    String message;
+    bool showQuoteButton = false;
+
+    switch (request.status) {
+      case 'CANCELLED':
+        bgColor = Colors.red.shade50;
+        borderColor = Colors.red.shade200;
+        iconColor = Colors.red.shade700;
+        textColor = Colors.red.shade900;
+        icon = Icons.cancel_outlined;
+        message = request.cancellationReason.isNotEmpty
+            ? 'Đã hủy: ${request.cancellationReason}'
+            : 'Yêu cầu sửa chữa đã được hủy';
+        break;
+      case 'COMPLETED':
+        bgColor = Colors.green.shade50;
+        borderColor = Colors.green.shade200;
+        iconColor = Colors.green.shade700;
+        textColor = Colors.green.shade900;
+        icon = Icons.check_circle_outline;
+        message = 'Dịch vụ đã hoàn tất sửa chữa';
+        break;
+      case 'ACCEPTED':
+      case 'ON_THE_WAY':
+      case 'ARRIVED':
+      case 'IN_PROGRESS':
+        bgColor = Colors.teal.shade50;
+        borderColor = Colors.teal.shade200;
+        iconColor = Colors.teal.shade700;
+        textColor = Colors.teal.shade900;
+        icon = Icons.handyman_outlined;
+        message = 'Đã chốt thợ - ${request.statusDisplay}';
+        break;
+      case 'QUOTED':
+        bgColor = Colors.blue.shade50;
+        borderColor = Colors.blue.shade200;
+        iconColor = Colors.blue.shade700;
+        textColor = Colors.blue.shade900;
+        icon = Icons.local_offer_rounded;
+        message = request.quotesCount > 0
+            ? 'Đã có ${request.quotesCount} báo giá từ thợ'
+            : 'Đã nhận báo giá từ thợ';
+        showQuoteButton = true;
+        break;
+      case 'OPEN':
+      default:
+        if (request.quotesCount > 0) {
+          bgColor = Colors.blue.shade50;
+          borderColor = Colors.blue.shade200;
+          iconColor = Colors.blue.shade700;
+          textColor = Colors.blue.shade900;
+          icon = Icons.local_offer_rounded;
+          message = 'Đã có ${request.quotesCount} báo giá từ thợ';
+          showQuoteButton = true;
+        } else {
+          bgColor = Colors.amber.shade50;
+          borderColor = Colors.amber.shade200;
+          iconColor = Colors.amber.shade800;
+          textColor = Colors.amber.shade900;
+          icon = Icons.hourglass_top_rounded;
+          message = 'Đang mở - Chờ thợ gửi báo giá...';
+        }
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (showQuoteButton)
+            TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(0, 28),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: Colors.blue.shade800,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RequestQuotationsScreen(
+                      requestId: request.id,
+                      request: request,
+                    ),
+                  ),
+                );
+              },
+              child: const Row(
+                children: [
+                  Text(
+                    'Xem báo giá',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                  Icon(Icons.chevron_right, size: 16),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   @override
+
   Widget build(BuildContext context) {
     final statusColor = _getStatusColor(request.status);
     final statusBgColor = _getStatusBgColor(request.status);
@@ -305,84 +433,36 @@ class RequestItemCardWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // ── Thanh thông báo báo giá (UC-REQ-07 & UC-QUO-06) ──
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: request.quotesCount > 0
-                        ? Colors.blue.shade50
-                        : Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: request.quotesCount > 0
-                          ? Colors.blue.shade200
-                          : Colors.amber.shade200,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        request.quotesCount > 0
-                            ? Icons.local_offer_rounded
-                            : Icons.hourglass_top_rounded,
-                        size: 16,
-                        color: request.quotesCount > 0
-                            ? Colors.blue.shade700
-                            : Colors.amber.shade800,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          request.quotesCount > 0
-                              ? 'Đã có ${request.quotesCount} báo giá từ thợ'
-                              : 'Đang mở - Chờ thợ gửi báo giá...',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: request.quotesCount > 0
-                                ? Colors.blue.shade900
-                                : Colors.amber.shade900,
-                          ),
-                        ),
-                      ),
-                      if (_canViewQuotes)
-                        TextButton(
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            minimumSize: const Size(0, 28),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            foregroundColor: Colors.blue.shade800,
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RequestQuotationsScreen(
-                                  requestId: request.id,
-                                  request: request,
-                                ),
-                              ),
-                            );
-                          },
-                          child: const Row(
-                            children: [
-                              Text(
-                                'Xem báo giá',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                              ),
-                              Icon(Icons.chevron_right, size: 16),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+                _buildStatusBar(context),
                 const SizedBox(height: 10),
+
 
                 // ── Nút Thao tác ──
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    if ((request.status == 'OPEN' || request.status == 'QUOTED') &&
+                        onCancelPressed != null) ...[
+                      OutlinedButton.icon(
+                        key: ValueKey('cancel_button_${request.id}'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red.shade700,
+                          side: BorderSide(color: Colors.red.shade300),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: const Icon(Icons.cancel_outlined, size: 14),
+                        label: const Text(
+                          'Hủy yêu cầu',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        onPressed: onCancelPressed,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         foregroundColor: AppTheme.primaryColor,
@@ -395,6 +475,7 @@ class RequestItemCardWidget extends StatelessWidget {
                     ),
                   ],
                 ),
+
               ],
             ),
           ),

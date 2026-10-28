@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../../../../core/network/api_endpoints.dart';
 import '../../../repair_request/data/models/repair_request_model.dart';
 
@@ -25,13 +27,13 @@ class NearbyRequestRemoteDataSource {
   final http.Client client;
 
   NearbyRequestRemoteDataSource({http.Client? client})
-      : client = client ?? http.Client();
+    : client = client ?? http.Client();
 
   Map<String, String> _headers(String token) => {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-      };
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+  };
 
   Map<String, dynamic> _decode(http.Response response) {
     final data = json.decode(utf8.decode(response.bodyBytes));
@@ -65,9 +67,8 @@ class NearbyRequestRemoteDataSource {
       if (radiusKm != null) 'radiusKm': radiusKm.toString(),
     };
 
-    final uri = Uri.parse(ApiEndpoints.nearbyRequests).replace(
-      queryParameters: query.isEmpty ? null : query,
-    );
+    final uri = Uri.parse(ApiEndpoints.nearbyRequests)
+        .replace(queryParameters: query.isEmpty ? null : query);
 
     final response = await client.get(uri, headers: _headers(token));
 
@@ -166,7 +167,9 @@ class NearbyRequestRemoteDataSource {
 
     final data = _decode(response);
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Cập nhật trạng thái di chuyển thất bại');
+      throw Exception(
+        data['message'] ?? 'Cập nhật trạng thái di chuyển thất bại',
+      );
     }
   }
 
@@ -182,7 +185,9 @@ class NearbyRequestRemoteDataSource {
 
     final data = _decode(response);
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Cập nhật trạng thái đã có mặt thất bại');
+      throw Exception(
+        data['message'] ?? 'Cập nhật trạng thái đã có mặt thất bại',
+      );
     }
   }
 
@@ -198,7 +203,73 @@ class NearbyRequestRemoteDataSource {
 
     final data = _decode(response);
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Cập nhật trạng thái bắt đầu sửa chữa thất bại');
+      throw Exception(
+        data['message'] ?? 'Cập nhật trạng thái bắt đầu sửa chữa thất bại',
+      );
     }
+  }
+
+  /// Thợ báo hủy tại chỗ khi thiết bị quá nặng, cần đưa về xưởng (UC-WRK-07)
+  Future<void> cancelOnsite({
+    required String token,
+    required String requestId,
+    required String reason,
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.onsiteCancel(requestId)),
+      headers: _headers(token),
+      body: json.encode({'reason': reason}),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Báo hủy tại chỗ thất bại');
+    }
+  }
+
+  /// Thợ khai báo chi phí phát sinh — nhiều mục/lần (UC-WRK-05)
+  Future<List<Map<String, dynamic>>> declareAdditionalCost({
+    required String token,
+    required String requestId,
+    required List<Map<String, dynamic>> items,
+    String note = '',
+  }) async {
+    final response = await client.post(
+      Uri.parse(ApiEndpoints.declareCost(requestId)),
+      headers: _headers(token),
+      body: jsonEncode({'items': items, 'note': note}),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 201 || data['success'] != true) {
+      throw Exception(data['message'] ?? 'Khai báo chi phí phát sinh thất bại');
+    }
+    final rawList = data['data']?['costs'];
+    return (rawList is List ? rawList : const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  }
+
+  /// Khách đồng ý / từ chối chi phí phát sinh (UC-WRK-06)
+  Future<Map<String, dynamic>> respondAdditionalCost({
+    required String token,
+    required String requestId,
+    required String costId,
+    required String action, // 'APPROVE' | 'REJECT'
+    String note = '',
+  }) async {
+    final response = await client.patch(
+      Uri.parse(ApiEndpoints.respondCost(requestId, costId)),
+      headers: _headers(token),
+      body: jsonEncode({'action': action, 'note': note}),
+    );
+
+    final data = _decode(response);
+    if (response.statusCode != 200 || data['success'] != true) {
+      throw Exception(
+        data['message'] ?? 'Phê duyệt chi phí phát sinh thất bại',
+      );
+    }
+    return (data['data']?['cost'] as Map<String, dynamic>?) ?? {};
   }
 }

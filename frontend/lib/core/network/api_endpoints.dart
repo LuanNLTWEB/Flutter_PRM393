@@ -67,6 +67,19 @@ class ApiEndpoints {
   static String onTheWay(String id) => '$baseUrl/requests/$id/on-the-way';
   static String arrived(String id) => '$baseUrl/requests/$id/arrived';
   static String working(String id) => '$baseUrl/requests/$id/working';
+  static String onsiteCancel(String id) =>
+      '$baseUrl/requests/$id/onsite-cancel';
+  static String declareCost(String id) => '$baseUrl/requests/$id/costs';
+  static String respondCost(String id, String costId) =>
+      '$baseUrl/requests/$id/costs/$costId';
+
+  // Hóa đơn & dữ liệu offline (UC-OFF-01)
+  static const String myInvoices = '$baseUrl/invoices/my';
+
+  // Tiếp nhận & xử lý khiếu nại (UC-STF-03)
+  static const String complaints = '$baseUrl/complaints';
+  static const String manageComplaints = '$baseUrl/complaints/manage';
+  static String handleComplaint(String id) => '$baseUrl/complaints/$id/handle';
 
   static const String repairRequests = requests;
   static const String myRepairRequests = myRequests;

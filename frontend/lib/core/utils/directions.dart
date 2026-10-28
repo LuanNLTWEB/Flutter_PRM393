@@ -1,5 +1,16 @@
 import 'package:url_launcher/url_launcher.dart';
 
+/// Dọn chuỗi địa chỉ trước khi gửi cho Google Maps geocode.
+///
+/// Chỉ cắt hậu tố liên hệ ` (Tên - 0912345678)` (được nối vào field `address`
+/// khi tạo yêu cầu) — phần địa chỉ giữ nguyên.
+String cleanAddressForMaps(String address) {
+  var cleaned = address.trim();
+  // Cắt nhóm ngoặc cuối chứa số điện thoại: " (Phúc An - 0912345678)"
+  cleaned = cleaned.replaceFirst(RegExp(r'\s*\([^()]*\d{6,}[^()]*\)\s*$'), '');
+  return cleaned.trim();
+}
+
 /// Mở Google Maps (app hoặc web) chỉ đường tới nhà khách — UC-MAP-01.
 ///
 /// Ưu tiên tọa độ [latitude]/[longitude] nếu có; không thì dùng [address]
@@ -13,7 +24,9 @@ Future<bool> openGoogleMapsDirections({
   if (latitude != null && longitude != null) {
     destination = '$latitude,$longitude';
   } else if (address != null && address.trim().isNotEmpty) {
-    destination = Uri.encodeComponent(address.trim());
+    final cleaned = cleanAddressForMaps(address);
+    if (cleaned.isEmpty) return false;
+    destination = Uri.encodeComponent(cleaned);
   }
   if (destination == null) return false;
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/directions.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -14,7 +15,6 @@ import 'request_detail_screen.dart';
 
 /// Feed yêu cầu sửa chữa đang mở dành cho Thợ (UC-QUO-01)
 /// + bộ lọc danh mục dịch vụ / khẩn cấp (UC-QUO-02)
-/// + tab "Yêu cầu đã báo giá" để xem/sửa/thu hồi báo giá (UC-QUO-05)
 class NearbyRequestsScreen extends StatefulWidget {
   const NearbyRequestsScreen({super.key});
 
@@ -24,7 +24,6 @@ class NearbyRequestsScreen extends StatefulWidget {
 
 class _NearbyRequestsScreenState extends State<NearbyRequestsScreen> {
   String? _selectedSlug;
-  int _activeTab = 0; // 0 = Công khai (OPEN), 1 = Đã báo giá
 
   @override
   void initState() {
@@ -39,57 +38,33 @@ class _NearbyRequestsScreenState extends State<NearbyRequestsScreen> {
     final token = context.read<AuthProvider>().token ?? '';
     if (token.isEmpty) return;
     await context.read<QuotationProvider>().fetchNearbyRequests(
-          token: token,
-          categorySlug: _selectedSlug,
-          refresh: refresh,
-        );
-  }
-
-  Future<void> _loadMyQuotes({bool refresh = false}) async {
-    final token = context.read<AuthProvider>().token ?? '';
-    if (token.isEmpty) return;
-    await context
-        .read<QuotationProvider>()
-        .fetchMyQuotations(token: token, refresh: refresh);
-  }
-
-  void _switchTab(int index) {
-    if (_activeTab == index) return;
-    setState(() => _activeTab = index);
-    if (index == 1) {
-      _loadMyQuotes(refresh: true);
-    } else {
-      _load(refresh: true);
-    }
+      token: token,
+      categorySlug: _selectedSlug,
+      refresh: refresh,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final categories =
-        context.watch<RepairRequestProvider>().rawCategories;
+    final categories = context.watch<RepairRequestProvider>().rawCategories;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_activeTab == 0 ? 'Yêu cầu quanh đây' : 'Yêu cầu đã báo giá'),
+        title: const Text('Yêu cầu quanh đây'),
         actions: [
           IconButton(
             tooltip: 'Làm mới',
             icon: const Icon(Icons.refresh),
-            onPressed: () => _activeTab == 0
-                ? _load(refresh: true)
-                : _loadMyQuotes(refresh: true),
+            onPressed: () => _load(refresh: true),
           ),
         ],
       ),
       body: Column(
         children: [
-          _buildTabs(),
-          if (_activeTab == 0) _buildFilters(categories),
+          _buildFilters(categories),
           Expanded(
             child: Consumer<QuotationProvider>(
               builder: (context, provider, _) {
-                if (_activeTab == 1) return _buildMyQuotes(provider);
-
                 if (provider.isLoading && provider.nearbyRequests.isEmpty) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -126,7 +101,9 @@ class _NearbyRequestsScreenState extends State<NearbyRequestsScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => RequestDetailScreen(
-                                  requestId: request.id, request: request),
+                                requestId: request.id,
+                                request: request,
+                              ),
                             ),
                           );
                           if (context.mounted) _load(refresh: true);
@@ -136,78 +113,6 @@ class _NearbyRequestsScreenState extends State<NearbyRequestsScreen> {
                   ),
                 );
               },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMyQuotes(QuotationProvider provider) {
-    if (provider.isLoading && provider.myQuotes.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (provider.errorMessage != null && provider.myQuotes.isEmpty) {
-      return _ErrorState(
-        message: provider.errorMessage!,
-        onRetry: () => _loadMyQuotes(refresh: true),
-      );
-    }
-
-    if (provider.myQuotes.isEmpty) {
-      return const _MyQuotesEmptyState();
-    }
-
-    return RefreshIndicator(
-      onRefresh: () => _loadMyQuotes(refresh: true),
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-        itemCount: provider.myQuotes.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final item = provider.myQuotes[index];
-          return _MyQuoteCard(
-            item: item,
-            onTap: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => RequestDetailScreen(
-                    requestId: item.request.id,
-                    request: item.request,
-                  ),
-                ),
-              );
-              if (context.mounted) _loadMyQuotes(refresh: true);
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTabs() {
-    return Container(
-      color: AppTheme.surfaceColor,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      child: Row(
-        children: [
-          Expanded(
-            child: _TabButton(
-              label: 'Công khai',
-              icon: Icons.public,
-              selected: _activeTab == 0,
-              onTap: () => _switchTab(0),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _TabButton(
-              label: 'Đã báo giá',
-              icon: Icons.request_quote_outlined,
-              selected: _activeTab == 1,
-              onTap: () => _switchTab(1),
             ),
           ),
         ],
@@ -251,8 +156,11 @@ class _NearbyRequestsScreenState extends State<NearbyRequestsScreen> {
                       label: category.name,
                       selected: _selectedSlug == category.slug,
                       onTap: () {
-                        setState(() => _selectedSlug =
-                            _selectedSlug == category.slug ? null : category.slug);
+                        setState(
+                          () => _selectedSlug = _selectedSlug == category.slug
+                              ? null
+                              : category.slug,
+                        );
                         _load(refresh: true);
                       },
                     ),
@@ -320,7 +228,9 @@ class _LocationHint extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: (hasLocation ? Colors.green : Colors.orange).withValues(alpha: 0.08),
+        color: (hasLocation ? Colors.green : Colors.orange).withValues(
+          alpha: 0.08,
+        ),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -398,9 +308,13 @@ class _RequestCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                    color: urgencyColor(request.urgency).withValues(alpha: 0.12),
+                    color: urgencyColor(request.urgency)
+                        .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -462,7 +376,9 @@ class _RequestCard extends StatelessWidget {
                   if (request.hasQuoted)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
@@ -470,8 +386,11 @@ class _RequestCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.check_circle,
-                              size: 12, color: AppTheme.primaryColor),
+                          const Icon(
+                            Icons.check_circle,
+                            size: 12,
+                            color: AppTheme.primaryColor,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'Đã báo giá của bạn',
@@ -487,7 +406,9 @@ class _RequestCard extends StatelessWidget {
                   if (request.quotesCount > 0)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.secondaryColor.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(6),
@@ -509,8 +430,11 @@ class _RequestCard extends StatelessWidget {
               children: [
                 if (request.location.address.isNotEmpty) ...[
                   // Đã được chốt — thấy địa chỉ + nút mở Google Maps (UC-MAP-01)
-                  const Icon(Icons.location_on_outlined,
-                      size: 14, color: AppTheme.primaryColor),
+                  const Icon(
+                    Icons.location_on_outlined,
+                    size: 14,
+                    color: AppTheme.primaryColor,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -535,18 +459,25 @@ class _RequestCard extends StatelessWidget {
                     label: const Text(
                       'Chỉ đường',
                       style: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w700),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     onPressed: () => _openDirections(context),
                   ),
                 ] else ...[
-                  const Icon(Icons.lock_outline,
-                      size: 14, color: AppTheme.textSecondaryColor),
+                  const Icon(
+                    Icons.lock_outline,
+                    size: 14,
+                    color: AppTheme.textSecondaryColor,
+                  ),
                   const SizedBox(width: 4),
                   const Text(
                     'Địa chỉ & SĐT ẩn đến khi được chốt',
                     style: TextStyle(
-                        fontSize: 11, color: AppTheme.textSecondaryColor),
+                      fontSize: 11,
+                      color: AppTheme.textSecondaryColor,
+                    ),
                   ),
                 ],
                 const Spacer(),
@@ -567,6 +498,8 @@ class _RequestCard extends StatelessWidget {
   }
 }
 
+// Kept for the quotation-card UI shared by the technician workflow.
+// ignore: unused_element
 class _TabButton extends StatelessWidget {
   final String label;
   final IconData icon;
@@ -599,7 +532,11 @@ class _TabButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: selected ? Colors.white : AppTheme.primaryColor),
+            Icon(
+              icon,
+              size: 16,
+              color: selected ? Colors.white : AppTheme.primaryColor,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
@@ -616,6 +553,9 @@ class _TabButton extends StatelessWidget {
   }
 }
 
+// The quotation-card UI remains available for the technician workflow,
+// while its former standalone tab is no longer shown.
+// ignore: unused_element
 class _MyQuoteCard extends StatelessWidget {
   final MyQuotationItem item;
   final VoidCallback onTap;
@@ -661,8 +601,11 @@ class _MyQuoteCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.event_available_outlined,
-                  size: 16, color: Colors.blue),
+              const Icon(
+                Icons.event_available_outlined,
+                size: 16,
+                color: Colors.blue,
+              ),
               const SizedBox(width: 6),
               const Text(
                 'Lịch hẹn',
@@ -674,11 +617,9 @@ class _MyQuoteCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: _appointmentStatusColor
-                      .withValues(alpha: 0.1),
+                  color: _appointmentStatusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -696,8 +637,11 @@ class _MyQuoteCard extends StatelessWidget {
           if (request.preferredTime != null)
             Row(
               children: [
-                const Icon(Icons.schedule, size: 14,
-                    color: AppTheme.textSecondaryColor),
+                const Icon(
+                  Icons.schedule,
+                  size: 14,
+                  color: AppTheme.textSecondaryColor,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   'Giờ khách đề xuất: ${_formatDateTime(request.preferredTime!)}',
@@ -722,8 +666,7 @@ class _MyQuoteCard extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.swap_horiz, size: 14,
-                    color: Colors.orange.shade700),
+                Icon(Icons.swap_horiz, size: 14, color: Colors.orange.shade700),
                 const SizedBox(width: 4),
                 Text(
                   'Đề xuất của bạn: ${_formatDateTime(request.proposedTime!)}',
@@ -758,14 +701,16 @@ class _MyQuoteCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.red.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
-                border:
-                    Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.cancel_outlined,
-                      size: 14, color: Colors.red.shade700),
+                  Icon(
+                    Icons.cancel_outlined,
+                    size: 14,
+                    color: Colors.red.shade700,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -791,14 +736,16 @@ class _MyQuoteCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.red.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
-                  border:
-                      Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline,
-                        size: 14, color: Colors.red.shade700),
+                    Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: Colors.red.shade700,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -824,8 +771,11 @@ class _MyQuoteCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.hourglass_top,
-                        size: 14, color: Colors.orange.shade800),
+                    Icon(
+                      Icons.hourglass_top,
+                      size: 14,
+                      color: Colors.orange.shade800,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -856,7 +806,9 @@ class _MyQuoteCard extends StatelessWidget {
                   label: const Text(
                     'Đề xuất khung giờ khác',
                     style: TextStyle(
-                        fontSize: 12.5, fontWeight: FontWeight.w700),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   onPressed: provider.isSubmitting
                       ? null
@@ -880,7 +832,9 @@ class _MyQuoteCard extends StatelessWidget {
                       label: const Text(
                         'Đổi lịch hẹn',
                         style: TextStyle(
-                            fontSize: 12.5, fontWeight: FontWeight.w700),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       onPressed: provider.isSubmitting
                           ? null
@@ -903,9 +857,12 @@ class _MyQuoteCard extends StatelessWidget {
                       label: const Text(
                         'Đồng ý giờ hẹn',
                         style: TextStyle(
-                            fontSize: 12.5, fontWeight: FontWeight.w700),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      onPressed: (provider.isSubmitting ||
+                      onPressed:
+                          (provider.isSubmitting ||
                               request.preferredTime == null ||
                               _isPreferredTimePast)
                           ? null
@@ -932,8 +889,7 @@ class _MyQuoteCard extends StatelessWidget {
                 icon: const Icon(Icons.navigation, size: 16),
                 label: const Text(
                   'Đang trên đường đến nhà khách',
-                  style: TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
                 ),
                 onPressed: provider.isSubmitting
                     ? null
@@ -953,8 +909,7 @@ class _MyQuoteCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.navigation,
-                      size: 14, color: Colors.blue.shade700),
+                  Icon(Icons.navigation, size: 14, color: Colors.blue.shade700),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -985,8 +940,7 @@ class _MyQuoteCard extends StatelessWidget {
                 icon: const Icon(Icons.place_outlined, size: 16),
                 label: const Text(
                   'Đã có mặt tại hiện trường',
-                  style: TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
                 ),
                 onPressed: provider.isSubmitting
                     ? null
@@ -1006,8 +960,11 @@ class _MyQuoteCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.place_outlined,
-                      size: 14, color: Colors.amber.shade800),
+                  Icon(
+                    Icons.place_outlined,
+                    size: 14,
+                    color: Colors.amber.shade800,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -1038,8 +995,7 @@ class _MyQuoteCard extends StatelessWidget {
                 icon: const Icon(Icons.build_outlined, size: 16),
                 label: const Text(
                   'Bắt đầu sửa chữa',
-                  style: TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
                 ),
                 onPressed: provider.isSubmitting
                     ? null
@@ -1059,8 +1015,11 @@ class _MyQuoteCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.home_repair_service_outlined,
-                      size: 14, color: Colors.indigo.shade700),
+                  Icon(
+                    Icons.home_repair_service_outlined,
+                    size: 14,
+                    color: Colors.indigo.shade700,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -1073,6 +1032,54 @@ class _MyQuoteCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+            // Chi phí phát sinh đã khai báo (UC-WRK-05)
+            if (request.additionalCosts.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ...request.additionalCosts.map(_buildCostTile),
+            ],
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.orange.shade800,
+                  side: BorderSide(color: Colors.orange.shade400),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.add_card_outlined, size: 16),
+                label: const Text(
+                  'Khai báo chi phí phát sinh',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                onPressed: provider.isSubmitting
+                    ? null
+                    : () => _declareAdditionalCost(context),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red.shade700,
+                  side: BorderSide(color: Colors.red.shade300),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: provider.isSubmitting
+                    ? null
+                    : () => _cancelOnsite(context),
+                child: const Text(
+                  'Báo hủy tại chỗ',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ],
@@ -1189,7 +1196,8 @@ class _MyQuoteCard extends StatelessWidget {
         content: Text(
           ok
               ? (provider.successMessage ?? 'Đã cập nhật trạng thái di chuyển')
-              : (provider.errorMessage ?? 'Cập nhật trạng thái di chuyển thất bại'),
+              : (provider.errorMessage ??
+                    'Cập nhật trạng thái di chuyển thất bại'),
         ),
         backgroundColor: ok ? Colors.blue.shade700 : Colors.red.shade600,
       ),
@@ -1238,7 +1246,8 @@ class _MyQuoteCard extends StatelessWidget {
         content: Text(
           ok
               ? (provider.successMessage ?? 'Đã cập nhật trạng thái đã có mặt')
-              : (provider.errorMessage ?? 'Cập nhật trạng thái đã có mặt thất bại'),
+              : (provider.errorMessage ??
+                    'Cập nhật trạng thái đã có mặt thất bại'),
         ),
         backgroundColor: ok ? Colors.indigo.shade700 : Colors.red.shade600,
       ),
@@ -1290,6 +1299,192 @@ class _MyQuoteCard extends StatelessWidget {
               : (provider.errorMessage ?? 'Cập nhật trạng thái thất bại'),
         ),
         backgroundColor: ok ? Colors.teal.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
+  Widget _buildCostTile(AdditionalCostModel cost) {
+    final Color borderColor;
+    final Color statusColor;
+    switch (cost.status) {
+      case 'APPROVED':
+        borderColor = Colors.green.shade300;
+        statusColor = Colors.green.shade800;
+        break;
+      case 'REJECTED':
+        borderColor = Colors.red.shade200;
+        statusColor = Colors.red.shade700;
+        break;
+      case 'PENDING':
+      default:
+        borderColor = Colors.orange.shade300;
+        statusColor = Colors.orange.shade900;
+        break;
+    }
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${cost.name} x${cost.quantity}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${formatVnd(cost.unitPrice)}/cái',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  'Thành tiền: ${formatVnd(cost.total)}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: borderColor),
+            ),
+            child: Text(
+              cost.statusDisplay,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: statusColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Thợ khai báo chi phí phát sinh — nhiều mục trong 1 lần (UC-WRK-05)
+  Future<void> _declareAdditionalCost(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => const _DeclareCostDialog(),
+    );
+    if (result == null || !context.mounted) return;
+
+    final items = (result['items'] as List).cast<Map<String, dynamic>>();
+    final note = result['note'] as String? ?? '';
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.declareAdditionalCost(
+      token: token,
+      requestId: item.request.id,
+      items: items,
+      note: note,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đã khai báo chi phí phát sinh')
+              : (provider.errorMessage ?? 'Khai báo chi phí thất bại'),
+        ),
+        backgroundColor: ok ? Colors.orange.shade700 : Colors.red.shade600,
+      ),
+    );
+  }
+
+  Future<void> _cancelOnsite(BuildContext context) async {
+    final token = context.read<AuthProvider>().token ?? '';
+    if (token.isEmpty) return;
+
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Báo hủy tại chỗ?'),
+        content: TextField(
+          controller: reasonController,
+          autofocus: true,
+          maxLength: 300,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'Lý do hủy *',
+            hintText: 'VD: Thiết bị hư hỏng quá nặng, cần kiểm tra thêm',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Để sau'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              final value = reasonController.text.trim();
+              if (value.length < 10) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Lý do phải có ít nhất 10 ký tự'),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Xác nhận hủy'),
+          ),
+        ],
+      ),
+    );
+    reasonController.dispose();
+    if (reason == null || !context.mounted) return;
+
+    final provider = context.read<QuotationProvider>();
+    final ok = await provider.cancelOnsite(
+      token: token,
+      requestId: item.request.id,
+      reason: reason,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (provider.successMessage ?? 'Đã báo hủy tại chỗ')
+              : (provider.errorMessage ?? 'Báo hủy tại chỗ thất bại'),
+        ),
+        backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade600,
       ),
     );
   }
@@ -1356,7 +1551,8 @@ class _MyQuoteCard extends StatelessWidget {
                       maxLength: 300,
                       decoration: const InputDecoration(
                         labelText: 'Lý do đổi lịch (không bắt buộc)',
-                        hintText: 'VD: Tôi bận khung giờ đó, đề xuất 14h cùng ngày',
+                        hintText:
+                            'VD: Tôi bận khung giờ đó, đề xuất 14h cùng ngày',
                         border: OutlineInputBorder(),
                         counterText: '',
                       ),
@@ -1379,7 +1575,9 @@ class _MyQuoteCard extends StatelessWidget {
                         child: const Text(
                           'Gửi đề xuất',
                           style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.bold),
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -1408,8 +1606,7 @@ class _MyQuoteCard extends StatelessWidget {
     if (proposed.isBefore(now.add(const Duration(minutes: 15)))) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Khung giờ đề xuất cần cách hiện tại ít nhất 15 phút'),
+          content: Text('Khung giờ đề xuất cần cách hiện tại ít nhất 15 phút'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1473,9 +1670,13 @@ class _MyQuoteCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
-                    color: urgencyColor(request.urgency).withValues(alpha: 0.12),
+                    color: urgencyColor(request.urgency)
+                        .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -1548,7 +1749,10 @@ class _MyQuoteCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: _quoteStatusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
@@ -1566,8 +1770,12 @@ class _MyQuoteCard extends StatelessWidget {
             ),
             // Chỉ hiện khu vực lịch hẹn khi đơn đang trong tiến trình xử lý
             if (isWon &&
-                ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS']
-                    .contains(request.status))
+                [
+                  'ACCEPTED',
+                  'ON_THE_WAY',
+                  'ARRIVED',
+                  'IN_PROGRESS',
+                ].contains(request.status))
               _buildAppointmentSection(context),
           ],
         ),
@@ -1576,6 +1784,7 @@ class _MyQuoteCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _MyQuotesEmptyState extends StatelessWidget {
   const _MyQuotesEmptyState();
 
@@ -1584,8 +1793,11 @@ class _MyQuotesEmptyState extends StatelessWidget {
     return ListView(
       children: const [
         SizedBox(height: 80),
-        Icon(Icons.request_quote_outlined,
-            size: 64, color: AppTheme.textSecondaryColor),
+        Icon(
+          Icons.request_quote_outlined,
+          size: 64,
+          color: AppTheme.textSecondaryColor,
+        ),
         SizedBox(height: 12),
         Center(
           child: Text(
@@ -1613,7 +1825,11 @@ class _EmptyState extends StatelessWidget {
     return ListView(
       children: const [
         SizedBox(height: 80),
-        Icon(Icons.inbox_outlined, size: 64, color: AppTheme.textSecondaryColor),
+        Icon(
+          Icons.inbox_outlined,
+          size: 64,
+          color: AppTheme.textSecondaryColor,
+        ),
         SizedBox(height: 12),
         Center(
           child: Text(
@@ -1647,8 +1863,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline,
-                size: 56, color: AppTheme.textSecondaryColor),
+            const Icon(
+              Icons.error_outline,
+              size: 56,
+              color: AppTheme.textSecondaryColor,
+            ),
             const SizedBox(height: 12),
             Text(
               message,
@@ -1660,6 +1879,242 @@ class _ErrorState extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 1 dòng nhập phụ tùng trong dialog khai báo chi phí
+class _CostDraftRow {
+  final nameCtrl = TextEditingController();
+  final qtyCtrl = TextEditingController();
+  final priceCtrl = TextEditingController();
+
+  void dispose() {
+    nameCtrl.dispose();
+    qtyCtrl.dispose();
+    priceCtrl.dispose();
+  }
+}
+
+/// Dialog khai báo nhiều hạng mục chi phí phát sinh trong 1 lần (UC-WRK-05)
+/// Trả về `{'items': List<Map<String, dynamic>>, 'note': String}` hoặc null nếu hủy.
+class _DeclareCostDialog extends StatefulWidget {
+  const _DeclareCostDialog();
+
+  @override
+  State<_DeclareCostDialog> createState() => _DeclareCostDialogState();
+}
+
+class _DeclareCostDialogState extends State<_DeclareCostDialog> {
+  static const int _maxRows = 20;
+
+  final List<_CostDraftRow> _rows = [_CostDraftRow()];
+  final TextEditingController _noteCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    for (final row in _rows) {
+      row.dispose();
+    }
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
+  num get _total => _rows.fold<num>(0, (sum, row) {
+    final qty = int.tryParse(row.qtyCtrl.text.trim()) ?? 0;
+    final price = parseVndInput(row.priceCtrl.text) ?? 0;
+    return sum + (qty > 0 ? price * qty : 0);
+  });
+
+  void _submit() {
+    final items = <Map<String, dynamic>>[];
+    for (var i = 0; i < _rows.length; i++) {
+      final row = _rows[i];
+      final name = row.nameCtrl.text.trim();
+      final qty = int.tryParse(row.qtyCtrl.text.trim()) ?? 0;
+      final price = parseVndInput(row.priceCtrl.text);
+      if (name.isEmpty || qty < 1 || price == null || price <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Hạng mục ${i + 1}: vui lòng nhập tên, số lượng ≥ 1 và đơn giá hợp lệ',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      items.add({'name': name, 'quantity': qty, 'unitPrice': price});
+    }
+    Navigator.pop(context, {'items': items, 'note': _noteCtrl.text.trim()});
+  }
+
+  Widget _buildRow(int index) {
+    final row = _rows[index];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(10, 6, 4, 8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Hạng mục ${index + 1}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.close, size: 18, color: Colors.red.shade400),
+                tooltip: 'Xóa hạng mục',
+                onPressed: _rows.length <= 1
+                    ? null
+                    : () {
+                        setState(() {
+                          _rows.removeAt(index).dispose();
+                        });
+                      },
+              ),
+            ],
+          ),
+          TextField(
+            controller: row.nameCtrl,
+            maxLength: 200,
+            style: const TextStyle(fontSize: 13.5),
+            decoration: const InputDecoration(
+              labelText: 'Phụ tùng / hạng mục *',
+              hintText: 'VD: Cụm van nước nóng',
+              border: OutlineInputBorder(),
+              isDense: true,
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              SizedBox(
+                width: 70,
+                child: TextField(
+                  controller: row.qtyCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 13.5),
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'SL *',
+                    hintText: 'VD: 1',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: row.priceCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 13.5),
+                  inputFormatters: [const ThousandsSeparatorFormatter()],
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Đơn giá (₫) *',
+                    hintText: 'VD: 250.000',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Khai báo chi phí phát sinh'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < _rows.length; i++) _buildRow(i),
+              if (_rows.length < _maxRows)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => setState(() => _rows.add(_CostDraftRow())),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Thêm hạng mục'),
+                  ),
+                ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Tổng cộng:',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    formatVnd(_total),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _noteCtrl,
+                maxLength: 300,
+                maxLines: 2,
+                style: const TextStyle(fontSize: 13.5),
+                decoration: const InputDecoration(
+                  labelText: 'Ghi chú chung (tùy chọn)',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  counterText: '',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange.shade700,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: _submit,
+          child: Text('Gửi khai báo (${_rows.length} mục)'),
+        ),
+      ],
     );
   }
 }

@@ -14,6 +14,8 @@ import 'features/completion/presentation/providers/completion_provider.dart';
 import 'features/payment/presentation/providers/payment_provider.dart';
 import 'features/notification/presentation/providers/notification_provider.dart';
 import 'features/notification/services/local_notification_service.dart';
+import 'features/invoice/presentation/providers/invoice_provider.dart';
+import 'features/complaint/presentation/providers/complaint_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,8 +43,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CompletionProvider()),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => InvoiceProvider()),
+        ChangeNotifierProvider(create: (_) => ComplaintProvider()),
       ],
-
       child: MaterialApp(
         title: 'HomeFix',
         debugShowCheckedModeBanner: false,

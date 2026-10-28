@@ -1,3 +1,5 @@
+import '../../../repair_request/data/models/repair_request_model.dart';
+
 class OrderHistoryModel {
   final String id;
   final String title;
@@ -20,6 +22,9 @@ class OrderHistoryModel {
   final String rescheduleNote;
   final String rescheduleRejectNote;
 
+  /// Chi phí phát sinh Thợ khai báo (UC-WRK-05 / UC-WRK-06)
+  final List<AdditionalCostModel> additionalCosts;
+
   OrderHistoryModel({
     required this.id,
     required this.title,
@@ -41,6 +46,7 @@ class OrderHistoryModel {
     this.proposedTime,
     this.rescheduleNote = '',
     this.rescheduleRejectNote = '',
+    this.additionalCosts = const [],
   });
 
   factory OrderHistoryModel.fromJson(Map<String, dynamic> json) {
@@ -100,6 +106,12 @@ class OrderHistoryModel {
           : null,
       rescheduleNote: (json['rescheduleNote'] ?? '').toString(),
       rescheduleRejectNote: (json['rescheduleRejectNote'] ?? '').toString(),
+      additionalCosts: (json['additionalCosts'] is List)
+          ? (json['additionalCosts'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map(AdditionalCostModel.fromJson)
+              .toList()
+          : const [],
     );
   }
 
@@ -127,4 +139,17 @@ class OrderHistoryModel {
   }
 
   bool get isCompleted => status == 'COMPLETED';
+
+  String get urgencyDisplay {
+    switch (urgency) {
+      case 'high':
+        return 'Khẩn cấp';
+      case 'medium':
+        return 'Trung bình';
+      case 'low':
+        return 'Thấp';
+      default:
+        return 'Trung bình';
+    }
+  }
 }
