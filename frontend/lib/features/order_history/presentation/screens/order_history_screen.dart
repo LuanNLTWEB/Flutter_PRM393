@@ -11,6 +11,8 @@ import '../../data/models/order_history_model.dart';
 import '../providers/order_history_provider.dart';
 import '../../../repair_request/presentation/screens/service_category_screen.dart';
 import '../../../completion/presentation/screens/upload_completion_images_screen.dart';
+import '../../../completion/presentation/screens/completion_qr_screen.dart';
+import '../../../completion/presentation/screens/scan_completion_qr_screen.dart';
 import '../../../payment/presentation/screens/invoice_screen.dart';
 import '../../../quotations/presentation/screens/request_detail_screen.dart';
 
@@ -250,8 +252,19 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
         currentUser?.role == 'technician' &&
         currentUser?.id == order.assignedTechnicianId &&
         (order.status == 'ACCEPTED' || order.status == 'IN_PROGRESS');
-    final canViewInvoice =
+    final canGenerateCompletionQr =
+        currentUser?.role == 'technician' &&
+        currentUser?.id == order.assignedTechnicianId &&
+        order.status == 'IN_PROGRESS' &&
+        order.completionImages.isNotEmpty;
+    final canScanCompletionQr =
         currentUser?.role == 'user' &&
+        order.status == 'IN_PROGRESS' &&
+        order.completionImages.isNotEmpty;
+    final isAssignedTech = currentUser?.role == 'technician' &&
+        currentUser?.id == order.assignedTechnicianId;
+    final canViewInvoice =
+        (currentUser?.role == 'user' || isAssignedTech) &&
         (order.status == 'ACCEPTED' ||
             order.status == 'IN_PROGRESS' ||
             order.status == 'COMPLETED') &&
@@ -901,7 +914,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 ),
               ),
             ],
-            if (canUploadCompletion || canViewInvoice) ...[
+            if (canUploadCompletion ||
+                canGenerateCompletionQr ||
+                canScanCompletionQr ||
+                canViewInvoice) ...[
               const SizedBox(height: 12),
               if (canUploadCompletion)
                 SizedBox(
@@ -926,17 +942,70 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                     },
                   ),
                 ),
-              if (canViewInvoice)
+              if (canGenerateCompletionQr) ...[
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.receipt_long_outlined),
-                    label: const Text('Xem hóa đơn & thanh toán'),
+                    icon: const Icon(Icons.qr_code_2),
+                    label: const Text('Tạo QR nghiệm thu'),
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => InvoiceScreen(requestId: order.id),
+                        builder: (_) => CompletionQrScreen(
+                          requestId: order.id,
+                          title: order.title,
+                        ),
                       ),
+                    ),
+                  ),
+                ),
+              ],
+              if (canScanCompletionQr) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Quét QR xác nhận hoàn tất'),
+                    onPressed: () async {
+                      final confirmed = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ScanCompletionQrScreen(
+                            expectedRequestId: order.id,
+                            title: order.title,
+                          ),
+                        ),
+                      );
+                      if (confirmed == true && context.mounted) {
+                        _fetchCurrentTabOrders();
+                      }
+                    },
+                  ),
+                ),
+              ],
+              if (canViewInvoice)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: Text(
+                        currentUser?.role == 'technician'
+                            ? 'Bảng kê chi phí & thu tiền'
+                            : 'Xem bảng kê & quyết toán',
+                      ),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => InvoiceScreen(requestId: order.id),
+                          ),
+                        );
+                        if (context.mounted) _fetchCurrentTabOrders();
+                      },
                     ),
                   ),
                 ),
