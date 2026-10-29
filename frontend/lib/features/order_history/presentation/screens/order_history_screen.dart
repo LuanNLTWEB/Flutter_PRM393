@@ -605,6 +605,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 // Đơn ACCEPTED/ON_THE_WAY/IN_PROGRESS: hiển thị thông tin lịch hẹn
                 if (order.status == 'ACCEPTED' ||
                     order.status == 'ON_THE_WAY' ||
+                    order.status == 'ARRIVED' ||
                     order.status == 'IN_PROGRESS') ...[
                   if (order.status == 'ON_THE_WAY') ...[
                     // Thợ đang trên đường đến nhà khách (UC-DI-01)

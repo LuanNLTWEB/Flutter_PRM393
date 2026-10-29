@@ -396,7 +396,7 @@ const confirmAppointment = async (req, res) => {
       });
     }
 
-    if (request.status !== 'ACCEPTED' && request.status !== 'IN_PROGRESS') {
+    if (request.status !== 'ACCEPTED') {
       return res.status(400).json({
         success: false,
         message: 'Chỉ có thể xác nhận lịch hẹn khi yêu cầu đã được chốt thợ',
@@ -484,7 +484,7 @@ const proposeAppointment = async (req, res) => {
       });
     }
 
-    if (request.status !== 'ACCEPTED' && request.status !== 'IN_PROGRESS') {
+    if (request.status !== 'ACCEPTED') {
       return res.status(400).json({
         success: false,
         message: 'Chỉ có thể đổi lịch hẹn khi yêu cầu đã được chốt thợ',
@@ -594,7 +594,7 @@ const respondAppointment = async (req, res) => {
       });
     }
 
-    if (!['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(request.status)) {
+    if (request.status !== 'ACCEPTED') {
       return res.status(400).json({
         success: false,
         message: 'Yêu cầu này không còn ở trạng thái có thể phản hồi lịch hẹn',

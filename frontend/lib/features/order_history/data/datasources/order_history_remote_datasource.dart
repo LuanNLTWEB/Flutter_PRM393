@@ -30,7 +30,9 @@ class OrderHistoryRemoteDataSource {
         },
       );
 
-      final Map<String, dynamic> data = jsonDecode(response.body);
+      final Map<String, dynamic> data = jsonDecode(
+        utf8.decode(response.bodyBytes),
+      );
 
       if (response.statusCode == 200 && data['data'] != null) {
         final content = data['data'];
@@ -70,7 +72,9 @@ class OrderHistoryRemoteDataSource {
       }),
     );
 
-    final Map<String, dynamic> data = jsonDecode(response.body);
+    final Map<String, dynamic> data = jsonDecode(
+      utf8.decode(response.bodyBytes),
+    );
 
     if (response.statusCode != 200 || data['success'] != true) {
       throw Exception(data['message'] ?? 'Phản hồi lịch hẹn thất bại');
