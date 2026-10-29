@@ -88,7 +88,7 @@ class OrderHistoryProvider extends ChangeNotifier {
     }
   }
 
-  /// Khách đồng ý / từ chối khung giờ thợ đề xuất (UC-LIC-01)
+  /// Khách đồng ý / từ chối khung giờ thợ đề xuất (UC-SCH-02)
   Future<bool> respondAppointment(
     String token,
     String orderId, {

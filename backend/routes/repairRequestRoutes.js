@@ -30,7 +30,7 @@ router.post('/', authorize('user'), upload.array('images', 5), createRepairReque
 router.patch('/:id/cancel', authorize('user'), cancelRepairRequest);
 
 
-// Thợ xác nhận / đổi lịch hẹn (UC-LIC-01)
+// Thợ xác nhận / đổi lịch hẹn (UC-SCH-02)
 router.patch(
   '/:id/appointment/confirm',
   authorize('technician'),
@@ -42,14 +42,14 @@ router.patch(
   proposeAppointment
 );
 
-// Khách đồng ý / từ chối khung giờ thợ đề xuất (UC-LIC-01)
+// Khách đồng ý / từ chối khung giờ thợ đề xuất (UC-SCH-02)
 router.patch(
   '/:id/appointment/respond',
   authorize('user'),
   respondAppointment
 );
 
-// Thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+// Thợ bấm "Đang trên đường đến nhà khách" (UC-WRK-01)
 router.patch(
   '/:id/on-the-way',
   authorize('technician'),
@@ -63,7 +63,7 @@ router.patch(
   updateArrived
 );
 
-// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-04)
 router.patch(
   '/:id/working',
   authorize('technician'),

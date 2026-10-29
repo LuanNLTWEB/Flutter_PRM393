@@ -114,9 +114,9 @@ class NearbyRequestRemoteDataSource {
   }
   // ══ END UC-QUO-03 ════════════════════════════════════════════════════
 
-  // ── UC-LIC-01: Lịch hẹn & Tiền ả (không thuộc epic Báo giá) ───────────
+  // ── UC-SCH-02: Lịch hẹn & Tiền ả (không thuộc epic Báo giá) ───────────
 
-  /// Thợ xác nhận giờ hẹn (UC-LIC-01)
+  /// Thợ xác nhận giờ hẹn (UC-SCH-02)
   Future<void> confirmAppointment({
     required String token,
     required String requestId,
@@ -132,7 +132,7 @@ class NearbyRequestRemoteDataSource {
     }
   }
 
-  /// Thợ đề xuất khung giờ mới (UC-LIC-01)
+  /// Thợ đề xuất khung giờ mới (UC-SCH-02)
   Future<void> proposeAppointment({
     required String token,
     required String requestId,
@@ -155,7 +155,7 @@ class NearbyRequestRemoteDataSource {
     }
   }
 
-  /// Thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+  /// Thợ bấm "Đang trên đường đến nhà khách" (UC-WRK-01)
   Future<void> markOnTheWay({
     required String token,
     required String requestId,
@@ -191,7 +191,7 @@ class NearbyRequestRemoteDataSource {
     }
   }
 
-  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-04)
   Future<void> markWorking({
     required String token,
     required String requestId,

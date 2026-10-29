@@ -107,7 +107,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     if (mounted) await _load();
   }
 
-  /// Mở Google Maps chỉ đường tới nhà khách (UC-MAP-01)
+  /// Mở Google Maps chỉ đường tới nhà khách (UC-WRK-02)
   Future<void> _openDirections(RepairRequestModel request) async {
     final loc = request.location;
     final ok = await openGoogleMapsDirections(
@@ -380,7 +380,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     );
   }
 
-  /// Lịch hẹn sửa chữa — để thợ biết khách muốn thợ đến lúc nào (UC-LIC-01)
+  /// Lịch hẹn sửa chữa — để thợ biết khách muốn thợ đến lúc nào (UC-SCH-02)
   Widget _buildAppointment(RepairRequestModel request) {
     final t = request.preferredTime;
     final isPast = t != null && t.isBefore(DateTime.now());
