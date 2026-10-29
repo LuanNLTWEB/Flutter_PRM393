@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -15,10 +16,15 @@ class RequestQuotationsScreen extends StatefulWidget {
   final String requestId;
   final RepairRequestModel? request;
 
+  /// Giờ hẹn khách đã chọn khi tạo yêu cầu — dùng để cảnh báo
+  /// "Đã hết giờ hẹn" và chặn chọn thợ (UC-SCH-02 / UC-QUO-08)
+  final DateTime? preferredTime;
+
   const RequestQuotationsScreen({
     super.key,
     required this.requestId,
     this.request,
+    this.preferredTime,
   });
 
   @override
@@ -32,6 +38,16 @@ class _RequestQuotationsScreenState extends State<RequestQuotationsScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
+
+  /// Giờ hẹn khách đã chọn (ưu tiên giá trị truyền vào, fallback từ model)
+  DateTime? get _preferredTime =>
+      widget.preferredTime ?? widget.request?.preferredTime;
+
+  /// Quá giờ hẹn → không thể chốt thợ (backend cũng chặn, đây là warning trước)
+  bool get _isAppointmentExpired =>
+      _preferredTime != null &&
+      _preferredTime!.isBefore(DateTime.now()) &&
+      const ['OPEN', 'QUOTED'].contains(context.read<QuotationProvider>().requestStatus);
 
   Future<void> _load() async {
     final token = context.read<AuthProvider>().token ?? '';
@@ -52,10 +68,23 @@ class _RequestQuotationsScreenState extends State<RequestQuotationsScreen> {
     if (confirmed != true || !mounted) return;
 
     final token = context.read<AuthProvider>().token ?? '';
-    await context
+    final ok = await context
         .read<QuotationProvider>()
         .acceptQuotation(token: token, id: quote.id);
-    if (mounted) await _load();
+    if (!mounted) return;
+
+    // Hiện đúng lý do thất bại (vd: 400 "Giờ hẹn đã qua — ...") thay vì
+    // để màn hình im lặng như trước
+    if (!ok) {
+      final prov = context.read<QuotationProvider>();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(prov.errorMessage ?? 'Chọn thợ thất bại'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    }
+    await _load();
   }
 
   Future<void> _reject(QuotationModel quote) async {
@@ -180,6 +209,58 @@ class _RequestQuotationsScreenState extends State<RequestQuotationsScreen> {
                   status: provider.requestStatus,
                   total: quotes.where((q) => q.status == 'SENT').length,
                 ),
+                // Quá giờ hẹn — giải thích vì sao không chọn được thợ (UC-SCH-02)
+                if (_isAppointmentExpired) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 18,
+                          color: Colors.red.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Đã hết giờ hẹn',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.red.shade700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _preferredTime != null
+                                    ? 'Khung giờ ${DateFormat('dd/MM/yyyy HH:mm').format(_preferredTime!)} bạn đã chọn đã qua, nên bạn không thể chọn thợ cho yêu cầu này. '
+                                        'Hãy hủy yêu cầu và tạo yêu cầu mới với khung giờ tương lai.'
+                                    : 'Khung giờ bạn đã chọn đã qua, nên bạn không thể chọn thợ. '
+                                        'Hãy hủy yêu cầu và tạo yêu cầu mới với khung giờ tương lai.',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  height: 1.4,
+                                  color: Colors.red.shade800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 if (quotes.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   _SortBar(selected: provider.sortKey),
@@ -196,8 +277,11 @@ class _RequestQuotationsScreenState extends State<RequestQuotationsScreen> {
                         isBest: best != null && best.id == quote.id,
                         isOwnerTech:
                             role == 'technician' && quote.technicianId == userId,
+                        // Quá giờ → disable cả 2 nút (backend cũng chặn 400)
                         canDecide:
-                            role == 'user' && quote.status == 'SENT',
+                            role == 'user' &&
+                            quote.status == 'SENT' &&
+                            !_isAppointmentExpired,
                         onAccept: () => _accept(quote),
                         onReject: () => _reject(quote),
                         onEdit: () => _edit(quote),

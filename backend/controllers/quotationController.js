@@ -431,6 +431,17 @@ const acceptQuotation = async (req, res) => {
       });
     }
 
+    // Không cho chốt thợ cho một giờ hẹn đã qua — tránh rơi vào trạng thái
+    // ACCEPTED + PENDING "treo" vô hạn (thợ không confirm được giờ cũ)
+    const now = new Date();
+    if (request.preferredTime && request.preferredTime.getTime() <= now.getTime()) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Giờ hẹn đã qua — vui lòng tạo yêu cầu mới với khung giờ tương lai',
+      });
+    }
+
     // Thợ chỉ có thể tiếp 1 đơn cùng lúc — chặn khách chốt thợ đang bận
     const activeJob = await findActiveJob(quotation.technicianId);
     if (activeJob) {
@@ -441,8 +452,6 @@ const acceptQuotation = async (req, res) => {
           'Mỗi thợ chỉ có thể tiếp 1 đơn cùng lúc, vui lòng chọn thợ khác.',
       });
     }
-
-    const now = new Date();
 
     quotation.status = 'ACCEPTED';
     quotation.resolvedAt = now;

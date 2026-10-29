@@ -326,6 +326,43 @@ class _RequestCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                // Đơn còn OPEN/QUOTED mà giờ hẹn khách mong muốn đã qua —
+                // thợ biết trước khi báo giá (badge đỏ "Đã hết giờ hẹn")
+                if (request.preferredTime != null &&
+                    request.preferredTime!.isBefore(DateTime.now()) &&
+                    const ['OPEN', 'QUOTED'].contains(request.status)) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.red.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 11,
+                          color: Colors.red.shade700,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Đã hết giờ hẹn',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(

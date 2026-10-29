@@ -294,6 +294,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
     // Nút phản hồi lịch hẹn là nghiệp vụ riêng của Khách hàng (authorize('user'))
     final isCustomer =
         context.read<AuthProvider>().currentUser?.role == 'user';
+    // Đơn quá giờ hẹn nhưng vẫn "treo" ở trạng thái chưa tiến trình được:
+    // OPEN/QUOTED (khách chưa chốt thợ) hoặc ACCEPTED + PENDING (chờ thợ xác nhận)
+    final isAppointmentExpired =
+        order.preferredTime != null &&
+        order.preferredTime!.isBefore(DateTime.now()) &&
+        (const ['OPEN', 'QUOTED'].contains(order.status) ||
+            (order.status == 'ACCEPTED' &&
+                order.appointmentStatus == 'PENDING'));
 
     // Bấm vào card → xem chi tiết đơn hàng (nơi có phần phê duyệt chi phí)
     return GestureDetector(
@@ -358,6 +366,40 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       ),
                     ),
                   ),
+                  // Badge cảnh báo quá giờ hẹn (đơn chưa tiến trình được)
+                  if (isAppointmentExpired) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 12,
+                            color: Colors.red.shade700,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Đã hết giờ hẹn',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 8),
@@ -604,8 +646,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                         await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                RequestQuotationsScreen(requestId: order.id),
+                            builder: (context) => RequestQuotationsScreen(
+                              requestId: order.id,
+                              preferredTime: order.preferredTime,
+                            ),
                           ),
                         );
                         // Tải lại để cập nhật trạng thái (đã chốt thợ / hủy...)
@@ -716,6 +760,44 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                               ),
                             ),
                           ],
+                          // Giờ thợ đề xuất đã qua — warning + disable nút
+                          // "Đồng ý giờ mới" (backend cũng chặn accept tại chỗ)
+                          if (isCustomer &&
+                              order.proposedTime != null &&
+                              order.proposedTime!.isBefore(DateTime.now())) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.schedule,
+                                    size: 14,
+                                    color: Colors.red.shade700,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Giờ thợ đề xuất '
+                                      '${DateFormat('dd/MM/yyyy HH:mm').format(order.proposedTime!)} '
+                                      'đã qua — hãy bấm "Giữ giờ cũ" để thợ đề xuất khung giờ khác.',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: Colors.red.shade800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 10),
                           // Chỉ Khách hàng mới phản hồi được (backend authorize('user'))
                           if (isCustomer) ...[
@@ -769,8 +851,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    onPressed: () =>
-                                        _respondAppointment(order, 'accept'),
+                                    // Giờ đề xuất đã qua → không đồng ý được
+                                    onPressed:
+                                        (order.proposedTime != null &&
+                                            order.proposedTime!
+                                                .isBefore(DateTime.now()))
+                                        ? null
+                                        : () =>
+                                            _respondAppointment(order, 'accept'),
                                   ),
                                 ),
                               ],
@@ -920,6 +1008,41 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                         ],
                       ),
                     ),
+                    // Quá giờ hẹn mà thợ chưa xác nhận — nhắc khách theo dõi
+                    if (isAppointmentExpired) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 14,
+                              color: Colors.red.shade700,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                order.preferredTime != null
+                                    ? 'Giờ hẹn ${DateFormat('dd/MM/yyyy HH:mm').format(order.preferredTime!)} đã qua mà thợ chưa xác nhận. Thợ sẽ phải đề xuất khung giờ mới — bạn có thể liên hệ thợ hoặc hủy yêu cầu.'
+                                    : 'Giờ hẹn đã qua mà thợ chưa xác nhận.',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: Colors.red.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ] else if (order.status == 'CANCELLED') ...[
                   // Đơn đã hủy — ghi chú riêng, không hiển thị nhầm "đang tiến trình"
