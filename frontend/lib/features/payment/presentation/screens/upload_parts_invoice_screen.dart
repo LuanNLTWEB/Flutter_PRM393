@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Case: #UC-PAY-03
+/// Description: Màn hình thợ chụp và đính kèm hóa đơn mua linh kiện thay thế
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';

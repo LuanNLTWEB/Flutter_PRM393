@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Case: #UC-CFM-01
+/// Description: Màn hình thợ chụp và tải ảnh hiện trường sau khi sửa chữa xong
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';

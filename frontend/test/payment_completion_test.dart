@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Cases: #UC-CFM-01..03, #UC-PAY-01..04
+/// Description: Test suite kiểm thử Flutter cho luồng nghiệm thu và thanh toán
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 

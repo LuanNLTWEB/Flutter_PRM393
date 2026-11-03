@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Case: #UC-CFM-03
+/// Description: Màn hình camera quét mã QR nghiệm thu trên thiết bị khách hàng
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';

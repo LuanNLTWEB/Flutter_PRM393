@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Cases: #UC-CFM-01, #UC-CFM-02, #UC-CFM-03
+/// Description: State Management Provider cho quy trình nghiệm thu
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 

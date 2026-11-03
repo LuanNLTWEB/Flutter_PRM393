@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Case: #UC-CFM-02
+/// Description: Model dữ liệu chứa thông tin mã QR nghiệm thu bàn giao
 class CompletionQrModel {
   final String requestId;
   final int amount;

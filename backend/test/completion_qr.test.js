@@ -1,3 +1,8 @@
+/**
+ * Author: Lam Hoang Phuc (CE191132)
+ * Use Cases: #UC-CFM-02, #UC-CFM-03
+ * Description: Unit & Integration tests cho quy trình tạo và quét mã QR nghiệm thu
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 

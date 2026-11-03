@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Case: #UC-CFM-02
+/// Description: Màn hình hiển thị mã QR nghiệm thu dịch vụ trên thiết bị của thợ
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';

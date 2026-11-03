@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04
+/// Description: State Management Provider cho hóa đơn và thu tiền mặt
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 

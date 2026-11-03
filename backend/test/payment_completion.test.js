@@ -1,3 +1,8 @@
+/**
+ * Author: Lam Hoang Phuc (CE191132)
+ * Use Cases: #UC-CFM-01, #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04
+ * Description: Test suite kiểm thử toàn bộ luồng chụp ảnh, bảng kê, tiền mặt và hóa đơn vật tư
+ */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const mongoose = require('mongoose');

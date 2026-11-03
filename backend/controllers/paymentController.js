@@ -1,3 +1,8 @@
+/**
+ * Author: Lam Hoang Phuc (CE191132)
+ * Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04
+ * Description: Controller quản lý bảng kê chi phí, thanh toán tiền mặt, hóa đơn linh kiện và xác nhận thu tiền
+ */
 const RepairRequest = require('../models/RepairRequest');
 const Quotation = require('../models/Quotation');
 const { uploadStream, deleteImage } = require('../config/cloudinary');

@@ -1,3 +1,8 @@
+/**
+ * Author: Lam Hoang Phuc (CE191132)
+ * Use Cases: #UC-CFM-02, #UC-CFM-03
+ * Description: Controller quản lý tạo mã QR nghiệm thu SHA-256 và xác nhận hoàn tất đơn hàng
+ */
 const crypto = require('crypto');
 
 const Quotation = require('../models/Quotation');

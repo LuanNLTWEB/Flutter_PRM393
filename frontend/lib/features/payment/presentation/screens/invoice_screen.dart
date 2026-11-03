@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-04
+/// Description: Màn hình hiển thị bảng kê chi phí và xác nhận thanh toán tiền mặt trực tiếp
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';

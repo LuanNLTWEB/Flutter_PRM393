@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04
+/// Description: Model dữ liệu hóa đơn bảng kê chi phí và chứng từ linh kiện
 class InvoiceModel {
   final String requestId;
   final String quotationId;

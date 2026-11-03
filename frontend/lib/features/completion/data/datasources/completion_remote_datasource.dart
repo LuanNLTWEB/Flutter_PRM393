@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Cases: #UC-CFM-01, #UC-CFM-02, #UC-CFM-03
+/// Description: Remote Datasource gọi API nghiệm thu và mã QR
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;

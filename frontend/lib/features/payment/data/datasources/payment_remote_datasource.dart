@@ -1,3 +1,6 @@
+/// Author: Lam Hoang Phuc (CE191132)
+/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04
+/// Description: Remote Datasource kết nối API hóa đơn, thanh toán và chứng từ vật tư
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;

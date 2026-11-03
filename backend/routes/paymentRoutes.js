@@ -1,3 +1,8 @@
+/**
+ * Author: Lam Hoang Phuc (CE191132)
+ * Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04
+ * Description: Định tuyến API thanh toán tiền mặt và chứng từ linh kiện
+ */
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middlewares/auth');
