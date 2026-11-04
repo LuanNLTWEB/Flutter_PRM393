@@ -142,4 +142,63 @@ class ReviewRemoteDataSource {
       throw Exception('Lỗi kết nối máy chủ: $e');
     }
   }
+
+  /// Thợ phản hồi lại nhận xét của khách (UC-RAT-02)
+  Future<ReviewModel> replyReview({
+    required String token,
+    required String reviewId,
+    required String comment,
+  }) async {
+    try {
+      final response = await client.put(
+        Uri.parse(ApiEndpoints.replyReview(reviewId)),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'comment': comment}),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['data'] != null) {
+        return ReviewModel.fromJson(data['data']);
+      } else {
+        final message = data['message'] ?? 'Không thể gửi phản hồi';
+        throw Exception(message);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Lỗi kết nối máy chủ: $e');
+    }
+  }
+
+  /// Thợ / Admin xóa phản hồi nhận xét (UC-RAT-02)
+  Future<ReviewModel> deleteReviewReply({
+    required String token,
+    required String reviewId,
+  }) async {
+    try {
+      final response = await client.delete(
+        Uri.parse(ApiEndpoints.replyReview(reviewId)),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['data'] != null) {
+        return ReviewModel.fromJson(data['data']);
+      } else {
+        final message = data['message'] ?? 'Không thể xóa phản hồi';
+        throw Exception(message);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Lỗi kết nối máy chủ: $e');
+    }
+  }
 }

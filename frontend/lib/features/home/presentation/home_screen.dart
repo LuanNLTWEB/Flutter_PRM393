@@ -19,6 +19,7 @@ import '../../quotations/presentation/screens/nearby_requests_screen.dart';
 import '../../notification/presentation/providers/notification_provider.dart';
 import '../../notification/presentation/screens/notification_screen.dart';
 import '../../invoice/presentation/screens/invoices_screen.dart';
+import '../../review/presentation/screens/technician_reviews_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -270,16 +271,61 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (isTech) ...[
                   _buildTechnicianStatusCard(context, auth, techProfile),
                   const SizedBox(height: 12),
-                  // Feed yêu cầu sửa chữa đang mở (UC-QUO-01 / UC-QUO-02)
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const NearbyRequestsScreen(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NearbyRequestsScreen(),
+                            ),
+                          ),
+                          icon: const Icon(Icons.radar_outlined, size: 18),
+                          label: const Text(
+                            'Yêu cầu quanh đây',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
                       ),
-                    ),
-                    icon: const Icon(Icons.radar_outlined),
-                    label: const Text('Xem yêu cầu quanh đây'),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.amber.shade50,
+                            foregroundColor: Colors.amber.shade900,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(color: Colors.amber.shade200),
+                            ),
+                          ),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => TechnicianReviewsScreen(
+                                technicianId: user.id,
+                                technicianName: user.fullName,
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(Icons.rate_review_rounded, size: 18),
+                          label: const Text(
+                            'Đánh giá & Phản hồi',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 18),
                 ],
