@@ -245,6 +245,83 @@ class RepairRequestRemoteDataSource {
     }
   }
 
+  // Cập nhật mô tả hoặc bổ sung ảnh khi yêu cầu chưa có thợ báo giá
+  Future<RepairRequestModel> updateRepairRequest({
+    required String token,
+    required String requestId,
+    required String description,
+    List<String> existingImages = const [],
+    List<XFile> newImages = const [],
+  }) async {
+    try {
+      final uri = Uri.parse(ApiEndpoints.updateRepairRequest(requestId));
+
+      if (newImages.isNotEmpty) {
+        final request = http.MultipartRequest('PUT', uri);
+        request.headers['Authorization'] = 'Bearer $token';
+        request.fields['description'] = description;
+        request.fields['existingImages'] = jsonEncode(existingImages);
+
+        for (final file in newImages) {
+          final bytes = await file.readAsBytes();
+          final ext = file.name.split('.').last.toLowerCase();
+          final mediaType = ext == 'png'
+              ? MediaType('image', 'png')
+              : ext == 'webp'
+                  ? MediaType('image', 'webp')
+                  : MediaType('image', 'jpeg');
+          final fileName = file.name.contains('.') ? file.name : '${file.name}.jpg';
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'images',
+              bytes,
+              filename: fileName,
+              contentType: mediaType,
+            ),
+          );
+        }
+
+        final streamedResponse = await request.send();
+        final response = await http.Response.fromStream(streamedResponse);
+        final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (response.statusCode == 200 && data['success'] == true) {
+          final requestData = data['data']?['repairRequest'];
+          if (requestData != null) {
+            return RepairRequestModel.fromJson(requestData as Map<String, dynamic>);
+          }
+          throw Exception('Dữ liệu yêu cầu không hợp lệ');
+        } else {
+          throw Exception(data['message'] ?? 'Không thể cập nhật yêu cầu sửa chữa');
+        }
+      } else {
+        final response = await client.put(
+          uri,
+          headers: _headers(token),
+          body: jsonEncode({
+            'description': description,
+            'existingImages': existingImages,
+          }),
+        );
+
+        final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (response.statusCode == 200 && data['success'] == true) {
+          final requestData = data['data']?['repairRequest'];
+          if (requestData != null) {
+            return RepairRequestModel.fromJson(requestData as Map<String, dynamic>);
+          }
+          throw Exception('Dữ liệu yêu cầu không hợp lệ');
+        } else {
+          throw Exception(data['message'] ?? 'Không thể cập nhật yêu cầu sửa chữa');
+        }
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
   // Hủy phiếu yêu cầu trước khi chốt thợ
   Future<RepairRequestModel> cancelRepairRequest({
     required String token,

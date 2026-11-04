@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -8,7 +11,7 @@ import '../widgets/request_item_card_widget.dart';
 import 'service_category_screen.dart';
 import '../../../quotations/presentation/screens/request_quotations_screen.dart';
 
-/// Màn hình danh sách các yêu cầu sửa chữa đã tạo của Khách hàng (UC-REQ-07, 08, 09)
+/// Màn hình danh sách các yêu cầu sửa chữa đã tạo của Khách hàng
 class CustomerRequestListScreen extends StatefulWidget {
   final int initialTabIndex;
 
@@ -370,6 +373,31 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
                         );
                       },
                     ),
+                    if (request.status == 'OPEN' && request.quotesCount == 0) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        key: const Key('modal_edit_request_button'),
+                        icon: const Icon(Icons.edit_outlined, color: AppTheme.primaryColor),
+                        label: const Text(
+                          'Chỉnh sửa mô tả / bổ sung ảnh',
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.4)),
+                          minimumSize: const Size.fromHeight(44),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showEditDialog(request);
+                        },
+                      ),
+                    ],
                     if (request.status == 'OPEN' || request.status == 'QUOTED') ...[
                       const SizedBox(height: 10),
                       OutlinedButton.icon(
@@ -400,6 +428,408 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  // Hộp thoại chỉnh sửa mô tả hoặc bổ sung ảnh khi chưa có thợ báo giá
+  void _showEditDialog(RepairRequestModel request) {
+    final descController = TextEditingController(text: request.description);
+    List<String> existingImages = List<String>.from(request.images);
+    List<XFile> newImages = [];
+    String? localError;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final provider = context.watch<RepairRequestProvider>();
+            final totalImages = existingImages.length + newImages.length;
+
+            Future<void> pickMoreImages() async {
+              final remaining = 5 - totalImages;
+              if (remaining <= 0) return;
+
+              try {
+                final picker = ImagePicker();
+                final picked = await picker.pickMultiImage(
+                  imageQuality: 85,
+                  maxWidth: 1600,
+                );
+                if (picked.isNotEmpty) {
+                  setDialogState(() {
+                    newImages.addAll(picked.take(remaining));
+                  });
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Không thể chọn ảnh: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  const Icon(Icons.edit_note_rounded, color: AppTheme.primaryColor),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Chỉnh sửa yêu cầu',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: provider.isUpdating ? null : () => Navigator.pop(dialogCtx),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 480,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              request.title,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Bạn có thể bổ sung ảnh hoặc mô tả khi chưa có thợ nào báo giá.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Mô tả chi tiết sự cố *',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        key: const Key('edit_request_description_input'),
+                        controller: descController,
+                        maxLines: 4,
+                        maxLength: 1000,
+                        onChanged: (_) {
+                          if (localError != null) {
+                            setDialogState(() {
+                              localError = null;
+                            });
+                          }
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Mô tả rõ triệu chứng hỏng hóc (tối thiểu 15 ký tự)...',
+                          hintStyle: const TextStyle(fontSize: 13),
+                          errorText: localError,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          contentPadding: const EdgeInsets.all(12),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.photo_library_outlined, size: 18, color: AppTheme.primaryColor),
+                              SizedBox(width: 6),
+                              Text(
+                                'Ảnh hiện trường sự cố',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Text(
+                              '$totalImages/5 ảnh',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: totalImages >= 5
+                                    ? Colors.orange.shade800
+                                    : Colors.grey.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            // Danh sách ảnh đã có trên server
+                            ...List.generate(existingImages.length, (idx) {
+                              final url = existingImages[idx];
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 10),
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: Colors.grey.shade300),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(9),
+                                        child: Image.network(
+                                          url,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => Container(
+                                            color: Colors.grey.shade200,
+                                            child: const Icon(Icons.broken_image, color: Colors.grey),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: -6,
+                                      right: -6,
+                                      child: InkWell(
+                                        onTap: () {
+                                          setDialogState(() {
+                                            existingImages.removeAt(idx);
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            // Danh sách ảnh mới chọn từ thiết bị
+                            ...List.generate(newImages.length, (idx) {
+                              final file = newImages[idx];
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 10),
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: AppTheme.primaryColor),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(9),
+                                        child: kIsWeb
+                                            ? Image.network(file.path, fit: BoxFit.cover)
+                                            : Image.file(File(file.path), fit: BoxFit.cover),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: -6,
+                                      right: -6,
+                                      child: InkWell(
+                                        onTap: () {
+                                          setDialogState(() {
+                                            newImages.removeAt(idx);
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            // Nút Thêm ảnh
+                            if (totalImages < 5)
+                              InkWell(
+                                key: const Key('edit_request_add_image_button'),
+                                onTap: pickMoreImages,
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                                      width: 1.2,
+                                    ),
+                                  ),
+                                  child: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.add_photo_alternate_outlined,
+                                        size: 24,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Thêm ảnh',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.primaryColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: provider.isUpdating ? null : () => Navigator.pop(dialogCtx),
+                  child: const Text('Hủy'),
+                ),
+                ElevatedButton(
+                  key: const Key('confirm_edit_request_button'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: provider.isUpdating
+                      ? null
+                      : () async {
+                          final newDesc = descController.text.trim();
+                          if (newDesc.length < 15) {
+                            setDialogState(() {
+                              localError = 'Mô tả sự cố phải có ít nhất 15 ký tự';
+                            });
+                            return;
+                          }
+                          final wordCount = newDesc.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+                          if (wordCount < 3) {
+                            setDialogState(() {
+                              localError = 'Vui lòng mô tả rõ ràng hơn (ít nhất 3 từ)';
+                            });
+                            return;
+                          }
+
+                          final auth = context.read<AuthProvider>();
+                          final repairProvider = context.read<RepairRequestProvider>();
+                          final messenger = ScaffoldMessenger.of(context);
+                          final token = auth.token ?? '';
+
+                          final updated = await repairProvider.updateRepairRequest(
+                            token: token,
+                            requestId: request.id,
+                            description: newDesc,
+                            existingImages: existingImages,
+                            newImages: newImages,
+                          );
+
+                          if (dialogCtx.mounted) {
+                            Navigator.pop(dialogCtx);
+                          }
+                          if (!mounted) return;
+
+                          if (updated != null) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Đã cập nhật phiếu yêu cầu thành công'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } else {
+                            final err = repairProvider.updateError ?? 'Không thể cập nhật yêu cầu';
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(err),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  child: provider.isUpdating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Lưu thay đổi'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -947,6 +1377,9 @@ class _CustomerRequestListScreenState extends State<CustomerRequestListScreen>
             key: ValueKey(request.id),
             request: request,
             onDetailPressed: () => _showRequestDetailModal(request),
+            onEditPressed: (request.status == 'OPEN' && request.quotesCount == 0)
+                ? () => _showEditDialog(request)
+                : null,
             onCancelPressed: (request.status == 'OPEN' || request.status == 'QUOTED')
                 ? () => _showCancelDialog(request)
                 : null,

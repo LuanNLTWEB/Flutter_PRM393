@@ -57,6 +57,7 @@ class ApiEndpoints {
   static const String requests = '$baseUrl/requests';
   static const String myRequests = '$baseUrl/requests/my-requests';
   static String requestDetail(String id) => '$baseUrl/requests/$id';
+  static String updateRequest(String id) => '$baseUrl/requests/$id';
   static String cancelRequest(String id) => '$baseUrl/requests/$id/cancel';
   static String confirmAppointment(String id) =>
       '$baseUrl/requests/$id/appointment/confirm';
@@ -84,6 +85,7 @@ class ApiEndpoints {
   static const String repairRequests = requests;
   static const String myRepairRequests = myRequests;
   static String repairRequestDetail(String id) => requestDetail(id);
+  static String updateRepairRequest(String id) => updateRequest(id);
   static String cancelRepairRequest(String id) => cancelRequest(id);
 
   // Báo giá & Khớp lệnh (UC-QUO)
