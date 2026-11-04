@@ -112,6 +112,72 @@ class ReviewProvider extends ChangeNotifier {
     }
   }
 
+  /// Thợ gửi / cập nhật phản hồi đánh giá của khách (UC-RAT-02)
+  Future<bool> replyReview({
+    required String token,
+    required String reviewId,
+    required String comment,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedReview = await _dataSource.replyReview(
+        token: token,
+        reviewId: reviewId,
+        comment: comment,
+      );
+
+      final index = _reviews.indexWhere((r) => r.id == reviewId);
+      if (index != -1) {
+        _reviews[index] = updatedReview;
+      }
+      _successMessage = 'Gửi phản hồi thành công!';
+      _isSubmitting = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isSubmitting = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Thợ / Admin xóa phản hồi nhận xét (UC-RAT-02)
+  Future<bool> deleteReviewReply({
+    required String token,
+    required String reviewId,
+  }) async {
+    _isSubmitting = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedReview = await _dataSource.deleteReviewReply(
+        token: token,
+        reviewId: reviewId,
+      );
+
+      final index = _reviews.indexWhere((r) => r.id == reviewId);
+      if (index != -1) {
+        _reviews[index] = updatedReview;
+      }
+      _successMessage = 'Đã xóa phản hồi thành công';
+      _isSubmitting = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isSubmitting = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   void clearMessage() {
     _errorMessage = null;
     _successMessage = null;
