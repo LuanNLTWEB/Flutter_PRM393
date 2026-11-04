@@ -226,6 +226,50 @@ class RepairRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // State chỉnh sửa yêu cầu sửa chữa
+  bool _isUpdating = false;
+  String? _updateError;
+
+  bool get isUpdating => _isUpdating;
+  String? get updateError => _updateError;
+
+  // Cập nhật mô tả hoặc bổ sung ảnh khi chưa có thợ báo giá
+  Future<RepairRequestModel?> updateRepairRequest({
+    required String token,
+    required String requestId,
+    required String description,
+    List<String> existingImages = const [],
+    List<XFile> newImages = const [],
+  }) async {
+    _isUpdating = true;
+    _updateError = null;
+    notifyListeners();
+
+    try {
+      final updated = await _dataSource.updateRepairRequest(
+        token: token,
+        requestId: requestId,
+        description: description,
+        existingImages: existingImages,
+        newImages: newImages,
+      );
+
+      final index = _myRequests.indexWhere((r) => r.id == requestId);
+      if (index != -1) {
+        _myRequests[index] = updated;
+      }
+
+      _isUpdating = false;
+      notifyListeners();
+      return updated;
+    } catch (e) {
+      _isUpdating = false;
+      _updateError = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return null;
+    }
+  }
+
   // State hủy yêu cầu sửa chữa
   bool _isCancelling = false;
   String? _cancelError;

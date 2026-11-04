@@ -240,6 +240,9 @@ class RepairRequestModel {
   static const Object _unset = Object();
 
   RepairRequestModel copyWith({
+    String? title,
+    String? description,
+    List<String>? images,
     String? status,
     String? appointmentStatus,
     Object? preferredTime = _unset,
@@ -256,9 +259,9 @@ class RepairRequestModel {
       customerId: customerId,
       serviceCategoryId: serviceCategoryId,
       serviceCategory: serviceCategory,
-      title: title,
-      description: description,
-      images: images,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      images: images ?? this.images,
       urgency: urgency,
       location: location,
       status: status ?? this.status,

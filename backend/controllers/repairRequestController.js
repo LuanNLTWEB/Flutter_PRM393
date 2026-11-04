@@ -1547,9 +1547,151 @@ const respondAdditionalCost = async (req, res) => {
   }
 };
 
+// Cập nhật mô tả hoặc bổ sung ảnh khi yêu cầu chưa có thợ báo giá
+const updateRepairRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { description } = req.body;
+
+    const request = await RepairRequest.findById(id);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy phiếu yêu cầu sửa chữa',
+      });
+    }
+
+    if (request.customerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền chỉnh sửa phiếu yêu cầu này',
+      });
+    }
+
+    if (request.status !== 'OPEN') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể chỉnh sửa yêu cầu khi đang mở và chưa có thợ báo giá',
+      });
+    }
+
+    const activeQuotesCount = await Quotation.countDocuments({
+      requestId: request._id,
+      status: { $ne: 'RETRACTED' },
+    });
+
+    if (activeQuotesCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Yêu cầu này đã có thợ gửi báo giá nên không thể chỉnh sửa',
+      });
+    }
+
+    if (description !== undefined) {
+      const reqDesc = String(description).trim();
+      if (!reqDesc) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng mô tả chi tiết sự cố hỏng hóc',
+        });
+      }
+
+      if (reqDesc.length < 15) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mô tả triệu chứng hỏng hóc quá ngắn (tối thiểu 15 ký tự)',
+        });
+      }
+
+      if (reqDesc.length > 1000) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mô tả không được vượt quá 1000 ký tự',
+        });
+      }
+
+      const wordCount = reqDesc.split(/\s+/).filter(Boolean).length;
+      if (wordCount < 3) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng mô tả rõ ràng hơn (ít nhất 3 từ)',
+        });
+      }
+
+      if (isSpamText(reqDesc)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mô tả chứa ký tự lặp hoặc chuỗi vô nghĩa. Vui lòng mô tả sự cố thực tế',
+        });
+      }
+
+      request.description = reqDesc;
+    }
+
+    let keptImages = request.images || [];
+    if (req.body.existingImages !== undefined) {
+      if (Array.isArray(req.body.existingImages)) {
+        keptImages = req.body.existingImages;
+      } else if (typeof req.body.existingImages === 'string') {
+        try {
+          const parsed = JSON.parse(req.body.existingImages);
+          keptImages = Array.isArray(parsed) ? parsed : [req.body.existingImages];
+        } catch (_) {
+          keptImages = req.body.existingImages.trim() ? [req.body.existingImages.trim()] : [];
+        }
+      }
+    }
+
+    let newImageUrls = [];
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map((file) =>
+        uploadStream(file.buffer, {
+          folder: 'homefix/repair_requests',
+        })
+      );
+      const results = await Promise.all(uploadPromises);
+      newImageUrls = results.map((item) => item.url);
+    }
+
+    const mergedImages = [...keptImages, ...newImageUrls];
+    if (mergedImages.length > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tổng số ảnh đính kèm không được vượt quá 5 ảnh',
+      });
+    }
+
+    request.images = mergedImages;
+    await request.save();
+
+    const populated = await RepairRequest.findById(request._id)
+      .populate('serviceCategoryId', 'name slug icon color basePrice')
+      .populate('customerId', 'fullName email phoneNumber avatar');
+
+    const responseObj = populated.toObject();
+    responseObj.quotesCount = 0;
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cập nhật phiếu yêu cầu sửa chữa thành công',
+      data: {
+        repairRequest: responseObj,
+      },
+    });
+  } catch (error) {
+    console.error('updateRepairRequest error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi cập nhật yêu cầu sửa chữa',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createRepairRequest,
   getMyRepairRequests,
+  updateRepairRequest,
   cancelRepairRequest,
   confirmAppointment,
   proposeAppointment,

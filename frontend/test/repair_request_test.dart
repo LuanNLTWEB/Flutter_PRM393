@@ -345,6 +345,83 @@ void main() {
       expect(find.text('Đã hủy: Đã tự khắc phục được sự cố'), findsOneWidget);
       expect(find.text('Đang mở - Chờ thợ gửi báo giá...'), findsNothing);
     });
+
+    test('RepairRequestModel copyWith updates description and images properly', () {
+      final original = RepairRequestModel(
+        id: 'req_edit_1',
+        customerId: 'user_1',
+        serviceCategoryId: 'cat_1',
+        title: 'Sửa ổ cắm điện phòng khách',
+        description: 'Ổ cắm điện bị lỏng phích cắm',
+        images: const ['https://res.cloudinary.com/homefix/image/upload/v1/old.jpg'],
+        status: 'OPEN',
+        quotesCount: 0,
+        contactPhone: '0901234567',
+        location: const RepairLocationModel(address: '100 Lê Lợi, Quận 1'),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final updated = original.copyWith(
+        description: 'Ổ cắm điện bị lỏng và có tia lửa nhỏ khi cắm phích',
+        images: const [
+          'https://res.cloudinary.com/homefix/image/upload/v1/old.jpg',
+          'https://res.cloudinary.com/homefix/image/upload/v1/new.jpg',
+        ],
+      );
+
+      expect(updated.description, 'Ổ cắm điện bị lỏng và có tia lửa nhỏ khi cắm phích');
+      expect(updated.images.length, 2);
+    });
+
+    testWidgets('RequestItemCardWidget shows Chỉnh sửa button only when OPEN and quotesCount is 0', (tester) async {
+      bool editTapped = false;
+      final openNoQuoteReq = RepairRequestModel(
+        id: 'req_edit_open',
+        customerId: 'user_1',
+        serviceCategoryId: 'cat_1',
+        title: 'Sửa vòi nước lavabo',
+        description: 'Vòi nước lavabo bị rỉ nước liên tục',
+        status: 'OPEN',
+        quotesCount: 0,
+        contactPhone: '0901234567',
+        location: const RepairLocationModel(address: '12 Nguyễn Huệ, Quận 1'),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: RequestItemCardWidget(
+              request: openNoQuoteReq,
+              onEditPressed: () {
+                editTapped = true;
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Chỉnh sửa'), findsOneWidget);
+      await tester.tap(find.text('Chỉnh sửa'));
+      await tester.pumpAndSettle();
+      expect(editTapped, isTrue);
+
+      final openWithQuoteReq = openNoQuoteReq.copyWith(quotesCount: 2);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: RequestItemCardWidget(
+              request: openWithQuoteReq,
+              onEditPressed: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Chỉnh sửa'), findsNothing);
+    });
   });
 }
 
