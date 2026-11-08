@@ -9,6 +9,7 @@ import '../providers/admin_provider.dart';
 import 'create_staff_screen.dart';
 import 'admin_technician_approval_screen.dart';
 import 'admin_service_category_screen.dart';
+import 'admin_stuck_orders_screen.dart';
 import '../../../notification/presentation/providers/notification_provider.dart';
 import '../../../notification/presentation/screens/notification_screen.dart';
 import '../../../complaint/presentation/screens/admin_complaints_screen.dart';
@@ -115,6 +116,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Giám sát đơn hàng bị treo (UC-STF-04)',
+            icon: const Icon(Icons.warning_amber_rounded),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminStuckOrdersScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Tiếp nhận khiếu nại (UC-STF-03)',
             icon: const Icon(Icons.support_agent_outlined),
@@ -387,25 +400,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const AdminTechnicianApprovalScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.tonalIcon(
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: const Icon(Icons.category_outlined, size: 16),
-                  label: const Text('Danh mục & Giá sàn', style: TextStyle(fontSize: 12)),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AdminServiceCategoryScreen(),
                       ),
                     );
                   },
