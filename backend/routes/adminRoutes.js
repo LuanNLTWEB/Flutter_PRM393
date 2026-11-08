@@ -11,6 +11,7 @@ const {
   getStuckRequests,
   staffCancelRequest,
   staffReassignRequest,
+  getOperationalReport,
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middlewares/auth');
 
@@ -31,6 +32,8 @@ router.get('/requests/stuck', authorize('admin', 'staff'), getStuckRequests);
 router.put('/requests/:id/cancel', authorize('admin', 'staff'), staffCancelRequest);
 router.put('/requests/:id/reassign', authorize('admin', 'staff'), staffReassignRequest);
 
+// 4. Thống kê báo cáo vận hành (UC-STF-05 - Admin & Staff)
+router.get('/reports/operations', authorize('admin', 'staff'), getOperationalReport);
 
 // 4. Phân quyền và Tạo nhân viên (Chỉ Admin)
 router.post('/users/staff', authorize('admin'), createStaff);

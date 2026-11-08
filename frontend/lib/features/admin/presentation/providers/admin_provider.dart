@@ -42,6 +42,10 @@ class AdminProvider extends ChangeNotifier {
   String _stuckFilter = 'ALL';
   String _stuckSearchQuery = '';
 
+  // Thống kê báo cáo vận hành (UC-STF-05)
+  Map<String, dynamic>? _operationalReport;
+  bool _isReportLoading = false;
+  String _reportPeriod = 'all';
 
   List<UserModel> get users => _users;
   bool get isLoading => _isLoading;
@@ -594,6 +598,39 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // ==========================================================
+  // GETTERS & METHODS FOR OPERATIONAL REPORT (UC-STF-05)
+  // ==========================================================
+
+  Map<String, dynamic>? get operationalReport => _operationalReport;
+  bool get isReportLoading => _isReportLoading;
+  String get reportPeriod => _reportPeriod;
+
+  void setReportPeriod(String period, String token) {
+    _reportPeriod = period;
+    fetchOperationalReport(token);
+  }
+
+  /// Lấy dữ liệu thống kê báo cáo vận hành (UC-STF-05)
+  Future<void> fetchOperationalReport(String token) async {
+    _isReportLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final res = await _dataSource.getOperationalReport(
+        token: token,
+        period: _reportPeriod,
+      );
+      _operationalReport = res;
+      _isReportLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isReportLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
 
   void clearMessage() {
     _errorMessage = null;

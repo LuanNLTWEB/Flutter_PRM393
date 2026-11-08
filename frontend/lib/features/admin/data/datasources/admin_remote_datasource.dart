@@ -438,4 +438,37 @@ class AdminRemoteDataSource {
     }
   }
 
+  // ==========================================================
+  // THỐNG KÊ BÁO CÁO VẬN HÀNH (UC-STF-05)
+  // ==========================================================
+
+  /// Lấy dữ liệu thống kê báo cáo vận hành: tỷ lệ đơn, doanh thu, năng suất (UC-STF-05)
+  Future<Map<String, dynamic>> getOperationalReport({
+    required String token,
+    String period = 'all',
+  }) async {
+    try {
+      final uri = Uri.parse(ApiEndpoints.adminOperationalReport).replace(
+        queryParameters: {'period': period},
+      );
+
+      final response = await client.get(
+        uri,
+        headers: _headers(token),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return Map<String, dynamic>.from(data['data'] as Map);
+      } else {
+        throw Exception(
+          data['message'] ?? 'Không thể tải báo cáo vận hành',
+        );
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
 }

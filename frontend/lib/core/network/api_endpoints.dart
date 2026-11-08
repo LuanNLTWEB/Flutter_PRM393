@@ -35,6 +35,9 @@ class ApiEndpoints {
   static String adminReassignRequest(String id) =>
       '$baseUrl/admin/requests/$id/reassign';
 
+  // Thống kê báo cáo vận hành (UC-STF-05)
+  static const String adminOperationalReport =
+      '$baseUrl/admin/reports/operations';
 
   // Review Endpoints (UC-RAT-01 & UC-RAT-02)
   static const String reviewTags = '$baseUrl/reviews/tags';

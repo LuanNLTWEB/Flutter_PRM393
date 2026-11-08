@@ -1140,6 +1140,337 @@ const staffReassignRequest = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Thống kê báo cáo vận hành: tỷ lệ đơn thành công, doanh thu và năng suất (UC-STF-05)
+ * @route   GET /api/admin/reports/operations
+ * @access  Private (Admin hoặc Staff)
+ */
+const getOperationalReport = async (req, res) => {
+  try {
+    const { period = 'all' } = req.query;
+
+    const dateQuery = {};
+    const now = new Date();
+    if (period === '7d') {
+      dateQuery.createdAt = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+    } else if (period === '30d') {
+      dateQuery.createdAt = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+    } else if (period === '90d') {
+      dateQuery.createdAt = { $gte: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
+    }
+
+    const [requests, technicians, complaints, categories] = await Promise.all([
+      RepairRequest.find(dateQuery)
+        .populate('serviceCategoryId', 'name basePrice icon color')
+        .populate(
+          'assignedTechnicianId',
+          'fullName phoneNumber rating reviewCount technicianProfile.rating technicianProfile.reviewCount technicianProfile.completedJobsCount'
+        )
+        .sort({ createdAt: -1 }),
+      User.find({ role: 'technician' })
+        .select(
+          'fullName phoneNumber email isActive rating reviewCount technicianProfile.approvalStatus technicianProfile.isAvailable technicianProfile.rating technicianProfile.reviewCount technicianProfile.completedJobsCount technicianProfile.skills'
+        )
+        .sort({ 'technicianProfile.rating': -1, rating: -1 }),
+      Complaint.find(dateQuery).select('status category createdAt handledAt'),
+      ServiceCategory.find({}).select('name basePrice icon color isActive'),
+    ]);
+
+    const completedRequestIds = requests
+      .filter((r) => r.status === 'COMPLETED')
+      .map((r) => r._id);
+
+    const acceptedQuotations = completedRequestIds.length
+      ? await Quotation.find({
+          requestId: { $in: completedRequestIds },
+          status: 'ACCEPTED',
+        }).select('requestId labourCost partsCost total')
+      : [];
+
+    const quotationByRequestId = new Map(
+      acceptedQuotations.map((q) => [q.requestId.toString(), q])
+    );
+
+    // 1. Thống kê Tỷ lệ đơn hàng (Order Stats)
+    const totalOrders = requests.length;
+    const completedOrders = requests.filter((r) => r.status === 'COMPLETED').length;
+    const cancelledOrders = requests.filter((r) => r.status === 'CANCELLED').length;
+    const openOrders = requests.filter((r) =>
+      ['OPEN', 'QUOTED'].includes(r.status)
+    ).length;
+    const inProgressOrders = requests.filter((r) =>
+      ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(r.status)
+    ).length;
+
+    const successRate =
+      totalOrders > 0
+        ? Math.round((completedOrders / totalOrders) * 1000) / 10
+        : 0;
+    const cancellationRate =
+      totalOrders > 0
+        ? Math.round((cancelledOrders / totalOrders) * 1000) / 10
+        : 0;
+    const inProgressRate =
+      totalOrders > 0
+        ? Math.round(((openOrders + inProgressOrders) / totalOrders) * 1000) / 10
+        : 0;
+
+    const statusBreakdown = [
+      {
+        key: 'COMPLETED',
+        label: 'Đã hoàn tất',
+        count: completedOrders,
+        percentage: successRate,
+      },
+      {
+        key: 'IN_PROGRESS',
+        label: 'Đang thực hiện',
+        count: inProgressOrders,
+        percentage:
+          totalOrders > 0
+            ? Math.round((inProgressOrders / totalOrders) * 1000) / 10
+            : 0,
+      },
+      {
+        key: 'OPEN',
+        label: 'Chờ báo giá / Chốt thợ',
+        count: openOrders,
+        percentage:
+          totalOrders > 0
+            ? Math.round((openOrders / totalOrders) * 1000) / 10
+            : 0,
+      },
+      {
+        key: 'CANCELLED',
+        label: 'Đã hủy',
+        count: cancelledOrders,
+        percentage: cancellationRate,
+      },
+    ];
+
+    // 2. Thống kê Doanh thu & Danh mục (Revenue Stats)
+    let totalRevenue = 0;
+    let totalLabourCost = 0;
+    let totalPartsCost = 0;
+    let totalAdditionalCost = 0;
+
+    const categoryStatsMap = new Map();
+    categories.forEach((cat) => {
+      categoryStatsMap.set(cat._id.toString(), {
+        categoryId: cat._id.toString(),
+        categoryName: cat.name,
+        totalRequests: 0,
+        completedCount: 0,
+        cancelledCount: 0,
+        revenue: 0,
+      });
+    });
+
+    const technicianJobMap = new Map();
+    technicians.forEach((tech) => {
+      const avgRating = Number(
+        tech.technicianProfile?.rating ?? tech.rating ?? 5.0
+      );
+      const totalReviews = Number(
+        tech.technicianProfile?.reviewCount ?? tech.reviewCount ?? 0
+      );
+      technicianJobMap.set(tech._id.toString(), {
+        technicianId: tech._id.toString(),
+        fullName: tech.fullName,
+        phoneNumber: tech.phoneNumber || '',
+        approvalStatus: tech.technicianProfile?.approvalStatus || 'pending',
+        isAvailable: tech.technicianProfile?.isAvailable === true,
+        averageRating: avgRating,
+        totalReviews,
+        assignedJobs: 0,
+        completedJobs: 0,
+        activeJobs: 0,
+        cancelledJobs: 0,
+        revenueGenerated: 0,
+      });
+    });
+
+    requests.forEach((reqDoc) => {
+      const catId = reqDoc.serviceCategoryId?._id?.toString();
+      if (catId) {
+        if (!categoryStatsMap.has(catId)) {
+          categoryStatsMap.set(catId, {
+            categoryId: catId,
+            categoryName: reqDoc.serviceCategoryId?.name || 'Dịch vụ khác',
+            totalRequests: 0,
+            completedCount: 0,
+            cancelledCount: 0,
+            revenue: 0,
+          });
+        }
+        const catStat = categoryStatsMap.get(catId);
+        catStat.totalRequests += 1;
+        if (reqDoc.status === 'COMPLETED') catStat.completedCount += 1;
+        if (reqDoc.status === 'CANCELLED') catStat.cancelledCount += 1;
+      }
+
+      const techId = reqDoc.assignedTechnicianId?._id?.toString();
+      if (techId) {
+        if (!technicianJobMap.has(techId)) {
+          const avgRating = Number(
+            reqDoc.assignedTechnicianId?.technicianProfile?.rating ??
+              reqDoc.assignedTechnicianId?.rating ??
+              5.0
+          );
+          const totalReviews = Number(
+            reqDoc.assignedTechnicianId?.technicianProfile?.reviewCount ??
+              reqDoc.assignedTechnicianId?.reviewCount ??
+              0
+          );
+          technicianJobMap.set(techId, {
+            technicianId: techId,
+            fullName: reqDoc.assignedTechnicianId?.fullName || 'Kỹ thuật viên',
+            phoneNumber: reqDoc.assignedTechnicianId?.phoneNumber || '',
+            approvalStatus: 'approved',
+            isAvailable: true,
+            averageRating: avgRating,
+            totalReviews,
+            assignedJobs: 0,
+            completedJobs: 0,
+            activeJobs: 0,
+            cancelledJobs: 0,
+            revenueGenerated: 0,
+          });
+        }
+        const tStat = technicianJobMap.get(techId);
+        tStat.assignedJobs += 1;
+        if (reqDoc.status === 'COMPLETED') {
+          tStat.completedJobs += 1;
+        } else if (reqDoc.status === 'CANCELLED') {
+          tStat.cancelledJobs += 1;
+        } else {
+          tStat.activeJobs += 1;
+        }
+      }
+
+      if (reqDoc.status === 'COMPLETED') {
+        const quote = quotationByRequestId.get(reqDoc._id.toString());
+        const basePrice = Number(reqDoc.serviceCategoryId?.basePrice ?? 0);
+        const labour = Number(quote?.labourCost ?? basePrice);
+        const parts = Number(quote?.partsCost ?? 0);
+        const approvedAdditional = (reqDoc.additionalCosts || [])
+          .filter((c) => c.status === 'APPROVED')
+          .reduce(
+            (sum, c) => sum + Number(c.quantity || 1) * Number(c.unitPrice || 0),
+            0
+          );
+        const orderRevenue =
+          Number(quote?.total ?? labour + parts) + approvedAdditional;
+
+        totalLabourCost += labour;
+        totalPartsCost += parts;
+        totalAdditionalCost += approvedAdditional;
+        totalRevenue += orderRevenue;
+
+        if (catId && categoryStatsMap.has(catId)) {
+          categoryStatsMap.get(catId).revenue += orderRevenue;
+        }
+        if (techId && technicianJobMap.has(techId)) {
+          technicianJobMap.get(techId).revenueGenerated += orderRevenue;
+        }
+      }
+    });
+
+    const averageOrderValue =
+      completedOrders > 0 ? Math.round(totalRevenue / completedOrders) : 0;
+
+    const revenueByCategory = Array.from(categoryStatsMap.values()).sort(
+      (a, b) => b.revenue - a.revenue || b.totalRequests - a.totalRequests
+    );
+
+    // 3. Thống kê Năng suất Thợ & Vận hành (Productivity Stats)
+    const topTechnicians = Array.from(technicianJobMap.values())
+      .map((item) => ({
+        ...item,
+        completionRate:
+          item.assignedJobs > 0
+            ? Math.round((item.completedJobs / item.assignedJobs) * 1000) / 10
+            : 0,
+      }))
+      .sort(
+        (a, b) =>
+          b.completedJobs - a.completedJobs ||
+          b.revenueGenerated - a.revenueGenerated ||
+          b.averageRating - a.averageRating
+      );
+
+    const totalComplaints = complaints.length;
+    const resolvedComplaints = complaints.filter((c) =>
+      ['RESOLVED', 'REJECTED'].includes(c.status)
+    ).length;
+    const pendingComplaints = complaints.filter((c) =>
+      ['RECEIVED', 'IN_REVIEW'].includes(c.status)
+    ).length;
+    const complaintResolutionRate =
+      totalComplaints > 0
+        ? Math.round((resolvedComplaints / totalComplaints) * 1000) / 10
+        : 100;
+
+    const approvedTechniciansCount = technicians.filter(
+      (t) => t.technicianProfile?.approvalStatus === 'approved'
+    ).length;
+    const pendingKycCount = technicians.filter(
+      (t) => t.technicianProfile?.approvalStatus === 'pending'
+    ).length;
+    const onlineTechniciansCount = technicians.filter(
+      (t) =>
+        t.isActive &&
+        t.technicianProfile?.approvalStatus === 'approved' &&
+        t.technicianProfile?.isAvailable === true
+    ).length;
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy dữ liệu thống kê báo cáo vận hành thành công',
+      data: {
+        period,
+        orderStats: {
+          totalOrders,
+          completedOrders,
+          inProgressOrders,
+          openOrders,
+          cancelledOrders,
+          successRate,
+          cancellationRate,
+          inProgressRate,
+          statusBreakdown,
+        },
+        revenueStats: {
+          totalRevenue,
+          totalLabourCost,
+          totalPartsCost,
+          totalAdditionalCost,
+          averageOrderValue,
+          revenueByCategory,
+        },
+        productivityStats: {
+          totalTechnicians: technicians.length,
+          approvedTechniciansCount,
+          pendingKycCount,
+          onlineTechniciansCount,
+          totalComplaints,
+          resolvedComplaints,
+          pendingComplaints,
+          complaintResolutionRate,
+          topTechnicians,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy báo cáo vận hành:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi tổng hợp báo cáo vận hành',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getUsers,
   createStaff,
@@ -1151,4 +1482,5 @@ module.exports = {
   getStuckRequests,
   staffCancelRequest,
   staffReassignRequest,
+  getOperationalReport,
 };
