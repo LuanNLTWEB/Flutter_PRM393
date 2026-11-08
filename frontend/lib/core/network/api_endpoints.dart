@@ -28,6 +28,17 @@ class ApiEndpoints {
   static String adminRejectTechnician(String id) =>
       '$baseUrl/admin/technicians/$id/reject';
 
+  // Giám sát đơn hàng bị treo & can thiệp vận hành (UC-STF-04)
+  static const String adminStuckRequests = '$baseUrl/admin/requests/stuck';
+  static String adminCancelRequest(String id) =>
+      '$baseUrl/admin/requests/$id/cancel';
+  static String adminReassignRequest(String id) =>
+      '$baseUrl/admin/requests/$id/reassign';
+
+  // Thống kê báo cáo vận hành (UC-STF-05)
+  static const String adminOperationalReport =
+      '$baseUrl/admin/reports/operations';
+
   // Review Endpoints (UC-RAT-01 & UC-RAT-02)
   static const String reviewTags = '$baseUrl/reviews/tags';
   static const String technicians = '$baseUrl/reviews/technicians';

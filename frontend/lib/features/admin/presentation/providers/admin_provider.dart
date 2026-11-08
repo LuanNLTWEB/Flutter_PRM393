@@ -28,6 +28,25 @@ class AdminProvider extends ChangeNotifier {
   String? _categoryFilter; // null / 'ALL', 'ACTIVE', 'INACTIVE'
   String _categorySearchQuery = '';
 
+  // Giám sát đơn hàng bị treo (UC-STF-04)
+  List<Map<String, dynamic>> _stuckRequests = [];
+  List<Map<String, dynamic>> _availableTechnicians = [];
+  Map<String, int> _stuckCounts = {
+    'totalActive': 0,
+    'stuckCount': 0,
+    'overdueCount': 0,
+    'noTechCount': 0,
+    'inProgressCount': 0,
+  };
+  bool _isStuckLoading = false;
+  String _stuckFilter = 'ALL';
+  String _stuckSearchQuery = '';
+
+  // Thống kê báo cáo vận hành (UC-STF-05)
+  Map<String, dynamic>? _operationalReport;
+  bool _isReportLoading = false;
+  String _reportPeriod = 'all';
+
   List<UserModel> get users => _users;
   bool get isLoading => _isLoading;
   bool get isActionLoading => _isActionLoading;
@@ -450,6 +469,166 @@ class AdminProvider extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
       return false;
+    }
+  }
+
+  // ==========================================================
+  // GETTERS & METHODS FOR STUCK ORDERS MONITORING (UC-STF-04)
+  // ==========================================================
+
+  List<Map<String, dynamic>> get stuckRequests => _stuckRequests;
+  List<Map<String, dynamic>> get availableTechnicians => _availableTechnicians;
+  Map<String, int> get stuckCounts => _stuckCounts;
+  bool get isStuckLoading => _isStuckLoading;
+  String get stuckFilter => _stuckFilter;
+  String get stuckSearchQuery => _stuckSearchQuery;
+
+  void setStuckFilter(String filter, String token) {
+    _stuckFilter = filter;
+    fetchStuckRequests(token);
+  }
+
+  void setStuckSearchQuery(String query, String token) {
+    _stuckSearchQuery = query;
+    fetchStuckRequests(token);
+  }
+
+  /// Tải danh sách đơn hàng bị treo / đang xử lý (UC-STF-04)
+  Future<void> fetchStuckRequests(String token) async {
+    _isStuckLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final res = await _dataSource.getStuckRequests(
+        token: token,
+        filter: _stuckFilter,
+        search: _stuckSearchQuery,
+      );
+
+      final rawRequests = (res['requests'] as List<dynamic>? ?? []);
+      _stuckRequests = rawRequests
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+
+      final rawTechs = (res['availableTechnicians'] as List<dynamic>? ?? []);
+      _availableTechnicians = rawTechs
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+
+      final rawCounts = res['counts'] as Map<String, dynamic>? ?? {};
+      _stuckCounts = {
+        'totalActive': (rawCounts['totalActive'] as num?)?.toInt() ?? 0,
+        'stuckCount': (rawCounts['stuckCount'] as num?)?.toInt() ?? 0,
+        'overdueCount': (rawCounts['overdueCount'] as num?)?.toInt() ?? 0,
+        'noTechCount': (rawCounts['noTechCount'] as num?)?.toInt() ?? 0,
+        'inProgressCount': (rawCounts['inProgressCount'] as num?)?.toInt() ?? 0,
+      };
+
+      _isStuckLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isStuckLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
+  /// Staff can thiệp hủy đơn hàng bị treo (UC-STF-04)
+  Future<bool> staffCancelRequest({
+    required String token,
+    required String requestId,
+    required String reason,
+  }) async {
+    _isActionLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final res = await _dataSource.staffCancelRequest(
+        token: token,
+        requestId: requestId,
+        reason: reason,
+      );
+      _isActionLoading = false;
+      _successMessage =
+          (res['message'] as String?) ?? 'Đã can thiệp hủy đơn hàng thành công';
+      await fetchStuckRequests(token);
+      return true;
+    } catch (e) {
+      _isActionLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Staff điều phối lại thợ khác hoặc mở lại đơn hàng (UC-STF-04)
+  Future<bool> staffReassignRequest({
+    required String token,
+    required String requestId,
+    String? newTechnicianId,
+    String mode = 'ASSIGN',
+    String note = '',
+  }) async {
+    _isActionLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final res = await _dataSource.staffReassignRequest(
+        token: token,
+        requestId: requestId,
+        newTechnicianId: newTechnicianId,
+        mode: mode,
+        note: note,
+      );
+      _isActionLoading = false;
+      _successMessage =
+          (res['message'] as String?) ?? 'Đã điều phối lại đơn hàng thành công';
+      await fetchStuckRequests(token);
+      return true;
+    } catch (e) {
+      _isActionLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ==========================================================
+  // GETTERS & METHODS FOR OPERATIONAL REPORT (UC-STF-05)
+  // ==========================================================
+
+  Map<String, dynamic>? get operationalReport => _operationalReport;
+  bool get isReportLoading => _isReportLoading;
+  String get reportPeriod => _reportPeriod;
+
+  void setReportPeriod(String period, String token) {
+    _reportPeriod = period;
+    fetchOperationalReport(token);
+  }
+
+  /// Lấy dữ liệu thống kê báo cáo vận hành (UC-STF-05)
+  Future<void> fetchOperationalReport(String token) async {
+    _isReportLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final res = await _dataSource.getOperationalReport(
+        token: token,
+        period: _reportPeriod,
+      );
+      _operationalReport = res;
+      _isReportLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isReportLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
     }
   }
 

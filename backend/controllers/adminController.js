@@ -1,4 +1,9 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
+const RepairRequest = require('../models/RepairRequest');
+const Quotation = require('../models/Quotation');
+const Complaint = require('../models/Complaint');
+const ServiceCategory = require('../models/ServiceCategory');
 const { createNotificationUtil } = require('./notificationController');
 
 /**
@@ -446,6 +451,1026 @@ const rejectTechnician = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Giám sát danh sách đơn hàng bị treo / đang xử lý để Staff can thiệp (UC-STF-04)
+ * @route   GET /api/admin/requests/stuck
+ * @access  Private (Admin hoặc Staff)
+ */
+const getStuckRequests = async (req, res) => {
+  try {
+    const { filter = 'ALL', search = '' } = req.query;
+
+    const activeStatuses = [
+      'OPEN',
+      'QUOTED',
+      'ACCEPTED',
+      'ON_THE_WAY',
+      'ARRIVED',
+      'IN_PROGRESS',
+    ];
+
+    const [requests, candidateTechnicians] = await Promise.all([
+      RepairRequest.find({ status: { $in: activeStatuses } })
+        .populate('customerId', 'fullName phoneNumber email')
+        .populate('serviceCategoryId', 'name basePrice icon color')
+        .populate(
+          'assignedTechnicianId',
+          'fullName phoneNumber email rating reviewCount technicianProfile.skills technicianProfile.rating technicianProfile.reviewCount technicianProfile.completedJobsCount technicianProfile.isAvailable'
+        )
+        .sort({ updatedAt: 1 }),
+      User.find({
+        role: 'technician',
+        isActive: true,
+        'technicianProfile.approvalStatus': 'approved',
+      })
+        .select(
+          'fullName phoneNumber email rating reviewCount technicianProfile.skills technicianProfile.rating technicianProfile.reviewCount technicianProfile.completedJobsCount technicianProfile.isAvailable'
+        )
+        .sort({
+          'technicianProfile.isAvailable': -1,
+          'technicianProfile.rating': -1,
+          rating: -1,
+          fullName: 1,
+        }),
+    ]);
+
+    // Tuân thủ quy tắc nghiệp vụ: Mỗi kỹ thuật viên chỉ phụ trách tối đa 1 đơn đang thực hiện tại một thời điểm
+    const busyJobStatuses = ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'];
+    const busyTechnicianIds = new Set(
+      requests
+        .filter(
+          (r) => busyJobStatuses.includes(r.status) && r.assignedTechnicianId
+        )
+        .map((r) =>
+          (r.assignedTechnicianId._id || r.assignedTechnicianId).toString()
+        )
+    );
+
+    const availableTechnicians = candidateTechnicians
+      .filter((t) => !busyTechnicianIds.has(t._id.toString()))
+      .map((t) => {
+        const obj = t.toObject();
+        const avgRating = Number(
+          obj.technicianProfile?.rating ?? obj.rating ?? 5.0
+        );
+        const totalReviews = Number(
+          obj.technicianProfile?.reviewCount ?? obj.reviewCount ?? 0
+        );
+        return {
+          ...obj,
+          rating: avgRating,
+          reviewCount: totalReviews,
+          technicianProfile: {
+            ...(obj.technicianProfile || {}),
+            rating: avgRating,
+            reviewCount: totalReviews,
+            averageRating: avgRating,
+            totalReviews,
+          },
+        };
+      });
+
+    const now = new Date();
+
+    const enrichedRequests = requests.map((doc) => {
+      const obj = doc.toObject();
+      const createdAt = obj.createdAt ? new Date(obj.createdAt) : now;
+      const updatedAt = obj.updatedAt ? new Date(obj.updatedAt) : now;
+      const preferredTime = obj.preferredTime ? new Date(obj.preferredTime) : null;
+
+      const hoursSinceCreated = Math.max(
+        0,
+        Math.round(((now - createdAt) / (1000 * 60 * 60)) * 10) / 10
+      );
+      const hoursSinceUpdated = Math.max(
+        0,
+        Math.round(((now - updatedAt) / (1000 * 60 * 60)) * 10) / 10
+      );
+
+      let stuckType = 'IN_PROGRESS';
+      let isStuck = false;
+      let stuckSeverity = 'NORMAL';
+      let stuckReason = '';
+
+      const isOverduePreferred =
+        preferredTime &&
+        preferredTime < now &&
+        ['OPEN', 'QUOTED', 'ACCEPTED', 'ON_THE_WAY', 'ARRIVED'].includes(obj.status);
+
+      if (isOverduePreferred) {
+        const overdueHours = Math.max(
+          0.5,
+          Math.round(((now - preferredTime) / (1000 * 60 * 60)) * 10) / 10
+        );
+        stuckType = 'OVERDUE';
+        isStuck = true;
+        stuckSeverity = 'HIGH';
+        stuckReason = `Đã quá giờ hẹn khách chọn (${overdueHours} giờ) nhưng chưa bắt đầu sửa chữa`;
+      } else if (['OPEN', 'QUOTED'].includes(obj.status)) {
+        stuckType = 'NO_TECH';
+        if (
+          hoursSinceCreated >= 2 ||
+          obj.urgency === 'emergency' ||
+          obj.urgency === 'high'
+        ) {
+          isStuck = true;
+          stuckSeverity = hoursSinceCreated >= 12 ? 'HIGH' : 'MEDIUM';
+          stuckReason =
+            obj.status === 'OPEN'
+              ? `Đơn mở ${hoursSinceCreated} giờ chưa có thợ nhận xử lý`
+              : `Đã có báo giá nhưng khách chưa chốt thợ sau ${hoursSinceCreated} giờ`;
+        } else {
+          isStuck = false;
+          stuckSeverity = 'NORMAL';
+          stuckReason = `Đang chờ điều phối / chốt thợ (${hoursSinceCreated} giờ)`;
+        }
+      } else {
+        stuckType = 'IN_PROGRESS';
+        if (hoursSinceUpdated >= 3) {
+          isStuck = true;
+          stuckSeverity = hoursSinceUpdated >= 12 ? 'HIGH' : 'MEDIUM';
+          stuckReason = `Đơn ở trạng thái ${obj.status} bị đình trệ ${hoursSinceUpdated} giờ chưa cập nhật`;
+        } else {
+          isStuck = false;
+          stuckSeverity = 'NORMAL';
+          stuckReason = `Đang thực hiện (${hoursSinceUpdated} giờ từ lần cập nhật cuối)`;
+        }
+      }
+
+      return {
+        ...obj,
+        stuckInfo: {
+          isStuck,
+          stuckType,
+          stuckSeverity,
+          stuckReason,
+          hoursSinceCreated,
+          hoursSinceUpdated,
+        },
+      };
+    });
+
+    const counts = {
+      totalActive: enrichedRequests.length,
+      stuckCount: enrichedRequests.filter((r) => r.stuckInfo.isStuck).length,
+      overdueCount: enrichedRequests.filter(
+        (r) => r.stuckInfo.stuckType === 'OVERDUE'
+      ).length,
+      noTechCount: enrichedRequests.filter((r) =>
+        ['OPEN', 'QUOTED'].includes(r.status)
+      ).length,
+      inProgressCount: enrichedRequests.filter((r) =>
+        ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(r.status)
+      ).length,
+    };
+
+    let filtered = enrichedRequests;
+    const normalizedFilter = String(filter).toUpperCase();
+    if (normalizedFilter === 'STUCK') {
+      filtered = filtered.filter((r) => r.stuckInfo.isStuck);
+    } else if (normalizedFilter === 'OVERDUE') {
+      filtered = filtered.filter((r) => r.stuckInfo.stuckType === 'OVERDUE');
+    } else if (normalizedFilter === 'NO_TECH') {
+      filtered = filtered.filter((r) => ['OPEN', 'QUOTED'].includes(r.status));
+    } else if (normalizedFilter === 'IN_PROGRESS') {
+      filtered = filtered.filter((r) =>
+        ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(r.status)
+      );
+    }
+
+    if (search && search.trim() !== '') {
+      const q = search.trim().toLowerCase();
+      filtered = filtered.filter((r) => {
+        const title = (r.title || '').toLowerCase();
+        const address = (r.location?.address || '').toLowerCase();
+        const cusName = (r.customerId?.fullName || '').toLowerCase();
+        const cusPhone = (r.customerId?.phoneNumber || '').toLowerCase();
+        const techName = (r.assignedTechnicianId?.fullName || '').toLowerCase();
+        const techPhone = (r.assignedTechnicianId?.phoneNumber || '').toLowerCase();
+        const catName = (r.serviceCategoryId?.name || '').toLowerCase();
+        return (
+          title.contains(q) ||
+          address.contains(q) ||
+          cusName.contains(q) ||
+          cusPhone.contains(q) ||
+          techName.contains(q) ||
+          techPhone.contains(q) ||
+          catName.contains(q)
+        );
+      });
+    }
+
+    const severityRank = { HIGH: 0, MEDIUM: 1, NORMAL: 2 };
+    filtered.sort((a, b) => {
+      const rankDiff =
+        (severityRank[a.stuckInfo.stuckSeverity] ?? 3) -
+        (severityRank[b.stuckInfo.stuckSeverity] ?? 3);
+      if (rankDiff !== 0) return rankDiff;
+      return new Date(a.updatedAt) - new Date(b.updatedAt);
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy danh sách giám sát đơn hàng thành công',
+      data: {
+        requests: filtered,
+        counts,
+        availableTechnicians,
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách đơn hàng bị treo:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi lấy danh sách giám sát đơn hàng',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Staff/Admin can thiệp hủy đơn hàng bị treo (UC-STF-04)
+ * @route   PUT /api/admin/requests/:id/cancel
+ * @access  Private (Admin hoặc Staff)
+ */
+const staffCancelRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã đơn hàng không hợp lệ',
+      });
+    }
+
+    if (!reason || reason.trim().length < 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập lý do can thiệp hủy đơn (ít nhất 5 ký tự)',
+      });
+    }
+
+    const repairRequest = await RepairRequest.findById(id);
+    if (!repairRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn sửa chữa',
+      });
+    }
+
+    if (['COMPLETED', 'CANCELLED'].includes(repairRequest.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Đơn hàng đã ở trạng thái ${repairRequest.status}, không thể can thiệp hủy`,
+      });
+    }
+
+    const previousTechnicianId = repairRequest.assignedTechnicianId
+      ? repairRequest.assignedTechnicianId.toString()
+      : null;
+    const cleanReason = reason.trim();
+    const now = new Date();
+
+    // Hủy tất cả các chi phí phát sinh đang chờ duyệt (nếu có)
+    if (Array.isArray(repairRequest.additionalCosts)) {
+      repairRequest.additionalCosts.forEach((item) => {
+        if (item.status === 'PENDING') {
+          item.status = 'REJECTED';
+          item.resolvedAt = now;
+        }
+      });
+    }
+
+    repairRequest.status = 'CANCELLED';
+    repairRequest.cancelledAt = now;
+    repairRequest.cancellationReason = `[Vận hành can thiệp] ${cleanReason}`;
+    repairRequest.cancellationInitiatedBy = 'staff';
+    repairRequest.staffInterventionNote = cleanReason;
+    await repairRequest.save();
+
+    // Tìm các báo giá đang ở trạng thái SENT để thông báo cho các kỹ thuật viên đã gửi báo giá
+    const sentQuotations = await Quotation.find({
+      requestId: repairRequest._id,
+      status: 'SENT',
+    }).select('technicianId');
+
+    await Quotation.updateMany(
+      {
+        requestId: repairRequest._id,
+        status: { $in: ['SENT', 'ACCEPTED'] },
+      },
+      {
+        $set: {
+          status: 'REJECTED',
+          resolvedAt: now,
+        },
+      }
+    );
+
+    await createNotificationUtil({
+      recipient: repairRequest.customerId,
+      title: 'Đơn sửa chữa đã được bộ phận Vận hành hủy ⚠️',
+      message: `Đơn "${repairRequest.title}" đã được nhân viên vận hành can thiệp hủy với lý do: "${cleanReason}".`,
+      type: 'ORDER_STATUS',
+      data: {
+        requestId: repairRequest._id,
+        status: 'CANCELLED',
+        reason: cleanReason,
+      },
+    });
+
+    if (previousTechnicianId) {
+      await createNotificationUtil({
+        recipient: previousTechnicianId,
+        title: 'Đơn sửa chữa đã bị hủy bởi Vận hành ⚠️',
+        message: `Đơn "${repairRequest.title}" bạn đang phụ trách đã được bộ phận vận hành hủy: "${cleanReason}".`,
+        type: 'ORDER_STATUS',
+        data: {
+          requestId: repairRequest._id,
+          status: 'CANCELLED',
+          reason: cleanReason,
+        },
+      });
+    }
+
+    for (const q of sentQuotations) {
+      const quotedTechId = q.technicianId ? q.technicianId.toString() : null;
+      if (quotedTechId && quotedTechId !== previousTechnicianId) {
+        await createNotificationUtil({
+          recipient: quotedTechId,
+          title: 'Đơn bạn báo giá đã bị hủy bởi Vận hành ⚠️',
+          message: `Đơn "${repairRequest.title}" mà bạn đã gửi báo giá đã được bộ phận vận hành hủy: "${cleanReason}".`,
+          type: 'ORDER_STATUS',
+          data: {
+            requestId: repairRequest._id,
+            status: 'CANCELLED',
+            reason: cleanReason,
+          },
+        });
+      }
+    }
+
+    const populated = await RepairRequest.findById(repairRequest._id)
+      .populate('customerId', 'fullName phoneNumber email')
+      .populate('serviceCategoryId', 'name basePrice icon color')
+      .populate(
+        'assignedTechnicianId',
+        'fullName phoneNumber email rating reviewCount technicianProfile.skills technicianProfile.rating technicianProfile.reviewCount technicianProfile.completedJobsCount'
+      );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã can thiệp hủy đơn hàng thành công',
+      data: { request: populated },
+    });
+  } catch (error) {
+    console.error('Lỗi khi Staff can thiệp hủy đơn:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi can thiệp hủy đơn hàng',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Staff/Admin hỗ trợ điều phối lại thợ khác hoặc mở lại đơn bị treo (UC-STF-04)
+ * @route   PUT /api/admin/requests/:id/reassign
+ * @access  Private (Admin hoặc Staff)
+ */
+const staffReassignRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      newTechnicianId,
+      note = '',
+      mode = 'ASSIGN',
+      newPreferredTime,
+    } = req.body;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã đơn hàng không hợp lệ',
+      });
+    }
+
+    const repairRequest = await RepairRequest.findById(id).populate(
+      'serviceCategoryId',
+      'name basePrice'
+    );
+    if (!repairRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn sửa chữa',
+      });
+    }
+
+    if (['COMPLETED', 'CANCELLED'].includes(repairRequest.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Đơn hàng đã ở trạng thái ${repairRequest.status}, không thể điều phối lại`,
+      });
+    }
+
+    const previousTechnicianId = repairRequest.assignedTechnicianId
+      ? repairRequest.assignedTechnicianId.toString()
+      : null;
+    const cleanNote = note.trim();
+    const now = new Date();
+
+    // Hủy các khoản chi phí phát sinh đang chờ duyệt của thợ cũ (nếu có)
+    if (Array.isArray(repairRequest.additionalCosts)) {
+      repairRequest.additionalCosts.forEach((item) => {
+        if (item.status === 'PENDING') {
+          item.status = 'REJECTED';
+          item.resolvedAt = now;
+        }
+      });
+    }
+
+    // Tự động gia hạn preferredTime (+2 giờ) nếu giờ hẹn cũ đã qua,
+    // đảm bảo thợ mới có thể xác nhận lịch hẹn (UC-SCH-02) hoặc khách có thể duyệt báo giá mới (UC-QUO-08)
+    let timeExtended = false;
+    if (newPreferredTime && !Number.isNaN(new Date(newPreferredTime).getTime())) {
+      const parsedTime = new Date(newPreferredTime);
+      if (parsedTime > now) {
+        repairRequest.preferredTime = parsedTime;
+        timeExtended = true;
+      }
+    } else if (
+      !repairRequest.preferredTime ||
+      new Date(repairRequest.preferredTime) <= now
+    ) {
+      repairRequest.preferredTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      timeExtended = true;
+    }
+
+    // Chế độ 1: Mở lại đơn về trạng thái OPEN/QUOTED để các thợ khác gửi báo giá
+    if (mode === 'REOPEN' || !newTechnicianId) {
+      await Quotation.updateMany(
+        { requestId: repairRequest._id, status: 'ACCEPTED' },
+        { $set: { status: 'REJECTED', resolvedAt: now } }
+      );
+
+      const remainingSentQuotes = await Quotation.countDocuments({
+        requestId: repairRequest._id,
+        status: 'SENT',
+      });
+
+      const reopenedStatus = remainingSentQuotes > 0 ? 'QUOTED' : 'OPEN';
+
+      repairRequest.assignedTechnicianId = null;
+      repairRequest.status = reopenedStatus;
+      repairRequest.appointmentStatus = 'PENDING';
+      repairRequest.proposedTime = null;
+      repairRequest.rescheduleNote = '';
+      repairRequest.rescheduleRejectNote = '';
+      repairRequest.appointmentConfirmedAt = null;
+      repairRequest.onTheWayAt = null;
+      repairRequest.arrivedAt = null;
+      repairRequest.startedAt = null;
+      repairRequest.staffInterventionNote =
+        cleanNote || 'Mở lại đơn hàng để tìm kỹ thuật viên mới';
+      await repairRequest.save();
+
+      await createNotificationUtil({
+        recipient: repairRequest.customerId,
+        title: 'Đơn sửa chữa đang được điều phối lại 🔄',
+        message: `Bộ phận vận hành đã mở lại đơn "${repairRequest.title}" để hỗ trợ tìm thợ mới cho bạn.${cleanNote ? ` Ghi chú: ${cleanNote}` : ''}`,
+        type: 'ORDER_STATUS',
+        data: { requestId: repairRequest._id, status: reopenedStatus },
+      });
+
+      if (previousTechnicianId) {
+        await createNotificationUtil({
+          recipient: previousTechnicianId,
+          title: 'Thu hồi phân công đơn sửa chữa 🔄',
+          message: `Đơn "${repairRequest.title}" đã được bộ phận vận hành thu hồi để điều phối lại.${cleanNote ? ` Lý do: ${cleanNote}` : ''}`,
+          type: 'ORDER_STATUS',
+          data: { requestId: repairRequest._id, status: reopenedStatus },
+        });
+      }
+
+      const populated = await RepairRequest.findById(repairRequest._id)
+        .populate('customerId', 'fullName phoneNumber email')
+        .populate('serviceCategoryId', 'name basePrice icon color')
+        .populate(
+          'assignedTechnicianId',
+          'fullName phoneNumber email rating reviewCount technicianProfile.skills technicianProfile.rating technicianProfile.reviewCount technicianProfile.completedJobsCount'
+        );
+
+      return res.status(200).json({
+        success: true,
+        message: timeExtended
+          ? 'Đã gỡ thợ cũ, mở lại đơn hàng và gia hạn khung giờ hẹn mới (+2 giờ)'
+          : 'Đã gỡ thợ cũ và mở lại đơn hàng thành công',
+        data: { request: populated },
+      });
+    }
+
+    // Chế độ 2: Gán trực tiếp cho một thợ mới cụ thể
+    if (!mongoose.isValidObjectId(newTechnicianId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã kỹ thuật viên được chọn không hợp lệ',
+      });
+    }
+
+    if (previousTechnicianId && previousTechnicianId === newTechnicianId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Kỹ thuật viên này đang phụ trách đơn hàng rồi, vui lòng chọn thợ khác',
+      });
+    }
+
+    const newTechnician = await User.findOne({
+      _id: newTechnicianId,
+      role: 'technician',
+      isActive: true,
+      'technicianProfile.approvalStatus': 'approved',
+    });
+
+    if (!newTechnician) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy kỹ thuật viên hợp lệ hoặc tài khoản thợ đã bị khóa',
+      });
+    }
+
+    // Kiểm tra quy tắc 1 thợ chỉ phụ trách tối đa 1 đơn đang thực hiện tại 1 thời điểm
+    const activeJobOfNewTech = await RepairRequest.findOne({
+      _id: { $ne: repairRequest._id },
+      assignedTechnicianId: newTechnician._id,
+      status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] },
+    }).select('_id title status');
+
+    if (activeJobOfNewTech) {
+      return res.status(400).json({
+        success: false,
+        message: `Thợ "${newTechnician.fullName}" hiện đang bận thực hiện đơn "${activeJobOfNewTech.title}" (${activeJobOfNewTech.status}). Vui lòng chọn kỹ thuật viên khác.`,
+      });
+    }
+
+    const [existingQuoteOfNewTech, oldAcceptedQuote] = await Promise.all([
+      Quotation.findOne({
+        requestId: repairRequest._id,
+        technicianId: newTechnician._id,
+      }),
+      Quotation.findOne({
+        requestId: repairRequest._id,
+        status: 'ACCEPTED',
+      }),
+    ]);
+
+    const defaultLabourCost = Number(
+      existingQuoteOfNewTech?.labourCost ??
+        oldAcceptedQuote?.labourCost ??
+        repairRequest.serviceCategoryId?.basePrice ??
+        150000
+    );
+    const defaultPartsCost = Number(
+      existingQuoteOfNewTech?.partsCost ?? oldAcceptedQuote?.partsCost ?? 0
+    );
+
+    // Từ chối toàn bộ các báo giá SENT/ACCEPTED của những kỹ thuật viên khác trên đơn này
+    await Quotation.updateMany(
+      {
+        requestId: repairRequest._id,
+        technicianId: { $ne: newTechnician._id },
+        status: { $in: ['SENT', 'ACCEPTED'] },
+      },
+      { $set: { status: 'REJECTED', resolvedAt: now } }
+    );
+
+    await Quotation.findOneAndUpdate(
+      {
+        requestId: repairRequest._id,
+        technicianId: newTechnician._id,
+      },
+      {
+        $set: {
+          labourCost: defaultLabourCost,
+          partsCost: defaultPartsCost,
+          total: defaultLabourCost + defaultPartsCost,
+          status: 'ACCEPTED',
+          resolvedAt: now,
+          note:
+            cleanNote ||
+            `Được điều phối trực tiếp bởi bộ phận Vận hành (${req.user.fullName || 'Staff'})`,
+        },
+      },
+      { upsert: true, new: true }
+    );
+
+    repairRequest.assignedTechnicianId = newTechnician._id;
+    repairRequest.status = 'ACCEPTED';
+    repairRequest.appointmentStatus = 'PENDING';
+    repairRequest.proposedTime = null;
+    repairRequest.rescheduleNote = '';
+    repairRequest.rescheduleRejectNote = '';
+    repairRequest.appointmentConfirmedAt = null;
+    repairRequest.onTheWayAt = null;
+    repairRequest.arrivedAt = null;
+    repairRequest.startedAt = null;
+    repairRequest.staffInterventionNote =
+      cleanNote || `Điều phối sang kỹ thuật viên ${newTechnician.fullName}`;
+    await repairRequest.save();
+
+    await createNotificationUtil({
+      recipient: repairRequest.customerId,
+      title: 'Đã điều phối kỹ thuật viên mới cho đơn của bạn 🛠️',
+      message: `Bộ phận vận hành đã điều phối thợ "${newTechnician.fullName}" (${newTechnician.phoneNumber}) tiếp nhận đơn "${repairRequest.title}".`,
+      type: 'ORDER_STATUS',
+      data: {
+        requestId: repairRequest._id,
+        status: 'ACCEPTED',
+        technicianId: newTechnician._id,
+      },
+    });
+
+    await createNotificationUtil({
+      recipient: newTechnician._id,
+      title: 'Bạn được điều phối nhận đơn sửa chữa mới 📋',
+      message: `Bộ phận vận hành đã phân công bạn phụ trách đơn "${repairRequest.title}". Vui lòng kiểm tra và xác nhận lịch hẹn với khách hàng.`,
+      type: 'ORDER_STATUS',
+      data: {
+        requestId: repairRequest._id,
+        status: 'ACCEPTED',
+      },
+    });
+
+    if (previousTechnicianId) {
+      await createNotificationUtil({
+        recipient: previousTechnicianId,
+        title: 'Đơn sửa chữa đã được chuyển cho thợ khác 🔄',
+        message: `Đơn "${repairRequest.title}" đã được bộ phận vận hành điều phối sang kỹ thuật viên khác.${cleanNote ? ` Ghi chú: ${cleanNote}` : ''}`,
+        type: 'ORDER_STATUS',
+        data: {
+          requestId: repairRequest._id,
+          status: 'ACCEPTED',
+        },
+      });
+    }
+
+    const populated = await RepairRequest.findById(repairRequest._id)
+      .populate('customerId', 'fullName phoneNumber email')
+      .populate('serviceCategoryId', 'name basePrice icon color')
+      .populate(
+        'assignedTechnicianId',
+        'fullName phoneNumber email rating reviewCount technicianProfile.skills technicianProfile.rating technicianProfile.reviewCount technicianProfile.completedJobsCount'
+      );
+
+    return res.status(200).json({
+      success: true,
+      message: timeExtended
+        ? `Đã điều phối đơn cho thợ "${newTechnician.fullName}" và tự động gia hạn khung giờ hẹn (+2 giờ)`
+        : `Đã điều phối đơn hàng cho thợ "${newTechnician.fullName}" thành công`,
+      data: { request: populated },
+    });
+  } catch (error) {
+    console.error('Lỗi khi điều phối lại thợ:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi điều phối lại đơn hàng',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Thống kê báo cáo vận hành: tỷ lệ đơn thành công, doanh thu và năng suất (UC-STF-05)
+ * @route   GET /api/admin/reports/operations
+ * @access  Private (Admin hoặc Staff)
+ */
+const getOperationalReport = async (req, res) => {
+  try {
+    const { period = 'all' } = req.query;
+
+    const dateQuery = {};
+    const now = new Date();
+    if (period === '7d') {
+      dateQuery.createdAt = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+    } else if (period === '30d') {
+      dateQuery.createdAt = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+    } else if (period === '90d') {
+      dateQuery.createdAt = { $gte: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
+    }
+
+    const [requests, technicians, complaints, categories] = await Promise.all([
+      RepairRequest.find(dateQuery)
+        .populate('serviceCategoryId', 'name basePrice icon color')
+        .populate(
+          'assignedTechnicianId',
+          'fullName phoneNumber rating reviewCount technicianProfile.rating technicianProfile.reviewCount technicianProfile.completedJobsCount'
+        )
+        .sort({ createdAt: -1 }),
+      User.find({ role: 'technician' })
+        .select(
+          'fullName phoneNumber email isActive rating reviewCount technicianProfile.approvalStatus technicianProfile.isAvailable technicianProfile.rating technicianProfile.reviewCount technicianProfile.completedJobsCount technicianProfile.skills'
+        )
+        .sort({ 'technicianProfile.rating': -1, rating: -1 }),
+      Complaint.find(dateQuery).select('status category createdAt handledAt'),
+      ServiceCategory.find({}).select('name basePrice icon color isActive'),
+    ]);
+
+    const completedRequestIds = requests
+      .filter((r) => r.status === 'COMPLETED')
+      .map((r) => r._id);
+
+    const acceptedQuotations = completedRequestIds.length
+      ? await Quotation.find({
+          requestId: { $in: completedRequestIds },
+          status: 'ACCEPTED',
+        }).select('requestId labourCost partsCost total')
+      : [];
+
+    const quotationByRequestId = new Map(
+      acceptedQuotations.map((q) => [q.requestId.toString(), q])
+    );
+
+    // 1. Thống kê Tỷ lệ đơn hàng (Order Stats)
+    const totalOrders = requests.length;
+    const completedOrders = requests.filter((r) => r.status === 'COMPLETED').length;
+    const cancelledOrders = requests.filter((r) => r.status === 'CANCELLED').length;
+    const openOrders = requests.filter((r) =>
+      ['OPEN', 'QUOTED'].includes(r.status)
+    ).length;
+    const inProgressOrders = requests.filter((r) =>
+      ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'].includes(r.status)
+    ).length;
+
+    const successRate =
+      totalOrders > 0
+        ? Math.round((completedOrders / totalOrders) * 1000) / 10
+        : 0;
+    const cancellationRate =
+      totalOrders > 0
+        ? Math.round((cancelledOrders / totalOrders) * 1000) / 10
+        : 0;
+    const inProgressRate =
+      totalOrders > 0
+        ? Math.round(((openOrders + inProgressOrders) / totalOrders) * 1000) / 10
+        : 0;
+
+    const statusBreakdown = [
+      {
+        key: 'COMPLETED',
+        label: 'Đã hoàn tất',
+        count: completedOrders,
+        percentage: successRate,
+      },
+      {
+        key: 'IN_PROGRESS',
+        label: 'Đang thực hiện',
+        count: inProgressOrders,
+        percentage:
+          totalOrders > 0
+            ? Math.round((inProgressOrders / totalOrders) * 1000) / 10
+            : 0,
+      },
+      {
+        key: 'OPEN',
+        label: 'Chờ báo giá / Chốt thợ',
+        count: openOrders,
+        percentage:
+          totalOrders > 0
+            ? Math.round((openOrders / totalOrders) * 1000) / 10
+            : 0,
+      },
+      {
+        key: 'CANCELLED',
+        label: 'Đã hủy',
+        count: cancelledOrders,
+        percentage: cancellationRate,
+      },
+    ];
+
+    // 2. Thống kê Doanh thu & Danh mục (Revenue Stats)
+    let totalRevenue = 0;
+    let totalLabourCost = 0;
+    let totalPartsCost = 0;
+    let totalAdditionalCost = 0;
+
+    const categoryStatsMap = new Map();
+    categories.forEach((cat) => {
+      categoryStatsMap.set(cat._id.toString(), {
+        categoryId: cat._id.toString(),
+        categoryName: cat.name,
+        totalRequests: 0,
+        completedCount: 0,
+        cancelledCount: 0,
+        revenue: 0,
+      });
+    });
+
+    const technicianJobMap = new Map();
+    technicians.forEach((tech) => {
+      const avgRating = Number(
+        tech.technicianProfile?.rating ?? tech.rating ?? 5.0
+      );
+      const totalReviews = Number(
+        tech.technicianProfile?.reviewCount ?? tech.reviewCount ?? 0
+      );
+      technicianJobMap.set(tech._id.toString(), {
+        technicianId: tech._id.toString(),
+        fullName: tech.fullName,
+        phoneNumber: tech.phoneNumber || '',
+        approvalStatus: tech.technicianProfile?.approvalStatus || 'pending',
+        isAvailable: tech.technicianProfile?.isAvailable === true,
+        averageRating: avgRating,
+        totalReviews,
+        assignedJobs: 0,
+        completedJobs: 0,
+        activeJobs: 0,
+        cancelledJobs: 0,
+        revenueGenerated: 0,
+      });
+    });
+
+    requests.forEach((reqDoc) => {
+      const catId = reqDoc.serviceCategoryId?._id?.toString();
+      if (catId) {
+        if (!categoryStatsMap.has(catId)) {
+          categoryStatsMap.set(catId, {
+            categoryId: catId,
+            categoryName: reqDoc.serviceCategoryId?.name || 'Dịch vụ khác',
+            totalRequests: 0,
+            completedCount: 0,
+            cancelledCount: 0,
+            revenue: 0,
+          });
+        }
+        const catStat = categoryStatsMap.get(catId);
+        catStat.totalRequests += 1;
+        if (reqDoc.status === 'COMPLETED') catStat.completedCount += 1;
+        if (reqDoc.status === 'CANCELLED') catStat.cancelledCount += 1;
+      }
+
+      const techId = reqDoc.assignedTechnicianId?._id?.toString();
+      if (techId) {
+        if (!technicianJobMap.has(techId)) {
+          const avgRating = Number(
+            reqDoc.assignedTechnicianId?.technicianProfile?.rating ??
+              reqDoc.assignedTechnicianId?.rating ??
+              5.0
+          );
+          const totalReviews = Number(
+            reqDoc.assignedTechnicianId?.technicianProfile?.reviewCount ??
+              reqDoc.assignedTechnicianId?.reviewCount ??
+              0
+          );
+          technicianJobMap.set(techId, {
+            technicianId: techId,
+            fullName: reqDoc.assignedTechnicianId?.fullName || 'Kỹ thuật viên',
+            phoneNumber: reqDoc.assignedTechnicianId?.phoneNumber || '',
+            approvalStatus: 'approved',
+            isAvailable: true,
+            averageRating: avgRating,
+            totalReviews,
+            assignedJobs: 0,
+            completedJobs: 0,
+            activeJobs: 0,
+            cancelledJobs: 0,
+            revenueGenerated: 0,
+          });
+        }
+        const tStat = technicianJobMap.get(techId);
+        tStat.assignedJobs += 1;
+        if (reqDoc.status === 'COMPLETED') {
+          tStat.completedJobs += 1;
+        } else if (reqDoc.status === 'CANCELLED') {
+          tStat.cancelledJobs += 1;
+        } else {
+          tStat.activeJobs += 1;
+        }
+      }
+
+      if (reqDoc.status === 'COMPLETED') {
+        const quote = quotationByRequestId.get(reqDoc._id.toString());
+        const basePrice = Number(reqDoc.serviceCategoryId?.basePrice ?? 0);
+        const labour = Number(quote?.labourCost ?? basePrice);
+        const parts = Number(quote?.partsCost ?? 0);
+        const approvedAdditional = (reqDoc.additionalCosts || [])
+          .filter((c) => c.status === 'APPROVED')
+          .reduce(
+            (sum, c) => sum + Number(c.quantity || 1) * Number(c.unitPrice || 0),
+            0
+          );
+        const orderRevenue =
+          Number(quote?.total ?? labour + parts) + approvedAdditional;
+
+        totalLabourCost += labour;
+        totalPartsCost += parts;
+        totalAdditionalCost += approvedAdditional;
+        totalRevenue += orderRevenue;
+
+        if (catId && categoryStatsMap.has(catId)) {
+          categoryStatsMap.get(catId).revenue += orderRevenue;
+        }
+        if (techId && technicianJobMap.has(techId)) {
+          technicianJobMap.get(techId).revenueGenerated += orderRevenue;
+        }
+      }
+    });
+
+    const averageOrderValue =
+      completedOrders > 0 ? Math.round(totalRevenue / completedOrders) : 0;
+
+    const revenueByCategory = Array.from(categoryStatsMap.values()).sort(
+      (a, b) => b.revenue - a.revenue || b.totalRequests - a.totalRequests
+    );
+
+    // 3. Thống kê Năng suất Thợ & Vận hành (Productivity Stats)
+    const topTechnicians = Array.from(technicianJobMap.values())
+      .map((item) => ({
+        ...item,
+        completionRate:
+          item.assignedJobs > 0
+            ? Math.round((item.completedJobs / item.assignedJobs) * 1000) / 10
+            : 0,
+      }))
+      .sort(
+        (a, b) =>
+          b.completedJobs - a.completedJobs ||
+          b.revenueGenerated - a.revenueGenerated ||
+          b.averageRating - a.averageRating
+      );
+
+    const totalComplaints = complaints.length;
+    const resolvedComplaints = complaints.filter((c) =>
+      ['RESOLVED', 'REJECTED'].includes(c.status)
+    ).length;
+    const pendingComplaints = complaints.filter((c) =>
+      ['RECEIVED', 'IN_REVIEW'].includes(c.status)
+    ).length;
+    const complaintResolutionRate =
+      totalComplaints > 0
+        ? Math.round((resolvedComplaints / totalComplaints) * 1000) / 10
+        : 100;
+
+    const approvedTechniciansCount = technicians.filter(
+      (t) => t.technicianProfile?.approvalStatus === 'approved'
+    ).length;
+    const pendingKycCount = technicians.filter(
+      (t) => t.technicianProfile?.approvalStatus === 'pending'
+    ).length;
+    const onlineTechniciansCount = technicians.filter(
+      (t) =>
+        t.isActive &&
+        t.technicianProfile?.approvalStatus === 'approved' &&
+        t.technicianProfile?.isAvailable === true
+    ).length;
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy dữ liệu thống kê báo cáo vận hành thành công',
+      data: {
+        period,
+        orderStats: {
+          totalOrders,
+          completedOrders,
+          inProgressOrders,
+          openOrders,
+          cancelledOrders,
+          successRate,
+          cancellationRate,
+          inProgressRate,
+          statusBreakdown,
+        },
+        revenueStats: {
+          totalRevenue,
+          totalLabourCost,
+          totalPartsCost,
+          totalAdditionalCost,
+          averageOrderValue,
+          revenueByCategory,
+        },
+        productivityStats: {
+          totalTechnicians: technicians.length,
+          approvedTechniciansCount,
+          pendingKycCount,
+          onlineTechniciansCount,
+          totalComplaints,
+          resolvedComplaints,
+          pendingComplaints,
+          complaintResolutionRate,
+          topTechnicians,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy báo cáo vận hành:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi máy chủ khi tổng hợp báo cáo vận hành',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getUsers,
   createStaff,
@@ -454,5 +1479,8 @@ module.exports = {
   getTechniciansForKYC,
   approveTechnician,
   rejectTechnician,
+  getStuckRequests,
+  staffCancelRequest,
+  staffReassignRequest,
+  getOperationalReport,
 };
-

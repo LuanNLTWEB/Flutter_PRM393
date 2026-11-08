@@ -180,11 +180,18 @@ const repairRequestSchema = new mongoose.Schema(
       default: '',
     },
 
-    // Vai trò khởi tạo hủy tại chỗ (UC-WRK-07)
+    // Vai trò khởi tạo hủy tại chỗ (UC-WRK-07) hoặc Staff can thiệp (UC-STF-04)
     cancellationInitiatedBy: {
       type: String,
-      enum: ['customer', 'technician', null],
+      enum: ['customer', 'technician', 'staff', null],
       default: null,
+    },
+
+    // Ghi chú can thiệp điều phối hoặc giám sát của Staff (UC-STF-04)
+    staffInterventionNote: {
+      type: String,
+      trim: true,
+      default: '',
     },
 
     // Chi phí phát sinh Thợ khai báo khi đang sửa chữa (UC-WRK-05)
