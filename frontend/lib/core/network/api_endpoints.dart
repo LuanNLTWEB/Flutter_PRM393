@@ -9,6 +9,9 @@ class ApiEndpoints {
   static const String userProfile = '$baseUrl/users/profile';
   static const String userAvatar = '$baseUrl/users/avatar';
   static const String changePassword = '$baseUrl/users/change-password';
+  static const String forgotPassword = '$baseUrl/auth/forgot-password';
+  static const String verifyOtp = '$baseUrl/auth/verify-otp';
+  static const String resetPassword = '$baseUrl/auth/reset-password';
 
   // Technician Public & Self Endpoints
   static const String publicTechnicians = '$baseUrl/technicians';

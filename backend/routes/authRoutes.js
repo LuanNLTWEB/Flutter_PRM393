@@ -1,6 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { register, login } = require('../controllers/authController');
+const {
+  register,
+  login,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
+} = require('../controllers/authController');
 const { registerTechnician } = require('../controllers/technicianController');
 const upload = require('../middlewares/upload');
 
@@ -21,5 +27,9 @@ router.post(
 // POST /api/auth/login
 router.post('/login', login);
 
-module.exports = router;
+// Các API khôi phục mật khẩu qua OTP
+router.post('/forgot-password', forgotPassword);
+router.post('/verify-otp', verifyOtp);
+router.post('/reset-password', resetPassword);
 
+module.exports = router;

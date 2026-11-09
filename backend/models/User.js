@@ -147,6 +147,31 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Quản lý Đặt lại mật khẩu qua OTP
+    resetPasswordOtp: {
+      type: String,
+      default: null,
+    },
+    resetPasswordOtpExpires: {
+      type: Date,
+      default: null,
+    },
+    resetPasswordAttempts: {
+      type: Number,
+      default: 0,
+    },
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+    resetPasswordTokenExpires: {
+      type: Date,
+      default: null,
+    },
+    resetPasswordLastRequestedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
