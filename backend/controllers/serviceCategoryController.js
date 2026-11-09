@@ -1,5 +1,6 @@
 const ServiceCategory = require('../models/ServiceCategory');
 const RepairRequest = require('../models/RepairRequest');
+const { logAudit } = require('./auditLogController');
 
 // Hàm tạo slug từ tiếng Việt có dấu
 const slugify = (text) => {
@@ -321,6 +322,17 @@ const createCategory = async (req, res) => {
       sortOrder: Number(sortOrder) || 0,
     });
 
+    // Ghi nhận vào Nhật ký hoạt động (Audit Log)
+    await logAudit({
+      actor: req.user,
+      action: 'CATEGORY_CREATE',
+      actionTitle: 'Tạo danh mục dịch vụ mới',
+      targetType: 'ServiceCategory',
+      targetId: newCategory._id,
+      targetName: newCategory.name,
+      details: `Giá sàn: ${newCategory.basePrice?.toLocaleString()} đ`,
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Tạo danh mục dịch vụ mới thành công',
@@ -405,6 +417,17 @@ const updateCategory = async (req, res) => {
 
     await category.save();
 
+    // Ghi nhận vào Nhật ký hoạt động (Audit Log)
+    await logAudit({
+      actor: req.user,
+      action: 'CATEGORY_UPDATE',
+      actionTitle: 'Cập nhật danh mục dịch vụ',
+      targetType: 'ServiceCategory',
+      targetId: category._id,
+      targetName: category.name,
+      details: `Cập nhật thông tin & giá sàn: ${category.basePrice?.toLocaleString()} đ`,
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Cập nhật danh mục dịch vụ thành công',
@@ -440,6 +463,17 @@ const toggleCategoryStatus = async (req, res) => {
 
     category.isActive = !category.isActive;
     await category.save();
+
+    // Ghi nhận vào Nhật ký hoạt động (Audit Log)
+    await logAudit({
+      actor: req.user,
+      action: category.isActive ? 'CATEGORY_ACTIVATE' : 'CATEGORY_DEACTIVATE',
+      actionTitle: category.isActive ? 'Kích hoạt danh mục' : 'Tạm ẩn danh mục',
+      targetType: 'ServiceCategory',
+      targetId: category._id,
+      targetName: category.name,
+      details: category.isActive ? 'Hiển thị danh mục cho khách hàng' : 'Tạm ẩn danh mục trên hệ thống',
+    });
 
     return res.status(200).json({
       success: true,
@@ -478,6 +512,18 @@ const deleteCategory = async (req, res) => {
     if (linkedRequests > 0) {
       category.isActive = false;
       await category.save();
+
+      // Ghi nhận vào Nhật ký hoạt động (Audit Log)
+      await logAudit({
+        actor: req.user,
+        action: 'CATEGORY_DEACTIVATE',
+        actionTitle: 'Tạm ẩn danh mục dịch vụ',
+        targetType: 'ServiceCategory',
+        targetId: category._id,
+        targetName: category.name,
+        details: `Chuyển sang tạm ẩn vì đang có ${linkedRequests} đơn yêu cầu sử dụng`,
+      });
+
       return res.status(200).json({
         success: true,
         message: `Danh mục đang được liên kết với ${linkedRequests} đơn yêu cầu nên đã được chuyển sang trạng thái "Tạm ẩn" để bảo toàn dữ liệu.`,
@@ -489,6 +535,18 @@ const deleteCategory = async (req, res) => {
     }
 
     await ServiceCategory.findByIdAndDelete(id);
+
+    // Ghi nhận vào Nhật ký hoạt động (Audit Log)
+    await logAudit({
+      actor: req.user,
+      action: 'CATEGORY_DELETE',
+      actionTitle: 'Xóa vĩnh viễn danh mục dịch vụ',
+      targetType: 'ServiceCategory',
+      targetId: id,
+      targetName: category.name,
+      details: 'Đã xóa vĩnh viễn danh mục khỏi hệ thống',
+    });
+
     return res.status(200).json({
       success: true,
       message: `Đã xóa vĩnh viễn danh mục "${category.name}"`,

@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const { createNotificationUtil } = require('./notificationController');
+const { logAudit } = require('./auditLogController');
 
 /**
  * @desc    Lấy danh sách tài khoản (có tìm kiếm, lọc theo vai trò và trạng thái)
@@ -158,6 +159,17 @@ const createStaff = async (req, res) => {
       isDeleted: false,
     });
 
+    // 8. Ghi nhận vào Nhật ký hoạt động (Audit Log)
+    await logAudit({
+      actor: req.user,
+      action: 'STAFF_CREATE',
+      actionTitle: 'Tạo tài khoản Nhân viên',
+      targetType: 'User',
+      targetId: newStaff._id,
+      targetName: `${newStaff.fullName} (${newStaff.email})`,
+      details: 'Tạo tài khoản nhân viên vận hành mới',
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Tạo tài khoản Nhân viên (Staff) thành công',
@@ -207,8 +219,20 @@ const updateUserRole = async (req, res) => {
       });
     }
 
+    const previousRole = user.role;
     user.role = role;
     await user.save();
+
+    // Ghi nhận vào Nhật ký hoạt động (Audit Log)
+    await logAudit({
+      actor: req.user,
+      action: 'ROLE_UPDATE',
+      actionTitle: 'Cập nhật vai trò người dùng',
+      targetType: 'User',
+      targetId: user._id,
+      targetName: user.fullName,
+      details: `Thay đổi vai trò từ "${previousRole}" sang "${role}"`,
+    });
 
     return res.status(200).json({
       success: true,
@@ -256,6 +280,19 @@ const toggleUserStatus = async (req, res) => {
     await user.save();
 
     const actionText = user.isActive ? 'Mở khóa' : 'Khóa';
+
+    // Ghi nhận vào Nhật ký hoạt động (Audit Log)
+    await logAudit({
+      actor: req.user,
+      action: user.isActive ? 'USER_UNLOCK' : 'USER_LOCK',
+      actionTitle: `${actionText} tài khoản`,
+      targetType: 'User',
+      targetId: user._id,
+      targetName: `${user.fullName} (${user.role})`,
+      details: user.isActive
+        ? 'Mở khóa hoạt động cho tài khoản'
+        : 'Tạm thời khóa tài khoản người dùng',
+    });
 
     return res.status(200).json({
       success: true,
@@ -375,6 +412,17 @@ const approveTechnician = async (req, res) => {
       data: { status: 'approved' },
     });
 
+    // Ghi nhận vào Nhật ký hoạt động (Audit Log)
+    await logAudit({
+      actor: req.user,
+      action: 'KYC_APPROVE',
+      actionTitle: 'Phê duyệt hồ sơ Thợ (KYC)',
+      targetType: 'Technician',
+      targetId: user._id,
+      targetName: user.fullName,
+      details: 'Đã xác thực giấy tờ CCCD, chứng chỉ và cấp quyền nhận việc',
+    });
+
     return res.status(200).json({
       success: true,
       message: `Đã phê duyệt hồ sơ cho thợ "${user.fullName}" thành công`,
@@ -431,6 +479,17 @@ const rejectTechnician = async (req, res) => {
       data: { status: 'rejected', reason: reason.trim() },
     });
 
+    // Ghi nhận vào Nhật ký hoạt động (Audit Log)
+    await logAudit({
+      actor: req.user,
+      action: 'KYC_REJECT',
+      actionTitle: 'Từ chối hồ sơ Thợ (KYC)',
+      targetType: 'Technician',
+      targetId: user._id,
+      targetName: user.fullName,
+      details: `Lý do: ${reason.trim()}`,
+    });
+
     return res.status(200).json({
       success: true,
       message: `Đã từ chối hồ sơ thợ "${user.fullName}" với lý do: ${reason}`,
@@ -455,4 +514,3 @@ module.exports = {
   approveTechnician,
   rejectTechnician,
 };
-

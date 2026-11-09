@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../repair_request/data/models/service_category_model.dart';
 import '../../data/datasources/admin_remote_datasource.dart';
+import '../../data/models/audit_log_model.dart';
 
 class AdminProvider extends ChangeNotifier {
   final AdminRemoteDataSource _dataSource;
@@ -27,6 +28,14 @@ class AdminProvider extends ChangeNotifier {
   bool _isCategoriesLoading = false;
   String? _categoryFilter; // null / 'ALL', 'ACTIVE', 'INACTIVE'
   String _categorySearchQuery = '';
+
+  // Nhật ký hoạt động & Kiểm duyệt (Audit Log - Admin & Staff)
+  List<AuditLogModel> _auditLogs = [];
+  Map<String, int> _auditLogStats = {};
+  bool _isAuditLogsLoading = false;
+  String? _auditLogRoleFilter; // null / 'admin', 'staff'
+  String? _auditLogActionGroupFilter; // null / 'KYC', 'USER', 'COMPLAINT', 'CATEGORY'
+  String _auditLogSearchQuery = '';
 
   List<UserModel> get users => _users;
   bool get isLoading => _isLoading;
@@ -451,6 +460,76 @@ class AdminProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  // ==========================================================
+  // GETTERS & METHODS FOR AUDIT LOGS (NHẬT KÝ HOẠT ĐỘNG)
+  // ==========================================================
+
+  List<AuditLogModel> get auditLogs => _auditLogs;
+  Map<String, int> get auditLogStats => _auditLogStats;
+  bool get isAuditLogsLoading => _isAuditLogsLoading;
+  String? get auditLogRoleFilter => _auditLogRoleFilter;
+  String? get auditLogActionGroupFilter => _auditLogActionGroupFilter;
+  String get auditLogSearchQuery => _auditLogSearchQuery;
+
+  /// Lấy danh sách nhật ký hoạt động
+  Future<void> fetchAuditLogs(String token) async {
+    _isAuditLogsLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await _dataSource.getAuditLogs(
+        token: token,
+        role: _auditLogRoleFilter,
+        actionGroup: _auditLogActionGroupFilter,
+        search: _auditLogSearchQuery.isNotEmpty ? _auditLogSearchQuery : null,
+      );
+      _auditLogs = result;
+      _isAuditLogsLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isAuditLogsLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
+  /// Lấy thống kê số lượng kiểm duyệt
+  Future<void> fetchAuditLogStats(String token) async {
+    try {
+      _auditLogStats = await _dataSource.getAuditLogStats(token: token);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Lỗi tải thống kê nhật ký: $e');
+    }
+  }
+
+  /// Lọc theo vai trò người thực hiện ('admin' hoặc 'staff')
+  void setAuditLogRoleFilter(String? role, String token) {
+    _auditLogRoleFilter = role;
+    fetchAuditLogs(token);
+  }
+
+  /// Lọc theo nhóm nghiệp vụ kiểm duyệt ('KYC', 'USER', 'COMPLAINT', 'CATEGORY')
+  void setAuditLogActionGroupFilter(String? group, String token) {
+    _auditLogActionGroupFilter = group;
+    fetchAuditLogs(token);
+  }
+
+  /// Cập nhật từ khóa tìm kiếm nhật ký
+  void setAuditLogSearchQuery(String query, String token) {
+    _auditLogSearchQuery = query;
+    fetchAuditLogs(token);
+  }
+
+  /// Reset toàn bộ bộ lọc nhật ký
+  void resetAuditLogFilters(String token) {
+    _auditLogRoleFilter = null;
+    _auditLogActionGroupFilter = null;
+    _auditLogSearchQuery = '';
+    fetchAuditLogs(token);
   }
 
   void clearMessage() {

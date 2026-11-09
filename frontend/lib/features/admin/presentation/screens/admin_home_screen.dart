@@ -9,6 +9,7 @@ import '../providers/admin_provider.dart';
 import 'create_staff_screen.dart';
 import 'admin_technician_approval_screen.dart';
 import 'admin_service_category_screen.dart';
+import 'audit_log_screen.dart';
 import '../../../notification/presentation/providers/notification_provider.dart';
 import '../../../notification/presentation/screens/notification_screen.dart';
 import '../../../complaint/presentation/screens/admin_complaints_screen.dart';
@@ -147,6 +148,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => const AdminServiceCategoryScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Nhật ký hoạt động (Audit Log)',
+            icon: const Icon(Icons.manage_history_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AuditLogScreen(),
                 ),
               );
             },
@@ -406,6 +419,31 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const AdminServiceCategoryScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    foregroundColor: Colors.deepPurple,
+                    side: BorderSide(color: Colors.deepPurple.shade200),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.manage_history_outlined, size: 16),
+                  label: const Text('Nhật Ký Hoạt Động (Audit Log)', style: TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AuditLogScreen(),
                       ),
                     );
                   },

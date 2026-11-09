@@ -28,6 +28,10 @@ class ApiEndpoints {
   static String adminRejectTechnician(String id) =>
       '$baseUrl/admin/technicians/$id/reject';
 
+  // Nhật ký hoạt động & Kiểm duyệt (Audit Log - Admin & Staff)
+  static const String adminAuditLogs = '$baseUrl/admin/audit-logs';
+  static const String adminAuditLogStats = '$baseUrl/admin/audit-logs/stats';
+
   // Review Endpoints (UC-RAT-01 & UC-RAT-02)
   static const String reviewTags = '$baseUrl/reviews/tags';
   static const String technicians = '$baseUrl/reviews/technicians';
