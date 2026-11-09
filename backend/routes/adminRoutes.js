@@ -13,6 +13,10 @@ const {
   staffReassignRequest,
   getOperationalReport,
 } = require('../controllers/adminController');
+const {
+  getAuditLogs,
+  getAuditLogStats,
+} = require('../controllers/auditLogController');
 const { protect, authorize } = require('../middlewares/auth');
 
 // Toàn bộ API quản trị bắt buộc phải đăng nhập
@@ -39,5 +43,8 @@ router.get('/reports/operations', authorize('admin', 'staff'), getOperationalRep
 router.post('/users/staff', authorize('admin'), createStaff);
 router.put('/users/:id/role', authorize('admin'), updateUserRole);
 
-module.exports = router;
+// 4. Nhật ký hoạt động & Lịch sử kiểm duyệt (Audit Log - Admin & Staff)
+router.get('/audit-logs', authorize('admin', 'staff'), getAuditLogs);
+router.get('/audit-logs/stats', authorize('admin', 'staff'), getAuditLogStats);
 
+module.exports = router;
