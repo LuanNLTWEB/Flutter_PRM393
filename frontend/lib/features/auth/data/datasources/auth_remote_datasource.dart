@@ -52,7 +52,6 @@ class AuthRemoteDataSource {
       final Map<String, dynamic> data =
           jsonDecode(utf8.decode(response.bodyBytes));
 
-
       if (response.statusCode == 200) {
         return data;
       } else {
@@ -63,6 +62,102 @@ class AuthRemoteDataSource {
       if (e is Exception) {
         rethrow;
       }
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
+  /// Yêu cầu gửi mã OTP đặt lại mật khẩu về email
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    try {
+      final response = await client.post(
+        Uri.parse(ApiEndpoints.forgotPassword),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'email': email.trim().toLowerCase()}),
+      );
+
+      final Map<String, dynamic> data =
+          jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return data;
+      } else {
+        final message = data['message'] ?? 'Gửi mã OTP thất bại';
+        throw Exception(message);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
+  /// Xác thực mã OTP 6 số và nhận Reset Token tạm thời
+  Future<String> verifyOtp(String email, String otp) async {
+    try {
+      final response = await client.post(
+        Uri.parse(ApiEndpoints.verifyOtp),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email.trim().toLowerCase(),
+          'otp': otp.trim(),
+        }),
+      );
+
+      final Map<String, dynamic> data =
+          jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        final token = data['data']?['resetToken'] as String?;
+        if (token == null || token.isEmpty) {
+          throw Exception('Không nhận được mã xác thực từ máy chủ');
+        }
+        return token;
+      } else {
+        final message = data['message'] ?? 'Xác thực OTP thất bại';
+        throw Exception(message);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
+  /// Đặt mật khẩu mới bằng Reset Token
+  Future<Map<String, dynamic>> resetPassword({
+    required String resetToken,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    try {
+      final response = await client.post(
+        Uri.parse(ApiEndpoints.resetPassword),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'resetToken': resetToken,
+          'newPassword': newPassword,
+          'confirmPassword': confirmPassword,
+        }),
+      );
+
+      final Map<String, dynamic> data =
+          jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return data;
+      } else {
+        final message = data['message'] ?? 'Đặt lại mật khẩu thất bại';
+        throw Exception(message);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Không thể kết nối đến máy chủ: $e');
     }
   }

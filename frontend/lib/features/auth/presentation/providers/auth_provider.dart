@@ -268,6 +268,77 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Yêu cầu gửi mã OTP quên mật khẩu
+  Future<bool> forgotPassword(String email) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final res = await _authDataSource.forgotPassword(email);
+      _isLoading = false;
+      _successMessage = res['message'] ?? 'Mã xác thực OTP đã được gửi đến email';
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Xác thực mã OTP 6 số và lấy resetToken
+  Future<String?> verifyOtp(String email, String otp) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final resetToken = await _authDataSource.verifyOtp(email, otp);
+      _isLoading = false;
+      _successMessage = 'Xác thực mã OTP thành công';
+      notifyListeners();
+      return resetToken;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return null;
+    }
+  }
+
+  /// Đặt lại mật khẩu mới
+  Future<bool> resetPassword({
+    required String resetToken,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final res = await _authDataSource.resetPassword(
+        resetToken: resetToken,
+        newPassword: newPassword,
+        confirmPassword: confirmPassword,
+      );
+      _isLoading = false;
+      _successMessage = res['message'] ?? 'Đặt lại mật khẩu thành công';
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   void clearMessage() {
     _errorMessage = null;
     _successMessage = null;
