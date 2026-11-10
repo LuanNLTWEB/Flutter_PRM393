@@ -1,7 +1,7 @@
 import '../data/models/quotation_model.dart';
 
 /// Thứ tự sắp xếp bảng so sánh báo giá (UC-QUO-07)
-enum QuotationSortKey { totalAsc, ratingDesc, completedJobsDesc, distanceAsc }
+enum QuotationSortKey { totalAsc, ratingDesc, completedJobsDesc }
 
 /// Logic so sánh báo giá thuần (không phụ thuộc UI) -> dễ unit test
 class QuotationComparator {
@@ -20,12 +20,9 @@ class QuotationComparator {
   }
 
   /// Sắp xếp danh sách báo giá theo khóa đã chọn.
-  /// [distances]: khoảng cách km theo quotationId (chưa có dữ liệu thì bỏ qua).
-  /// Bản ghi không có khoảng cách luôn nằm cuối danh sách.
   static List<QuotationModel> sort(
     List<QuotationModel> quotes, {
     required QuotationSortKey key,
-    Map<String, double> distances = const {},
   }) {
     final sorted = List<QuotationModel>.from(quotes);
 
@@ -43,13 +40,6 @@ class QuotationComparator {
           final diff = b.completedJobsCount.compareTo(a.completedJobsCount);
           if (diff != 0) return diff;
           return a.total.compareTo(b.total);
-        case QuotationSortKey.distanceAsc:
-          final da = distances[a.id];
-          final db = distances[b.id];
-          if (da == null && db == null) return 0;
-          if (da == null) return 1;
-          if (db == null) return -1;
-          return da.compareTo(db);
       }
     });
 

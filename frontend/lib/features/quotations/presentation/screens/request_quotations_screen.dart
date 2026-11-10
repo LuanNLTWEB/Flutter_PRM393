@@ -390,8 +390,6 @@ class _SortBar extends StatelessWidget {
         return 'Đánh giá cao nhất';
       case QuotationSortKey.completedJobsDesc:
         return 'Nhiều kinh nghiệm';
-      case QuotationSortKey.distanceAsc:
-        return 'Gần nhất';
     }
   }
 

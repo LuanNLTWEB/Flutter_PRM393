@@ -55,8 +55,8 @@ const populateRequest = (query) =>
  *          + lọc theo danh mục dịch vụ/mức độ khẩn cấp (UC-QUO-02)
  *          Mặc định trả về cả OPEN và QUOTED để nhiều thợ cùng báo giá (UC-QUO-07).
  *          Kèm `quotesCount` (số thợ đang báo giá) và `hasQuoted`.
- *          Sắp xếp: nếu có tọa độ thì theo khoảng cách, không thì theo mức độ khẩn cấp
- * @route   GET /api/requests/nearby?status=OPEN,QUOTED&categorySlug=&urgency=&lat=&lng=&radiusKm=&page=&limit=
+ *          Sắp xếp: theo mức độ khẩn cấp, rồi đến mới nhất
+ * @route   GET /api/requests/nearby?status=OPEN,QUOTED&categorySlug=&urgency=&page=&limit=
  * @access  Private (technician)
  */
 // START UC-QUO-01 + UC-QUO-02
@@ -66,9 +66,6 @@ const getNearbyRequests = async (req, res) => {
       status = DEFAULT_FEED_STATUSES.join(','),
       categorySlug,
       urgency,
-      lat,
-      lng,
-      radiusKm,
       page = 1,
       limit = 20,
     } = req.query;
@@ -109,48 +106,17 @@ const getNearbyRequests = async (req, res) => {
       filter.urgency = urgency;
     }
 
-    const originLat = lat !== undefined && lat !== '' ? parseFloat(lat) : null;
-    const originLng = lng !== undefined && lng !== '' ? parseFloat(lng) : null;
-    const radius =
-      radiusKm !== undefined && radiusKm !== '' ? parseFloat(radiusKm) : null;
-
-    const hasOrigin =
-      originLat !== null &&
-      originLng !== null &&
-      Number.isFinite(originLat) &&
-      Number.isFinite(originLng);
-
     let requests = await populateRequest(
       RepairRequest.find(filter).sort({ createdAt: -1 }).limit(MAX_FEED_ITEMS)
     ).lean();
 
-    // Tính khoảng cách khi có tọa độ từ máy của Thợ
-    if (hasOrigin) {
-      requests = requests
-        .map((item) => {
-          const loc = item.location || {};
-          let distanceKm = null;
-          if (typeof loc.latitude === 'number' && typeof loc.longitude === 'number') {
-            distanceKm = haversineKm(originLat, originLng, loc.latitude, loc.longitude);
-          }
-          return { ...item, distanceKm };
-        })
-        .filter((item) => radius === null || item.distanceKm === null || item.distanceKm <= radius)
-        .sort((a, b) => {
-          if (a.distanceKm === null && b.distanceKm === null) return 0;
-          if (a.distanceKm === null) return 1;
-          if (b.distanceKm === null) return -1;
-          return a.distanceKm - b.distanceKm;
-        });
-    } else {
-      // Chưa có tọa độ: ưu tiên yêu cầu khẩn cấp rồi mới đến mới nhất
-      requests = requests.sort((a, b) => {
-        const rankDiff =
-          (URGENCY_RANK[b.urgency] || 0) - (URGENCY_RANK[a.urgency] || 0);
-        if (rankDiff !== 0) return rankDiff;
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
-    }
+    // Ưu tiên yêu cầu khẩn cấp rồi mới đến mới nhất
+    requests = requests.sort((a, b) => {
+      const rankDiff =
+        (URGENCY_RANK[b.urgency] || 0) - (URGENCY_RANK[a.urgency] || 0);
+      if (rankDiff !== 0) return rankDiff;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
 
     const pageNumber = Math.max(1, parseInt(page, 10) || 1);
     const pageSize = Math.max(1, Math.min(50, parseInt(limit, 10) || 20));
@@ -206,7 +172,6 @@ const getNearbyRequests = async (req, res) => {
         total: requests.length,
         page: pageNumber,
         totalPages: Math.max(1, Math.ceil(requests.length / pageSize)),
-        hasLocation: hasOrigin,
         requests: masked,
       },
     });

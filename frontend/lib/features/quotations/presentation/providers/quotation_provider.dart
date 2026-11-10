@@ -21,7 +21,6 @@ class QuotationProvider extends ChangeNotifier {
 
   // Feed yêu cầu cho Thợ (UC-QUO-01 / UC-QUO-02)
   List<RepairRequestModel> _nearbyRequests = [];
-  bool _hasLocation = false;
 
   // Chi tiết yêu cầu (UC-QUO-03)
   RepairRequestModel? _selectedRequest;
@@ -40,7 +39,6 @@ class QuotationProvider extends ChangeNotifier {
   String? _successMessage;
 
   List<RepairRequestModel> get nearbyRequests => _nearbyRequests;
-  bool get hasLocation => _hasLocation;
   RepairRequestModel? get selectedRequest => _selectedRequest;
   List<QuotationModel> get quotations => _quotations;
   String get requestStatus => _requestStatus;
@@ -71,9 +69,6 @@ class QuotationProvider extends ChangeNotifier {
     required String token,
     String? categorySlug,
     String? urgency,
-    double? latitude,
-    double? longitude,
-    double? radiusKm,
     bool refresh = false,
   }) async {
     if (!refresh && _nearbyRequests.isNotEmpty) return;
@@ -87,12 +82,8 @@ class QuotationProvider extends ChangeNotifier {
         token: token,
         categorySlug: categorySlug,
         urgency: urgency,
-        latitude: latitude,
-        longitude: longitude,
-        radiusKm: radiusKm,
       );
       _nearbyRequests = result.requests;
-      _hasLocation = result.hasLocation;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {

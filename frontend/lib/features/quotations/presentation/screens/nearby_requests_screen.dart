@@ -37,6 +37,7 @@ class _NearbyRequestsScreenState extends State<NearbyRequestsScreen> {
   Future<void> _load({bool refresh = false}) async {
     final token = context.read<AuthProvider>().token ?? '';
     if (token.isEmpty) return;
+
     await context.read<QuotationProvider>().fetchNearbyRequests(
       token: token,
       categorySlug: _selectedSlug,
@@ -85,13 +86,10 @@ class _NearbyRequestsScreenState extends State<NearbyRequestsScreen> {
                   onRefresh: () => _load(refresh: true),
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                    itemCount: provider.nearbyRequests.length + 1,
+                    itemCount: provider.nearbyRequests.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return _LocationHint(hasLocation: provider.hasLocation);
-                      }
-                      final request = provider.nearbyRequests[index - 1];
+                      final request = provider.nearbyRequests[index];
                       return _RequestCard(
                         request: request,
                         // Gửi/thu hồi báo giá ở màn chi tiết sẽ đổi trạng thái
@@ -217,48 +215,6 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-class _LocationHint extends StatelessWidget {
-  final bool hasLocation;
-
-  const _LocationHint({required this.hasLocation});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: (hasLocation ? Colors.green : Colors.orange).withValues(
-          alpha: 0.08,
-        ),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            hasLocation ? Icons.location_on : Icons.location_off,
-            size: 16,
-            color: hasLocation ? Colors.green.shade700 : Colors.orange.shade800,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              hasLocation
-                  ? 'Đang sắp xếp theo khoảng cách từ vị trí của bạn'
-                  : 'Chưa có tọa độ vị trí — sắp xếp theo mức độ khẩn cấp',
-              style: TextStyle(
-                fontSize: 12,
-                color: hasLocation
-                    ? Colors.green.shade800
-                    : Colors.orange.shade900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _RequestCard extends StatelessWidget {
   final RepairRequestModel request;
