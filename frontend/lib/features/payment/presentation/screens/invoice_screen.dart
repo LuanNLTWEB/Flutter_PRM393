@@ -156,24 +156,48 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                           ),
                           if (isTech && !invoice.isPaid) ...[
                             const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green.shade700,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                              ),
-                              icon: const Icon(Icons.check_circle_outline),
-                              label: const Text(
-                                'Xác nhận đã nhận đủ tiền mặt (UC-PAY-04)',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
+                            if (invoice.requestStatus != 'COMPLETED')
+                              Opacity(
+                                opacity: 0.45,
+                                child: IgnorePointer(
+                                  ignoring: true,
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.grey.shade600,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                      ),
+                                      icon: const Icon(Icons.lock_outline),
+                                      label: const Text(
+                                        'Chờ khách quét QR nghiệm thu trước khi thu tiền',
+                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                      ),
+                                      onPressed: null,
+                                    ),
+                                  ),
                                 ),
+                              )
+                            else
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade700,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                icon: const Icon(Icons.check_circle_outline),
+                                label: const Text(
+                                  'Xác nhận đã nhận đủ tiền mặt (UC-PAY-04)',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                onPressed: provider.isSubmitting
+                                    ? null
+                                    : () => _technicianConfirmPaymentReceived(invoice),
                               ),
-                              onPressed: provider.isSubmitting
-                                  ? null
-                                  : () => _technicianConfirmPaymentReceived(invoice),
-                            ),
                           ],
                         ],
                       ),
@@ -471,6 +495,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     required bool isTech,
   }) {
     final isCashConfirmed = invoice.paymentMethod == 'CASH';
+    final isCompleted = invoice.requestStatus == 'COMPLETED';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -482,77 +507,74 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Hình thức thanh toán (UC-PAY-02)',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppTheme.primaryColor.withValues(alpha: 0.2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Hình thức thanh toán (UC-PAY-02)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.payments_outlined,
-                    color: AppTheme.primaryColor, size: 28),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              if (!isCompleted && !invoice.isPaid)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      Icon(Icons.lock_outline, size: 12, color: Colors.orange.shade800),
+                      const SizedBox(width: 4),
                       Text(
-                        'Tiền mặt trực tiếp tại chỗ',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Khách trả tiền mặt trực tiếp cho thợ sau khi đối soát xong.',
+                        'Đang khóa',
                         style: TextStyle(
-                            fontSize: 12, color: AppTheme.textSecondaryColor),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade800,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                if (isCashConfirmed)
-                  const Icon(Icons.check_circle, color: Colors.green, size: 22),
-              ],
-            ),
+            ],
           ),
-          if (!isTech && !isCashConfirmed && !invoice.isPaid) ...[
-            const SizedBox(height: 14),
-            if (invoice.requestStatus != 'COMPLETED') ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.amber.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.info_outline, size: 18, color: Colors.orange),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Bước 1: Vui lòng quét mã QR nghiệm thu của Thợ để chuyển đơn hàng sang trạng thái Hoàn tất, sau đó mới xác nhận thanh toán tiền mặt.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.brown,
-                            ),
+          const SizedBox(height: 10),
+
+          // Banner nhắc nhở & nút Quét QR mở khóa thanh toán nếu chưa qua bước QR
+          if (!isCompleted && !invoice.isPaid) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline, size: 18, color: Colors.orange.shade900),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          isTech
+                              ? 'Đơn hàng chưa qua bước nghiệm thu QR. Vui lòng hướng dẫn khách hàng quét mã QR nghiệm thu trước khi thu tiền.'
+                              : 'Bắt buộc qua bước QR: Bạn cần quét mã QR nghiệm thu từ máy của Thợ để mở khóa phần thanh toán.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.brown.shade900,
+                            height: 1.3,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
+                  if (!isTech) ...[
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
@@ -562,7 +584,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                           foregroundColor: Colors.white,
                         ),
                         icon: const Icon(Icons.qr_code_scanner, size: 18),
-                        label: const Text('Quét QR nghiệm thu ngay'),
+                        label: const Text('Quét mã QR nghiệm thu ngay'),
                         onPressed: () async {
                           final confirmed = await Navigator.push<bool>(
                             context,
@@ -580,28 +602,86 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
-            ] else ...[
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: isSubmitting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.check_outlined),
-                  label: const Text('Bước 2: Xác nhận thanh toán tiền mặt tại chỗ'),
-                  onPressed: isSubmitting ? null : _confirmCashPayment,
-                ),
-              ),
-            ],
+            ),
+            const SizedBox(height: 12),
           ],
+
+          // Toàn bộ phần thanh toán tiền mặt bị làm mờ (opacity: 0.38) và vô hiệu hóa (IgnorePointer) nếu chưa qua bước QR
+          Opacity(
+            opacity: isCompleted || invoice.isPaid ? 1.0 : 0.38,
+            child: IgnorePointer(
+              ignoring: !isCompleted && !invoice.isPaid,
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.payments_outlined,
+                          color: AppTheme.primaryColor,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Tiền mặt trực tiếp tại chỗ',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Khách trả tiền mặt trực tiếp cho thợ sau khi đối soát xong.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isCashConfirmed)
+                          const Icon(Icons.check_circle, color: Colors.green, size: 22)
+                        else if (!isCompleted && !invoice.isPaid)
+                          const Icon(Icons.lock_outline, color: Colors.grey, size: 20),
+                      ],
+                    ),
+                  ),
+                  if (!isTech && !isCashConfirmed && !invoice.isPaid) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: isSubmitting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.check_outlined),
+                        label: const Text('Xác nhận thanh toán tiền mặt tại chỗ'),
+                        onPressed: isSubmitting ? null : _confirmCashPayment,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
