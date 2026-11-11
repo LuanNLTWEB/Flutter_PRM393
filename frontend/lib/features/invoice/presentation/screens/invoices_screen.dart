@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/file_download_helper.dart';
+import '../../../../core/utils/receipt_document_generator.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/invoice_model.dart';
 import '../providers/invoice_provider.dart';
@@ -423,6 +425,48 @@ class _InvoiceDetailSheet extends StatelessWidget {
                   style: const TextStyle(color: AppTheme.textSecondaryColor),
                 ),
               ],
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.download_rounded),
+                  label: const Text(
+                    'Tải hóa đơn về máy',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    try {
+                      final html = ReceiptDocumentGenerator.generateOfflineInvoiceHtml(invoice);
+                      final fileName = 'Hoa_don_${invoice.invoiceNumber}.html';
+                      downloadFile(content: html, fileName: fileName);
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Đã tải hóa đơn ($fileName) về thiết bị thành công!'),
+                          backgroundColor: Colors.green,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Lỗi khi tải hóa đơn: $e'),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
             ],
           ),
         ),

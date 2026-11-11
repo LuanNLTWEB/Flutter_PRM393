@@ -1,12 +1,14 @@
-/// Author: Lam Hoang Phuc (CE191132)
-/// Use Case: #UC-PAY-05
-/// Description: Màn hình hiển thị và lưu phiếu biên nhận thanh toán kiêm phiếu bảo hành dịch vụ điện tử
+// Author: Lam Hoang Phuc (CE191132)
+// Use Case: #UC-PAY-05
+// Description: Màn hình hiển thị và lưu phiếu biên nhận thanh toán kiêm phiếu bảo hành dịch vụ điện tử
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/file_download_helper.dart';
+import '../../../../core/utils/receipt_document_generator.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/electronic_receipt_model.dart';
 import '../providers/payment_provider.dart';
@@ -60,23 +62,42 @@ class _ElectronicReceiptScreenState extends State<ElectronicReceiptScreen> {
   }
 
   void _saveReceipt(ElectronicReceiptModel receipt) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Đã lưu biên nhận điện tử (${receipt.receiptCode}) vào thiết bị thành công!',
+    try {
+      final htmlContent = ReceiptDocumentGenerator.generateReceiptHtml(receipt);
+      final fileName = 'Bien_nhan_dien_tu_${receipt.receiptCode}.html';
+      downloadFile(content: htmlContent, fileName: fileName);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Đã tải biên nhận điện tử ($fileName) về thiết bị thành công!',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
         ),
-        backgroundColor: Colors.green.shade700,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi khi tải biên nhận: $e'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _printReceipt() {
+    printPage();
   }
 
   @override
@@ -89,12 +110,18 @@ class _ElectronicReceiptScreenState extends State<ElectronicReceiptScreen> {
       appBar: AppBar(
         title: const Text('Biên nhận & Bảo hành điện tử'),
         actions: [
-          if (receipt != null)
+          if (receipt != null) ...[
+            IconButton(
+              icon: const Icon(Icons.print_outlined),
+              tooltip: 'In / Lưu PDF',
+              onPressed: _printReceipt,
+            ),
             IconButton(
               icon: const Icon(Icons.download_rounded),
-              tooltip: 'Lưu biên nhận',
+              tooltip: 'Tải biên nhận về máy',
               onPressed: () => _saveReceipt(receipt),
             ),
+          ],
         ],
       ),
       body: provider.isLoadingReceipt

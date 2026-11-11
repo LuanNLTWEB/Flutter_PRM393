@@ -1,11 +1,13 @@
-/// Author: Lam Hoang Phuc (CE191132)
-/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-04, #UC-PAY-05
-/// Description: Màn hình hiển thị bảng kê chi phí, xác nhận thanh toán tiền mặt trực tiếp và xuất biên nhận điện tử
+// Author: Lam Hoang Phuc (CE191132)
+// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-04, #UC-PAY-05
+// Description: Màn hình hiển thị bảng kê chi phí, xác nhận thanh toán tiền mặt trực tiếp và xuất biên nhận điện tử
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/file_download_helper.dart';
+import '../../../../core/utils/receipt_document_generator.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/invoice_model.dart';
 import '../providers/payment_provider.dart';
@@ -118,6 +120,31 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     }
   }
 
+  void _downloadInvoice(InvoiceModel invoice) {
+    try {
+      final html = ReceiptDocumentGenerator.generatePaymentInvoiceHtml(invoice);
+      final fileName = 'Bang_ke_chi_phi_${invoice.requestId}.html';
+      downloadFile(content: html, fileName: fileName);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã tải bảng kê chi phí ($fileName) về máy thành công!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi khi tải bảng kê chi phí: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<PaymentProvider>();
@@ -129,18 +156,25 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
       appBar: AppBar(
         title: const Text('Bảng kê & Quyết toán'),
         actions: [
-          if (invoice != null && (invoice.isPaid || invoice.requestStatus == 'COMPLETED'))
+          if (invoice != null) ...[
             IconButton(
-              icon: const Icon(Icons.receipt_long_outlined),
-              tooltip: 'Xem biên nhận điện tử',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      ElectronicReceiptScreen(requestId: invoice.requestId),
+              icon: const Icon(Icons.download_rounded),
+              tooltip: 'Tải bảng kê chi phí về máy',
+              onPressed: () => _downloadInvoice(invoice),
+            ),
+            if (invoice.isPaid || invoice.requestStatus == 'COMPLETED')
+              IconButton(
+                icon: const Icon(Icons.verified_outlined),
+                tooltip: 'Xem biên nhận & bảo hành điện tử',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ElectronicReceiptScreen(requestId: invoice.requestId),
+                  ),
                 ),
               ),
-            ),
+          ],
         ],
       ),
       body: provider.isLoading && invoice == null
