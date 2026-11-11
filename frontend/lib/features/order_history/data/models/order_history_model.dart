@@ -14,6 +14,8 @@ class OrderHistoryModel {
   final double? assignedTechnicianRating;
   final DateTime? createdAt;
   final String locationAddress;
+  final List<String> completionImages;
+  final String? paymentMethod;
 
   /// Tọa độ nhà khách — dùng cho chỉ đường Google Maps (UC-WRK-02)
   final double? latitude;
@@ -41,6 +43,8 @@ class OrderHistoryModel {
     this.assignedTechnicianRating,
     this.createdAt,
     required this.locationAddress,
+    this.completionImages = const [],
+    this.paymentMethod,
     this.latitude,
     this.longitude,
     this.preferredTime,
@@ -98,13 +102,18 @@ class OrderHistoryModel {
           ? DateTime.tryParse(json['createdAt'].toString())?.toLocal()
           : null,
       locationAddress: address,
+      completionImages: json['completionImages'] != null
+          ? List<String>.from(json['completionImages'])
+          : const [],
+      paymentMethod: json['paymentMethod']?.toString(),
       latitude: lat,
       longitude: lng,
       preferredTime: json['preferredTime'] != null
           ? DateTime.tryParse(json['preferredTime'].toString())?.toLocal()
           : null,
-      appointmentStatus:
-          (json['appointmentStatus'] ?? 'PENDING').toString().toUpperCase(),
+      appointmentStatus: (json['appointmentStatus'] ?? 'PENDING')
+          .toString()
+          .toUpperCase(),
       proposedTime: json['proposedTime'] != null
           ? DateTime.tryParse(json['proposedTime'].toString())?.toLocal()
           : null,

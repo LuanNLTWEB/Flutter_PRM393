@@ -1,6 +1,7 @@
 const Quotation = require('../models/Quotation');
 const RepairRequest = require('../models/RepairRequest');
 const { createNotificationUtil } = require('./notificationController');
+const mongoose = require('mongoose');
 
 // Trường thông tin công khai của Thợ được phép trả về Khách hàng
 const TECHNICIAN_PUBLIC_FIELDS =
@@ -15,12 +16,14 @@ const populateTechnician = (query) =>
 /// Thợ đang giữ đơn nào không? (ACCEPTED / ON_THE_WAY / IN_PROGRESS)
 /// Dùng để chặn thợ tiếp nhiều đơn cùng lúc.
 const findActiveJob = (technicianId) =>
-  RepairRequest.findOne({
-    assignedTechnicianId: technicianId,
-    status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] },
-  })
-    .select('title')
-    .lean();
+  mongoose.isValidObjectId(technicianId)
+    ? RepairRequest.findOne({
+        assignedTechnicianId: technicianId,
+        status: { $in: ['ACCEPTED', 'ON_THE_WAY', 'ARRIVED', 'IN_PROGRESS'] },
+      })
+        .select('title')
+        .lean()
+    : Promise.resolve(null);
 
 /**
  * @desc    Thợ gửi báo giá cho phiếu yêu cầu (UC-QUO-04)

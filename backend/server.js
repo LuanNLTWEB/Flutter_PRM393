@@ -23,6 +23,7 @@ const serviceCategoryRoutes = require('./routes/serviceCategoryRoutes');
 const repairRequestRoutes = require('./routes/repairRequestRoutes');
 const quotationRoutes = require('./routes/quotationRoutes');
 const requestReadRoutes = require('./routes/requestReadRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const complaintRoutes = require('./routes/complaintRoutes');
@@ -48,6 +49,7 @@ app.use('/api/repair-requests', repairRequestRoutes);
 // Đặt SAU repairRequestRoutes để route của Dev 2 luôn được ưu tiên
 app.use('/api/requests', requestReadRoutes);
 app.use('/api/quotations', quotationRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/complaints', complaintRoutes);

@@ -105,6 +105,12 @@ class ApiEndpoints {
   static String repairRequestDetail(String id) => requestDetail(id);
   static String updateRepairRequest(String id) => updateRequest(id);
   static String cancelRepairRequest(String id) => cancelRequest(id);
+  static String completionImages(String id) =>
+      '$baseUrl/requests/$id/completion-images';
+  static String completionQr(String id) =>
+      '$baseUrl/requests/$id/completion-qr';
+  static String confirmCompletion(String id) =>
+      '$baseUrl/requests/$id/confirm-completion';
 
   // Báo giá & Khớp lệnh (UC-QUO)
   static const String quotations = '$baseUrl/quotations';
@@ -115,6 +121,16 @@ class ApiEndpoints {
   static String quotationRetract(String id) =>
       '$baseUrl/quotations/$id/retract';
   static const String nearbyRequests = '$baseUrl/requests/nearby';
+
+  // Hóa đơn & phương thức thanh toán (UC-PAY-01, UC-PAY-02, UC-PAY-03, UC-PAY-04)
+  static String invoice(String requestId) =>
+      '$baseUrl/payments/requests/$requestId/invoice';
+  static String paymentMethod(String requestId) =>
+      '$baseUrl/payments/requests/$requestId/method';
+  static String partsInvoices(String requestId) =>
+      '$baseUrl/payments/requests/$requestId/parts-invoices';
+  static String confirmPayment(String requestId) =>
+      '$baseUrl/payments/requests/$requestId/confirm-payment';
 
   // Thông báo (UC-NOT-01 & UC-NOT-02)
   static const String notifications = '$baseUrl/notifications';

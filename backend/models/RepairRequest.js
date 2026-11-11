@@ -41,6 +41,52 @@ const repairRequestSchema = new mongoose.Schema(
       default: [],
     },
 
+    // Ảnh sau khi thợ hoàn tất sửa chữa (UC-CFM-01)
+    completionImages: {
+      type: [String],
+      default: [],
+    },
+
+    // Ảnh chứng từ / hóa đơn mua linh kiện thay thế (UC-PAY-03)
+    partsInvoiceImages: {
+      type: [String],
+      default: [],
+    },
+
+    // Token QR nghiệm thu chỉ lưu dạng băm; token gốc chỉ được trả về cho Thợ.
+    completionQrTokenHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
+
+    completionQrGeneratedAt: {
+      type: Date,
+      default: null,
+    },
+
+    completionQrExpiresAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Thông tin Khách xác nhận nghiệm thu (UC-CFM-03)
+    completionConfirmedAt: {
+      type: Date,
+      default: null,
+    },
+
+    completionConfirmedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+
     // Mức độ khẩn cấp: low, medium, high, emergency
     urgency: {
       type: String,
@@ -80,6 +126,38 @@ const repairRequestSchema = new mongoose.Schema(
 
     // Thợ kỹ thuật được chỉ định thực hiện
     assignedTechnicianId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+
+    // Phương thức thanh toán khách hàng đã chọn (UC-PAY-02)
+    paymentMethod: {
+      type: String,
+      enum: ['CASH', 'BANK_TRANSFER'],
+      default: null,
+    },
+
+    paymentMethodSelectedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Trạng thái thu tiền mặt (UC-PAY-04): UNPAID, PAID
+    paymentStatus: {
+      type: String,
+      enum: ['UNPAID', 'PAID'],
+      default: 'UNPAID',
+    },
+
+    // Thời điểm thợ xác nhận đã thu đủ tiền mặt (UC-PAY-04)
+    paidAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Thợ nhận tiền (UC-PAY-04)
+    paymentReceivedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,

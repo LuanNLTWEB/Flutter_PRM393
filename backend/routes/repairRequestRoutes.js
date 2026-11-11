@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const {
   createRepairRequest,
-  getMyRepairRequests,
   updateRepairRequest,
+  getMyRepairRequests,
+  uploadCompletionImages,
   cancelRepairRequest,
   confirmAppointment,
   proposeAppointment,
@@ -15,6 +16,10 @@ const {
   respondAdditionalCost,
   cancelOnsiteRepair,
 } = require('../controllers/repairRequestController');
+const {
+  generateCompletionQr,
+  confirmCompletion,
+} = require('../controllers/completionController');
 const { protect, authorize } = require('../middlewares/auth');
 const upload = require('../middlewares/upload');
 
@@ -23,6 +28,26 @@ router.use(protect);
 
 // Lấy danh sách yêu cầu của tôi (UC-REQ-07, UC-HIS-01)
 router.get('/my-requests', getMyRepairRequests);
+
+// Thợ upload ảnh sau khi sửa xong (UC-CFM-01)
+router.post(
+  '/:id/completion-images',
+  authorize('technician'),
+  upload.array('images', 5),
+  uploadCompletionImages
+);
+
+// Thợ tạo QR và Khách quét QR xác nhận nghiệm thu (UC-CFM-02, UC-CFM-03)
+router.post(
+  '/:id/completion-qr',
+  authorize('technician'),
+  generateCompletionQr
+);
+router.post(
+  '/:id/confirm-completion',
+  authorize('user'),
+  confirmCompletion
+);
 
 // Tạo yêu cầu sửa chữa mới kèm ảnh hiện trường (UC-REQ-03, 04, 05)
 router.post('/', authorize('user'), upload.array('images', 5), createRepairRequest);

@@ -9,10 +9,12 @@ class RepairRequestModel {
   final String title;
   final String description;
   final List<String> images;
+  final List<String> completionImages;
   final String urgency; // 'low', 'medium', 'high', 'emergency'
   final RepairLocationModel location;
   final String status; // 'OPEN', 'QUOTED', 'ACCEPTED', 'CANCELLED'
   final String contactPhone;
+  final String? paymentMethod;
   final DateTime? preferredTime;
   final String appointmentStatus; // 'PENDING', 'CONFIRMED', 'RESCHEDULED'
   final DateTime? proposedTime;
@@ -36,10 +38,12 @@ class RepairRequestModel {
     required this.title,
     required this.description,
     this.images = const [],
+    this.completionImages = const [],
     this.urgency = 'medium',
     required this.location,
     this.status = 'OPEN',
     required this.contactPhone,
+    this.paymentMethod,
     this.preferredTime,
     this.appointmentStatus = 'PENDING',
     this.proposedTime,
@@ -94,11 +98,14 @@ class RepairRequestModel {
     // Trích xuất location { address, latitude, longitude }
     RepairLocationModel loc;
     if (json['location'] is Map<String, dynamic>) {
-      loc = RepairLocationModel.fromJson(json['location'] as Map<String, dynamic>);
+      loc = RepairLocationModel.fromJson(
+        json['location'] as Map<String, dynamic>,
+      );
     } else if (json['address'] is Map<String, dynamic>) {
       final addrMap = json['address'] as Map<String, dynamic>;
-      final fullAddr = '${addrMap['street'] ?? ''}, ${addrMap['district'] ?? ''}, ${addrMap['city'] ?? ''}'
-          .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
+      final fullAddr =
+          '${addrMap['street'] ?? ''}, ${addrMap['district'] ?? ''}, ${addrMap['city'] ?? ''}'
+              .replaceAll(RegExp(r'^,\s*|,\s*$'), '');
       loc = RepairLocationModel(address: fullAddr);
     } else if (json['address'] is String) {
       loc = RepairLocationModel(address: json['address']);
@@ -121,11 +128,17 @@ class RepairRequestModel {
       serviceCategory: catModel,
       title: title,
       description: desc,
-      images: json['images'] != null ? List<String>.from(json['images']) : const [],
+      images: json['images'] != null
+          ? List<String>.from(json['images'])
+          : const [],
+      completionImages: json['completionImages'] != null
+          ? List<String>.from(json['completionImages'])
+          : const [],
       urgency: urgency,
       location: loc,
       status: status,
       contactPhone: json['contactPhone'] ?? '',
+      paymentMethod: json['paymentMethod']?.toString(),
       preferredTime: json['preferredTime'] != null
           ? DateTime.tryParse(json['preferredTime'])?.toLocal()
           : null,
@@ -152,14 +165,16 @@ class RepairRequestModel {
       quotesCount: json['quotesCount'] is int
           ? json['quotesCount']
           : (json['quotesCount'] is num
-              ? (json['quotesCount'] as num).toInt()
-              : (json['quotationCount'] is num
-                  ? (json['quotationCount'] as num).toInt()
-                  : 0)),
+                ? (json['quotesCount'] as num).toInt()
+                : (json['quotationCount'] is num
+                      ? (json['quotationCount'] as num).toInt()
+                      : 0)),
       hasQuoted: json['hasQuoted'] == true,
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '')?.toLocal() ??
+      createdAt:
+          DateTime.tryParse(json['createdAt'] ?? '')?.toLocal() ??
           DateTime.now(),
-      updatedAt: DateTime.tryParse(json['updatedAt'] ?? '')?.toLocal() ??
+      updatedAt:
+          DateTime.tryParse(json['updatedAt'] ?? '')?.toLocal() ??
           DateTime.now(),
     );
   }
@@ -170,9 +185,11 @@ class RepairRequestModel {
       'title': title,
       'description': description,
       'images': images,
+      'completionImages': completionImages,
       'urgency': urgency,
       'location': location.toJson(),
       'contactPhone': contactPhone,
+      if (paymentMethod != null) 'paymentMethod': paymentMethod,
       if (preferredTime != null)
         'preferredTime': preferredTime!.toUtc().toIso8601String(),
       'customerNote': customerNote,
@@ -311,8 +328,12 @@ class RepairLocationModel {
   factory RepairLocationModel.fromJson(Map<String, dynamic> json) {
     return RepairLocationModel(
       address: json['address'] ?? '',
-      latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
-      longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
+      latitude: json['latitude'] != null
+          ? (json['latitude'] as num).toDouble()
+          : null,
+      longitude: json['longitude'] != null
+          ? (json['longitude'] as num).toDouble()
+          : null,
     );
   }
 

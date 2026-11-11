@@ -17,6 +17,11 @@ import 'order_detail_screen.dart';
 import '../providers/order_history_provider.dart';
 import '../../../repair_request/presentation/screens/service_category_screen.dart';
 import '../../../invoice/presentation/screens/invoices_screen.dart';
+import '../../../completion/presentation/screens/upload_completion_images_screen.dart';
+import '../../../completion/presentation/screens/completion_qr_screen.dart';
+import '../../../completion/presentation/screens/scan_completion_qr_screen.dart';
+import '../../../payment/presentation/screens/invoice_screen.dart';
+import '../../../quotations/presentation/screens/request_detail_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -291,9 +296,33 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
         ? dateFormat.format(order.createdAt!)
         : '';
     final statusColor = _getStatusColor(order.status);
+    final currentUser = context.read<AuthProvider>().currentUser;
+    final canUploadCompletion =
+        currentUser?.role == 'technician' &&
+        currentUser?.id == order.assignedTechnicianId &&
+        (order.status == 'ACCEPTED' || order.status == 'IN_PROGRESS');
+    final canGenerateCompletionQr =
+        currentUser?.role == 'technician' &&
+        currentUser?.id == order.assignedTechnicianId &&
+        order.status == 'IN_PROGRESS' &&
+        order.completionImages.isNotEmpty;
+    final canScanCompletionQr =
+        currentUser?.role == 'user' &&
+        order.status == 'IN_PROGRESS' &&
+        order.completionImages.isNotEmpty;
+    final isAssignedTech = currentUser?.role == 'technician' &&
+        currentUser?.id == order.assignedTechnicianId;
+    final canViewInvoice =
+        (currentUser?.role == 'user' || isAssignedTech) &&
+        (order.status == 'ACCEPTED' ||
+            order.status == 'IN_PROGRESS' ||
+            order.status == 'COMPLETED') &&
+        (order.completionImages.isNotEmpty || order.status == 'COMPLETED');
+    final canViewDetails =
+        currentUser?.role == 'user' || currentUser?.role == 'technician';
+
     // Nút phản hồi lịch hẹn là nghiệp vụ riêng của Khách hàng (authorize('user'))
-    final isCustomer =
-        context.read<AuthProvider>().currentUser?.role == 'user';
+    final isCustomer = currentUser?.role == 'user';
     // Đơn quá giờ hẹn nhưng vẫn "treo" ở trạng thái chưa tiến trình được:
     // OPEN/QUOTED (khách chưa chốt thợ) hoặc ACCEPTED + PENDING (chờ thợ xác nhận)
     final isAppointmentExpired =
@@ -1115,11 +1144,150 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 const SizedBox(height: 12),
                 _buildTechnicianActions(context, order),
               ],
+              if (canViewDetails) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.open_in_new_outlined, size: 18),
+                    label: Text(
+                      currentUser?.role == 'user'
+                          ? 'Xem chi tiết & báo giá'
+                          : 'Xem chi tiết đơn',
+                    ),
+                    onPressed: () => _openRequestDetails(order),
+                  ),
+                ),
+              ],
+              if (canUploadCompletion ||
+                  canGenerateCompletionQr ||
+                  canScanCompletionQr ||
+                  canViewInvoice) ...[
+                const SizedBox(height: 12),
+                if (canUploadCompletion)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.camera_alt_outlined),
+                      label: const Text('Chụp ảnh sau khi sửa'),
+                      onPressed: () async {
+                        final result = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => UploadCompletionImagesScreen(
+                              requestId: order.id,
+                              title: order.title,
+                              existingImageCount: order.completionImages.length,
+                            ),
+                          ),
+                        );
+                        if (result == true && context.mounted) {
+                          _fetchCurrentTabOrders();
+                        }
+                      },
+                    ),
+                  ),
+                if (canGenerateCompletionQr) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.qr_code_2),
+                      label: const Text('Tạo QR nghiệm thu'),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CompletionQrScreen(
+                            requestId: order.id,
+                            title: order.title,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (canScanCompletionQr) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('Bước 1: Quét QR nghiệm thu thiết bị'),
+                      onPressed: () async {
+                        final confirmed = await Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ScanCompletionQrScreen(
+                              expectedRequestId: order.id,
+                              title: order.title,
+                            ),
+                          ),
+                        );
+                        if (confirmed == true && context.mounted) {
+                          _fetchCurrentTabOrders();
+                        }
+                      },
+                    ),
+                  ),
+                ],
+                if (canViewInvoice)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: canScanCompletionQr
+                          ? OutlinedButton.icon(
+                              icon: const Icon(Icons.receipt_long_outlined),
+                              label: const Text('Bước 2: Xem bảng kê chi phí'),
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => InvoiceScreen(requestId: order.id),
+                                  ),
+                                );
+                                if (context.mounted) _fetchCurrentTabOrders();
+                              },
+                            )
+                          : ElevatedButton.icon(
+                              icon: const Icon(Icons.receipt_long_outlined),
+                              label: Text(
+                                currentUser?.role == 'technician'
+                                    ? 'Bảng kê chi phí & thu tiền'
+                                    : 'Bảng kê chi phí & thanh toán',
+                              ),
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => InvoiceScreen(requestId: order.id),
+                                  ),
+                                );
+                                if (context.mounted) _fetchCurrentTabOrders();
+                              },
+                            ),
+                    ),
+                  ),
+              ],
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _openRequestDetails(OrderHistoryModel order) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RequestDetailScreen(requestId: order.id),
+      ),
+    );
+
+    if (mounted) {
+      _fetchCurrentTabOrders();
+    }
   }
 
   /// Khu hành động của Thợ: xác nhận / đổi lịch hẹn (UC-SCH-02), đang trên
