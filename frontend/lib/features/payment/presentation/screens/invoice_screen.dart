@@ -1,6 +1,6 @@
 /// Author: Lam Hoang Phuc (CE191132)
-/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-04
-/// Description: Màn hình hiển thị bảng kê chi phí và xác nhận thanh toán tiền mặt trực tiếp
+/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-04, #UC-PAY-05
+/// Description: Màn hình hiển thị bảng kê chi phí, xác nhận thanh toán tiền mặt trực tiếp và xuất biên nhận điện tử
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +10,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/invoice_model.dart';
 import '../providers/payment_provider.dart';
 import '../../../quotations/presentation/widgets/quotation_format.dart';
+import 'electronic_receipt_screen.dart';
 import 'upload_parts_invoice_screen.dart';
 import '../../../completion/presentation/screens/scan_completion_qr_screen.dart';
 
@@ -125,7 +126,23 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     final isTech = auth.currentUser?.role == 'technician';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Bảng kê & Quyết toán')),
+      appBar: AppBar(
+        title: const Text('Bảng kê & Quyết toán'),
+        actions: [
+          if (invoice != null && (invoice.isPaid || invoice.requestStatus == 'COMPLETED'))
+            IconButton(
+              icon: const Icon(Icons.receipt_long_outlined),
+              tooltip: 'Xem biên nhận điện tử',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ElectronicReceiptScreen(requestId: invoice.requestId),
+                ),
+              ),
+            ),
+        ],
+      ),
       body: provider.isLoading && invoice == null
           ? const Center(child: CircularProgressIndicator())
           : provider.errorMessage != null && invoice == null
@@ -242,6 +259,29 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.green.shade800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.receipt_long, size: 16),
+                  label: const Text(
+                    'Xem biên nhận & bảo hành điện tử',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ElectronicReceiptScreen(requestId: invoice.requestId),
+                    ),
                   ),
                 ),
               ],
@@ -675,6 +715,34 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                             : const Icon(Icons.check_outlined),
                         label: const Text('Xác nhận thanh toán tiền mặt tại chỗ'),
                         onPressed: isSubmitting ? null : _confirmCashPayment,
+                      ),
+                    ),
+                  ],
+                  if (invoice.isPaid) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(Icons.receipt_long, size: 18),
+                        label: const Text(
+                          'Xem biên nhận & bảo hành điện tử',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ElectronicReceiptScreen(requestId: invoice.requestId),
+                          ),
+                        ),
                       ),
                     ),
                   ],
