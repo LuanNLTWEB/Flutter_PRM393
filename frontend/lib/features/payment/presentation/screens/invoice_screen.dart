@@ -11,6 +11,7 @@ import '../../data/models/invoice_model.dart';
 import '../providers/payment_provider.dart';
 import '../../../quotations/presentation/widgets/quotation_format.dart';
 import 'upload_parts_invoice_screen.dart';
+import '../../../completion/presentation/screens/scan_completion_qr_screen.dart';
 
 class InvoiceScreen extends StatefulWidget {
   final String requestId;
@@ -524,23 +525,82 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
           ),
           if (!isTech && !isCashConfirmed && !invoice.isPaid) ...[
             const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: isSubmitting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+            if (invoice.requestStatus != 'COMPLETED') ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Bước 1: Vui lòng quét mã QR nghiệm thu của Thợ để chuyển đơn hàng sang trạng thái Hoàn tất, sau đó mới xác nhận thanh toán tiền mặt.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.brown,
+                            ),
+                          ),
                         ),
-                      )
-                    : const Icon(Icons.check_outlined),
-                label: const Text('Xác nhận thanh toán tiền mặt tại chỗ'),
-                onPressed: isSubmitting ? null : _confirmCashPayment,
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.qr_code_scanner, size: 18),
+                        label: const Text('Quét QR nghiệm thu ngay'),
+                        onPressed: () async {
+                          final confirmed = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ScanCompletionQrScreen(
+                                expectedRequestId: invoice.requestId,
+                                title: invoice.serviceTitle,
+                              ),
+                            ),
+                          );
+                          if (confirmed == true) {
+                            _loadInvoice();
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ] else ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: isSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.check_outlined),
+                  label: const Text('Bước 2: Xác nhận thanh toán tiền mặt tại chỗ'),
+                  onPressed: isSubmitting ? null : _confirmCashPayment,
+                ),
+              ),
+            ],
           ],
         ],
       ),

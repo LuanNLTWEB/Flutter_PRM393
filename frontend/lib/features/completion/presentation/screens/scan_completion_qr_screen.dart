@@ -44,34 +44,28 @@ class _ScanCompletionQrScreenState extends State<ScanCompletionQrScreen> {
   }
 
   @override
+  void deactivate() {
+    _scannerController.stop();
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
+    _scannerController.stop();
     _scannerController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleDetection(BarcodeCapture capture) async {
-    if (_handlingScan) return;
-
-    String? rawValue;
-    for (final barcode in capture.barcodes) {
-      if (barcode.rawValue != null && barcode.rawValue!.isNotEmpty) {
-        rawValue = barcode.rawValue;
-        break;
-      }
+  Future<void> _safeExit([bool? result]) async {
+    try {
+      await _scannerController.stop();
+    } catch (_) {}
+    if (mounted) {
+      Navigator.pop(context, result);
     }
-    if (rawValue == null) return;
+  }
 
-    _handlingScan = true;
-    await _scannerController.stop();
-    if (!mounted) return;
-
-    final payload = CompletionQrPayload.tryParse(rawValue);
-    if (payload == null) {
-      _showError('Đây không phải QR nghiệm thu hợp lệ của HomeFix');
-      await _resumeScanner();
-      return;
-    }
-
+  Future<void> _processPayload(CompletionQrPayload payload) async {
     if (payload.requestId != widget.expectedRequestId) {
       _showError('QR này thuộc một đơn hàng khác');
       await _resumeScanner();
@@ -153,7 +147,7 @@ class _ScanCompletionQrScreenState extends State<ScanCompletionQrScreen> {
           ],
         ),
       );
-      if (mounted) Navigator.pop(context, true);
+      await _safeExit(true);
       return;
     }
 
@@ -161,6 +155,91 @@ class _ScanCompletionQrScreenState extends State<ScanCompletionQrScreen> {
         completionProvider.errorMessage ?? 'Không thể xác nhận nghiệm thu';
     _showError(message);
     await _resumeScanner();
+  }
+
+  Future<void> _handleDetection(BarcodeCapture capture) async {
+    if (_handlingScan) return;
+
+    String? rawValue;
+    for (final barcode in capture.barcodes) {
+      if (barcode.rawValue != null && barcode.rawValue!.isNotEmpty) {
+        rawValue = barcode.rawValue;
+        break;
+      }
+    }
+    if (rawValue == null) return;
+
+    _handlingScan = true;
+    await _scannerController.stop();
+    if (!mounted) return;
+
+    final payload = CompletionQrPayload.tryParse(rawValue);
+    if (payload == null) {
+      _showError('Đây không phải QR nghiệm thu hợp lệ của HomeFix');
+      await _resumeScanner();
+      return;
+    }
+
+    await _processPayload(payload);
+  }
+
+  Future<void> _showManualInputDialog() async {
+    await _scannerController.stop();
+    final textController = TextEditingController();
+
+    if (!mounted) return;
+    final input = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nhập URI nghiệm thu (Test trên PC)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Dành cho test trên máy tính hoặc khi camera không thể quét màn hình:',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: textController,
+              autofocus: true,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'homefix://completion?requestId=...&amount=...&token=...',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, textController.text.trim()),
+            child: const Text('Kiểm tra & Nghiệm thu'),
+          ),
+        ],
+      ),
+    );
+
+    if (input == null || input.isEmpty) {
+      await _resumeScanner();
+      return;
+    }
+
+    final payload = CompletionQrPayload.tryParse(input);
+    if (payload == null) {
+      _showError('URI nghiệm thu không đúng định dạng homefix://completion');
+      await _resumeScanner();
+      return;
+    }
+
+    _handlingScan = true;
+    await _processPayload(payload);
   }
 
   Future<void> _resumeScanner() async {
@@ -180,23 +259,38 @@ class _ScanCompletionQrScreenState extends State<ScanCompletionQrScreen> {
   Widget build(BuildContext context) {
     final isConfirming = context.watch<CompletionProvider>().isConfirming;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quét QR nghiệm thu'),
-        actions: [
-          IconButton(
-            tooltip: 'Bật/tắt đèn flash',
-            onPressed: () => _scannerController.toggleTorch(),
-            icon: const Icon(Icons.flash_on_outlined),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        await _safeExit();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _safeExit(),
           ),
-          IconButton(
-            tooltip: 'Đổi camera',
-            onPressed: () => _scannerController.switchCamera(),
-            icon: const Icon(Icons.cameraswitch_outlined),
-          ),
-        ],
-      ),
-      body: Stack(
+          title: const Text('Quét QR nghiệm thu'),
+          actions: [
+            IconButton(
+              tooltip: 'Nhập URI thủ công (Test PC)',
+              icon: const Icon(Icons.keyboard_outlined),
+              onPressed: _showManualInputDialog,
+            ),
+            IconButton(
+              tooltip: 'Bật/tắt đèn flash',
+              onPressed: () => _scannerController.toggleTorch(),
+              icon: const Icon(Icons.flash_on_outlined),
+            ),
+            IconButton(
+              tooltip: 'Đổi camera',
+              onPressed: () => _scannerController.switchCamera(),
+              icon: const Icon(Icons.cameraswitch_outlined),
+            ),
+          ],
+        ),
+        body: Stack(
         fit: StackFit.expand,
         children: [
           MobileScanner(
@@ -260,6 +354,7 @@ class _ScanCompletionQrScreenState extends State<ScanCompletionQrScreen> {
             ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
