@@ -991,9 +991,16 @@ class _HomeScreenState extends State<HomeScreen> {
         : _fallbackCategories;
 
     final screenWidth = MediaQuery.of(context).size.width;
-    // Trên màn hình rộng (tablet/web) chia 4 cột, trên mobile chia 2 cột
-    final crossAxisCount = screenWidth > 600 ? 4 : 2;
-    final childAspectRatio = screenWidth > 600 ? 1.6 : 1.45;
+    // Breakpoint: Màn hình lớn (web/desktop >= 960px) chia 4 cột, tablet/mobile chia 2 cột
+    final crossAxisCount = screenWidth >= 960 ? 4 : 2;
+
+    // Tính toán tỷ lệ khung hình động dựa trên chiều cao mục tiêu an toàn (128px)
+    // Giúp thẻ luôn duy trì độ cao tối ưu, triệt tiêu hoàn toàn lỗi RenderFlex overflow khi zoom in/out
+    final horizontalPadding = 40.0; // padding 20 * 2 của trang chủ
+    final totalSpacing = (crossAxisCount - 1) * 12.0;
+    final itemWidth = (screenWidth - horizontalPadding - totalSpacing) / crossAxisCount;
+    const targetHeight = 128.0;
+    final childAspectRatio = (itemWidth / targetHeight).clamp(1.15, 2.4);
 
     return GridView.builder(
       shrinkWrap: true,
@@ -1045,8 +1052,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: 14.0,
-              vertical: 12.0,
+              horizontal: 12.0,
+              vertical: 10.0,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1057,12 +1064,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(icon, color: color, size: 22),
+                      child: Icon(icon, color: color, size: 20),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -1101,35 +1108,40 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-                // Hàng dưới: Tên dịch vụ + Mô tả ngắn
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      category.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimaryColor,
-                        letterSpacing: -0.2,
-                      ),
+                // Hàng dưới: Tên dịch vụ + Mô tả ngắn (Expanded bọc để chống tràn tuyệt đối)
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          category.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimaryColor,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          category.commonIssues.isNotEmpty
+                              ? category.commonIssues.take(2).join(', ')
+                              : category.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      category.commonIssues.isNotEmpty
-                          ? category.commonIssues.take(2).join(', ')
-                          : category.description,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textSecondaryColor,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
