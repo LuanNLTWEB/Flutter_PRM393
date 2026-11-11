@@ -11,7 +11,8 @@ const { createNotificationUtil } = require('./notificationController');
 const PAYMENT_METHODS = ['CASH'];
 
 const isAssignedTechnician = (request, quotation, userId) => {
-  const assignedId = request.assignedTechnicianId || quotation?.technicianId;
+  const assigned = request.assignedTechnicianId || quotation?.technicianId;
+  const assignedId = assigned?._id ? assigned._id : assigned;
   return assignedId && assignedId.toString() === userId.toString();
 };
 
@@ -29,7 +30,8 @@ const getAuthorizedRequest = async (requestId, user) => {
     status: 'ACCEPTED',
   }).populate('technicianId', 'fullName avatar');
 
-  const isCustomer = request.customerId.toString() === user._id.toString();
+  const customerId = request.customerId?._id ? request.customerId._id : request.customerId;
+  const isCustomer = customerId && customerId.toString() === user._id.toString();
   const isTech = isAssignedTechnician(request, quotation, user._id);
   const isAdminOrStaff = user.role === 'admin' || user.role === 'staff';
 
