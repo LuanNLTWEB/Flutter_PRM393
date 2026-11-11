@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const dns = require('dns');
 const mongoose = require('mongoose');
@@ -118,6 +119,15 @@ const upsertRequest = async ({
   request.assignedTechnicianId = technician._id;
   request.paymentMethod = null;
   request.paymentMethodSelectedAt = null;
+  request.paymentStatus = 'UNPAID';
+  request.paidAt = null;
+  request.paymentReceivedBy = null;
+  request.completedAt = null;
+  request.completionConfirmedAt = null;
+  request.completionConfirmedBy = null;
+  request.completionQrTokenHash = null;
+  request.completionQrExpiresAt = null;
+  request.partsInvoiceImages = [];
   request.contactPhone = customer.phoneNumber;
   request.customerNote = 'Dữ liệu QA cho UC-CFM-01 và UC-PAY-01';
 
