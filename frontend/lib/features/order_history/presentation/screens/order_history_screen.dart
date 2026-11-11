@@ -1212,7 +1212,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.qr_code_scanner),
-                      label: const Text('Bước 1: Quét QR nghiệm thu thiết bị'),
+                      label: const Text('Quét QR nghiệm thu thiết bị'),
                       onPressed: () async {
                         final confirmed = await Navigator.push<bool>(
                           context,
@@ -1238,7 +1238,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                       child: canScanCompletionQr
                           ? OutlinedButton.icon(
                               icon: const Icon(Icons.receipt_long_outlined),
-                              label: const Text('Bước 2: Xem bảng kê chi phí'),
+                              label: const Text('Xem bảng kê chi phí'),
                               onPressed: () async {
                                 await Navigator.push(
                                   context,
@@ -1268,7 +1268,6 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                             ),
                     ),
                   ),
-              ],
               ],
             ],
           ),

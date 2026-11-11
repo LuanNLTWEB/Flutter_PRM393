@@ -188,7 +188,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                                 ),
                                 icon: const Icon(Icons.check_circle_outline),
                                 label: const Text(
-                                  'Xác nhận đã nhận đủ tiền mặt (UC-PAY-04)',
+                                  'Xác nhận đã nhận đủ tiền mặt',
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
@@ -422,7 +422,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                       size: 20, color: AppTheme.primaryColor),
                   SizedBox(width: 8),
                   Text(
-                    'Hóa đơn / Chứng từ linh kiện (UC-PAY-03)',
+                    'Hóa đơn & chứng từ linh kiện',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ],
@@ -511,7 +511,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Hình thức thanh toán (UC-PAY-02)',
+                'Hình thức thanh toán',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               if (!isCompleted && !invoice.isPaid)
@@ -562,8 +562,8 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                       Expanded(
                         child: Text(
                           isTech
-                              ? 'Đơn hàng chưa qua bước nghiệm thu QR. Vui lòng hướng dẫn khách hàng quét mã QR nghiệm thu trước khi thu tiền.'
-                              : 'Bắt buộc qua bước QR: Bạn cần quét mã QR nghiệm thu từ máy của Thợ để mở khóa phần thanh toán.',
+                              ? 'Đơn hàng chưa hoàn tất nghiệm thu QR. Vui lòng hướng dẫn khách hàng quét mã QR nghiệm thu trước khi thu tiền.'
+                              : 'Cần nghiệm thu trước: Bạn cần quét mã QR từ thợ để kiểm tra và mở khóa phần thanh toán.',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
