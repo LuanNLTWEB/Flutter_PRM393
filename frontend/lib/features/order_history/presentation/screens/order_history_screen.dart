@@ -549,106 +549,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 const SizedBox(height: 12),
               ],
 
-              // KHU VỰC THAO TÁC ĐÁNH GIÁ (CHUẨN NGHIỆP VỤ UC-RAT-01)
-              if (order.isCompleted && order.assignedTechnicianId != null) ...[
-                if (context.read<AuthProvider>().currentUser?.role ==
-                    'user') ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.primaryColor,
-                        side: const BorderSide(color: AppTheme.primaryColor),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      icon: const Icon(Icons.receipt_long_outlined, size: 18),
-                      label: const Text('Xem hóa đơn (có thể xem offline)'),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const InvoicesScreen(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                if (!order.isReviewed) ...[
-                  // Chưa đánh giá: Hiện nút vàng nổi bật để khách đánh giá thợ
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber.shade700,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      icon: const Icon(Icons.star_rounded, size: 20),
-                      label: const Text(
-                        'Đánh giá thợ kỹ thuật',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      onPressed: () async {
-                        final result = await Navigator.push<bool>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CreateReviewScreen(
-                              technicianId: order.assignedTechnicianId!,
-                              technicianName:
-                                  order.assignedTechnicianName ??
-                                  'Thợ kỹ thuật',
-                              bookingId: order.id,
-                            ),
-                          ),
-                        );
-
-                        if (result == true) {
-                          historyProv.markOrderReviewed(order.id);
-                        }
-                      },
-                    ),
-                  ),
-                ] else ...[
-                  // Đã đánh giá: Hiện nút xem lại đánh giá
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.primaryColor,
-                        side: const BorderSide(color: AppTheme.primaryColor),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      icon: const Icon(Icons.rate_review_outlined, size: 18),
-                      label: const Text('Xem & chỉnh sửa đánh giá'),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => TechnicianReviewsScreen(
-                              technicianId: order.assignedTechnicianId!,
-                              technicianName:
-                                  order.assignedTechnicianName ??
-                                  'Thợ kỹ thuật',
-                              bookingId: order.id,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ] else if (!order.isCompleted) ...[
-                // Đơn OPEN/QUOTED: cho phép khách xem báo giá & chọn thợ (UC-QUO-06/08)
+              // Đơn OPEN/QUOTED: cho phép khách xem báo giá & chọn thợ (UC-QUO-06/08)
+              if (!order.isCompleted) ...[
                 if (order.status == 'OPEN' || order.status == 'QUOTED') ...[
                   SizedBox(
                     width: double.infinity,
@@ -1145,156 +1047,334 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen>
                 const SizedBox(height: 12),
                 _buildTechnicianActions(context, order),
               ],
-              if (canViewDetails) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.open_in_new_outlined, size: 18),
-                    label: Text(
-                      currentUser?.role == 'user'
-                          ? 'Xem chi tiết & báo giá'
-                          : 'Xem chi tiết đơn',
-                    ),
-                    onPressed: () => _openRequestDetails(order),
-                  ),
-                ),
-              ],
-              if (canUploadCompletion ||
-                  canGenerateCompletionQr ||
-                  canScanCompletionQr ||
-                  canViewInvoice) ...[
-                const SizedBox(height: 12),
-                if (canUploadCompletion)
+              // NẾU ĐƠN ĐÃ HOÀN TẤT (COMPLETED): CỤM NÚT ĐƯỢC TỐI ƯU GỌN GÀNG, HIỆN ĐẠI
+              if (order.status == 'COMPLETED') ...[
+                _buildCompletedOrderActions(context, order, isCustomer, historyProv),
+              ] else ...[
+                if (canViewDetails) ...[
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.camera_alt_outlined),
-                      label: const Text('Chụp ảnh sau khi sửa'),
-                      onPressed: () async {
-                        final result = await Navigator.push<bool>(
+                      icon: const Icon(Icons.open_in_new_outlined, size: 18),
+                      label: Text(
+                        currentUser?.role == 'user'
+                            ? 'Xem chi tiết & báo giá'
+                            : 'Xem chi tiết đơn',
+                      ),
+                      onPressed: () => _openRequestDetails(order),
+                    ),
+                  ),
+                ],
+                if (canUploadCompletion ||
+                    canGenerateCompletionQr ||
+                    canScanCompletionQr ||
+                    canViewInvoice) ...[
+                  const SizedBox(height: 12),
+                  if (canUploadCompletion)
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.camera_alt_outlined),
+                        label: const Text('Chụp ảnh sau khi sửa'),
+                        onPressed: () async {
+                          final result = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => UploadCompletionImagesScreen(
+                                requestId: order.id,
+                                title: order.title,
+                                existingImageCount: order.completionImages.length,
+                              ),
+                            ),
+                          );
+                          if (result == true && context.mounted) {
+                            _fetchCurrentTabOrders();
+                          }
+                        },
+                      ),
+                    ),
+                  if (canGenerateCompletionQr) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.qr_code_2),
+                        label: const Text('Tạo QR nghiệm thu'),
+                        onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => UploadCompletionImagesScreen(
+                            builder: (_) => CompletionQrScreen(
                               requestId: order.id,
                               title: order.title,
-                              existingImageCount: order.completionImages.length,
                             ),
-                          ),
-                        );
-                        if (result == true && context.mounted) {
-                          _fetchCurrentTabOrders();
-                        }
-                      },
-                    ),
-                  ),
-                if (canGenerateCompletionQr) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.qr_code_2),
-                      label: const Text('Tạo QR nghiệm thu'),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CompletionQrScreen(
-                            requestId: order.id,
-                            title: order.title,
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-                if (canScanCompletionQr) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.qr_code_scanner),
-                      label: const Text('Quét QR nghiệm thu thiết bị'),
-                      onPressed: () async {
-                        final confirmed = await Navigator.push<bool>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ScanCompletionQrScreen(
-                              expectedRequestId: order.id,
-                              title: order.title,
-                            ),
-                          ),
-                        );
-                        if (confirmed == true && context.mounted) {
-                          _fetchCurrentTabOrders();
-                        }
-                      },
-                    ),
-                  ),
-                ],
-                if (canViewInvoice)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: SizedBox(
+                  ],
+                  if (canScanCompletionQr) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
                       width: double.infinity,
-                      child: canScanCompletionQr
-                          ? OutlinedButton.icon(
-                              icon: const Icon(Icons.receipt_long_outlined),
-                              label: const Text('Xem bảng kê chi phí'),
-                              onPressed: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => InvoiceScreen(requestId: order.id),
-                                  ),
-                                );
-                                if (context.mounted) _fetchCurrentTabOrders();
-                              },
-                            )
-                          : ElevatedButton.icon(
-                              icon: const Icon(Icons.receipt_long_outlined),
-                              label: Text(
-                                currentUser?.role == 'technician'
-                                    ? 'Bảng kê chi phí & thu tiền'
-                                    : 'Bảng kê chi phí & thanh toán',
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.qr_code_scanner),
+                        label: const Text('Quét QR nghiệm thu thiết bị'),
+                        onPressed: () async {
+                          final confirmed = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ScanCompletionQrScreen(
+                                expectedRequestId: order.id,
+                                title: order.title,
                               ),
-                              onPressed: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => InvoiceScreen(requestId: order.id),
-                                  ),
-                                );
-                                if (context.mounted) _fetchCurrentTabOrders();
-                              },
                             ),
-                    ),
-                  ),
-                if (order.status == 'COMPLETED') ...[
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.teal.shade800,
-                        side: BorderSide(color: Colors.teal.shade400),
-                      ),
-                      icon: const Icon(Icons.verified_outlined, size: 18),
-                      label: const Text('Biên nhận & bảo hành điện tử'),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              ElectronicReceiptScreen(requestId: order.id),
-                        ),
+                          );
+                          if (confirmed == true && context.mounted) {
+                            _fetchCurrentTabOrders();
+                          }
+                        },
                       ),
                     ),
-                  ),
+                  ],
+                  if (canViewInvoice)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: canScanCompletionQr
+                            ? OutlinedButton.icon(
+                                icon: const Icon(Icons.receipt_long_outlined),
+                                label: const Text('Xem bảng kê chi phí'),
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => InvoiceScreen(requestId: order.id),
+                                    ),
+                                  );
+                                  if (context.mounted) _fetchCurrentTabOrders();
+                                },
+                              )
+                            : ElevatedButton.icon(
+                                icon: const Icon(Icons.receipt_long_outlined),
+                                label: Text(
+                                  currentUser?.role == 'technician'
+                                      ? 'Bảng kê chi phí & thu tiền'
+                                      : 'Bảng kê chi phí & thanh toán',
+                                ),
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => InvoiceScreen(requestId: order.id),
+                                    ),
+                                  );
+                                  if (context.mounted) _fetchCurrentTabOrders();
+                                },
+                              ),
+                      ),
+                    ),
                 ],
               ],
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// Cụm nút hành động tối ưu cho đơn hàng ĐÃ HOÀN TẤT (COMPLETED)
+  Widget _buildCompletedOrderActions(
+    BuildContext context,
+    OrderHistoryModel order,
+    bool isCustomer,
+    OrderHistoryProvider historyProv,
+  ) {
+    return Column(
+      children: [
+        const SizedBox(height: 12),
+        // 1. Nút đánh giá thợ (Khách chưa đánh giá)
+        if (isCustomer && !order.isReviewed && order.assignedTechnicianId != null) ...[
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber.shade700,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              icon: const Icon(Icons.star_rounded, size: 20),
+              label: const Text(
+                'Đánh giá thợ kỹ thuật',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () async {
+                final result = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CreateReviewScreen(
+                      technicianId: order.assignedTechnicianId!,
+                      technicianName:
+                          order.assignedTechnicianName ?? 'Thợ kỹ thuật',
+                      bookingId: order.id,
+                    ),
+                  ),
+                );
+                if (result == true) {
+                  historyProv.markOrderReviewed(order.id);
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // 2. Nút Biên nhận & Bảo hành điện tử (Trọng tâm hoàn tất đơn hàng)
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal.shade700,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            icon: const Icon(Icons.verified_outlined, size: 18),
+            label: const Text(
+              'Biên nhận & bảo hành điện tử',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ElectronicReceiptScreen(requestId: order.id),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // 3. Hai nút phụ 2 cột song song (Row): [Xem chi tiết] & [Bảng kê chi phí]
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.open_in_new_outlined, size: 16),
+                label: const Text(
+                  'Chi tiết đơn',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () => _openRequestDetails(order),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.receipt_long_outlined, size: 16),
+                label: const Text(
+                  'Bảng kê chi phí',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InvoiceScreen(requestId: order.id),
+                    ),
+                  );
+                  if (context.mounted) _fetchCurrentTabOrders();
+                },
+              ),
+            ),
+          ],
+        ),
+
+        // 4. Nếu đã đánh giá: Hiện nút xem lại đánh giá
+        if (isCustomer && order.isReviewed && order.assignedTechnicianId != null) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+                side: const BorderSide(color: AppTheme.primaryColor),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              icon: const Icon(Icons.rate_review_outlined, size: 16),
+              label: const Text(
+                'Xem & chỉnh sửa đánh giá',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TechnicianReviewsScreen(
+                      technicianId: order.assignedTechnicianId!,
+                      technicianName:
+                          order.assignedTechnicianName ?? 'Thợ kỹ thuật',
+                      bookingId: order.id,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+
+        // 5. Nút xem hóa đơn offline (tinh tế, không chiếm chỗ)
+        if (isCustomer) ...[
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey.shade700,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(Icons.cloud_done_outlined, size: 14),
+              label: const Text(
+                'Xem hóa đơn lưu ngoại tuyến (offline)',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const InvoicesScreen(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
