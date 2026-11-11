@@ -9,6 +9,9 @@ import '../providers/admin_provider.dart';
 import 'create_staff_screen.dart';
 import 'admin_technician_approval_screen.dart';
 import 'admin_service_category_screen.dart';
+import 'admin_stuck_orders_screen.dart';
+import 'admin_operational_report_screen.dart';
+import 'audit_log_screen.dart';
 import '../../../notification/presentation/providers/notification_provider.dart';
 import '../../../notification/presentation/screens/notification_screen.dart';
 import '../../../complaint/presentation/screens/admin_complaints_screen.dart';
@@ -115,6 +118,42 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Giám sát đơn hàng bị treo (UC-STF-04)',
+            icon: const Icon(Icons.warning_amber_rounded),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminStuckOrdersScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Thống kê báo cáo vận hành (UC-STF-05)',
+            icon: const Icon(Icons.analytics_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AdminOperationalReportScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'Nhật ký hoạt động (Audit Log)',
+            icon: const Icon(Icons.manage_history_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AuditLogScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Tiếp nhận khiếu nại (UC-STF-03)',
             icon: const Icon(Icons.support_agent_outlined),
@@ -406,6 +445,77 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const AdminServiceCategoryScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.deepOrange.shade700,
+                    side: BorderSide(color: Colors.deepOrange.shade200),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.warning_amber_rounded, size: 16),
+                  label: const Text('Đơn bị treo (STF-04)', style: TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminStuckOrdersScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.teal.shade50,
+                    foregroundColor: Colors.teal.shade800,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.analytics_outlined, size: 16),
+                  label: const Text('Báo cáo (STF-05)', style: TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminOperationalReportScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    foregroundColor: Colors.deepPurple,
+                    side: BorderSide(color: Colors.deepPurple.shade200),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.manage_history_outlined, size: 16),
+                  label: const Text('Nhật Ký Hoạt Động (Audit Log)', style: TextStyle(fontSize: 12)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AuditLogScreen(),
                       ),
                     );
                   },

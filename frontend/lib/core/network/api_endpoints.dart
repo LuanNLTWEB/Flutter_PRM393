@@ -9,6 +9,9 @@ class ApiEndpoints {
   static const String userProfile = '$baseUrl/users/profile';
   static const String userAvatar = '$baseUrl/users/avatar';
   static const String changePassword = '$baseUrl/users/change-password';
+  static const String forgotPassword = '$baseUrl/auth/forgot-password';
+  static const String verifyOtp = '$baseUrl/auth/verify-otp';
+  static const String resetPassword = '$baseUrl/auth/reset-password';
 
   // Technician Public & Self Endpoints
   static const String publicTechnicians = '$baseUrl/technicians';
@@ -27,6 +30,21 @@ class ApiEndpoints {
       '$baseUrl/admin/technicians/$id/approve';
   static String adminRejectTechnician(String id) =>
       '$baseUrl/admin/technicians/$id/reject';
+
+  // Giám sát đơn hàng bị treo & can thiệp vận hành (UC-STF-04)
+  static const String adminStuckRequests = '$baseUrl/admin/requests/stuck';
+  static String adminCancelRequest(String id) =>
+      '$baseUrl/admin/requests/$id/cancel';
+  static String adminReassignRequest(String id) =>
+      '$baseUrl/admin/requests/$id/reassign';
+
+  // Thống kê báo cáo vận hành (UC-STF-05)
+  static const String adminOperationalReport =
+      '$baseUrl/admin/reports/operations';
+
+  // Nhật ký hoạt động & Kiểm duyệt (Audit Log - Admin & Staff)
+  static const String adminAuditLogs = '$baseUrl/admin/audit-logs';
+  static const String adminAuditLogStats = '$baseUrl/admin/audit-logs/stats';
 
   // Review Endpoints (UC-RAT-01 & UC-RAT-02)
   static const String reviewTags = '$baseUrl/reviews/tags';
@@ -57,6 +75,7 @@ class ApiEndpoints {
   static const String requests = '$baseUrl/requests';
   static const String myRequests = '$baseUrl/requests/my-requests';
   static String requestDetail(String id) => '$baseUrl/requests/$id';
+  static String updateRequest(String id) => '$baseUrl/requests/$id';
   static String cancelRequest(String id) => '$baseUrl/requests/$id/cancel';
   static String confirmAppointment(String id) =>
       '$baseUrl/requests/$id/appointment/confirm';
@@ -84,6 +103,7 @@ class ApiEndpoints {
   static const String repairRequests = requests;
   static const String myRepairRequests = myRequests;
   static String repairRequestDetail(String id) => requestDetail(id);
+  static String updateRepairRequest(String id) => updateRequest(id);
   static String cancelRepairRequest(String id) => cancelRequest(id);
   static String completionImages(String id) =>
       '$baseUrl/requests/$id/completion-images';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/data/models/user_model.dart';
+import '../../../review/presentation/screens/technician_reviews_screen.dart';
 
 class TechnicianPublicProfileScreen extends StatelessWidget {
   final UserModel technician;
@@ -142,11 +143,31 @@ class TechnicianPublicProfileScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildStatItem(
-                        icon: Icons.star_rounded,
-                        iconColor: Colors.amber,
-                        title: '$rating ★',
-                        subtitle: '$reviewCount đánh giá',
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => TechnicianReviewsScreen(
+                                technicianId: technician.id,
+                                technicianName: technician.fullName,
+                              ),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 4,
+                          ),
+                          child: _buildStatItem(
+                            icon: Icons.star_rounded,
+                            iconColor: Colors.amber,
+                            title: '$rating ★',
+                            subtitle: '$reviewCount đánh giá',
+                          ),
+                        ),
                       ),
                       Container(height: 32, width: 1, color: Colors.grey.shade200),
                       _buildStatItem(
@@ -163,6 +184,35 @@ class TechnicianPublicProfileScreen extends StatelessWidget {
                         subtitle: 'Kinh nghiệm',
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primaryColor,
+                      side: BorderSide(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      minimumSize: const Size.fromHeight(38),
+                    ),
+                    icon: const Icon(Icons.rate_review_outlined, size: 16),
+                    label: Text(
+                      'Xem toàn bộ nhận xét & đánh giá ($reviewCount)',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => TechnicianReviewsScreen(
+                            technicianId: technician.id,
+                            technicianName: technician.fullName,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

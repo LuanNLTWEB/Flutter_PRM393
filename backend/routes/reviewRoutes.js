@@ -9,6 +9,7 @@ const {
   getTechnicianReviews,
   getMyReviews,
   replyReview,
+  deleteReply,
 } = require('../controllers/reviewController');
 
 // Lấy danh sách tag đánh giá gợi ý (Public)
@@ -29,7 +30,8 @@ router.post('/', protect, createReview);
 // Xem danh sách đánh giá cá nhân đã gửi (Private)
 router.get('/my-reviews', protect, getMyReviews);
 
-// Thợ phản hồi lại đánh giá (Private - Chỉ thợ hoặc admin)
+// Thợ phản hồi lại đánh giá (Private - Chỉ thợ hoặc admin) (UC-RAT-02)
 router.put('/:id/reply', protect, authorize('technician', 'admin'), replyReview);
+router.delete('/:id/reply', protect, authorize('technician', 'admin'), deleteReply);
 
 module.exports = router;

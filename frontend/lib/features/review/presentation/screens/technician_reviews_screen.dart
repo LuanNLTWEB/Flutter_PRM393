@@ -46,7 +46,11 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
   Widget build(BuildContext context) {
     final reviewProvider = context.watch<ReviewProvider>();
     final summary = reviewProvider.summary;
-    final currentUserId = context.watch<AuthProvider>().currentUser?.id ?? '';
+    final currentUser = context.watch<AuthProvider>().currentUser;
+    final currentUserId = currentUser?.id ?? '';
+    final isTechnicianOwner = (currentUser?.role == 'technician' &&
+            currentUser?.id == widget.technicianId) ||
+        currentUser?.role == 'admin';
 
     // Tìm đánh giá của chính người dùng hiện tại (nếu có)
     ReviewModel? myReview;
@@ -64,9 +68,13 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Đánh giá: ${widget.technicianName}'),
+        title: Text(
+          isTechnicianOwner
+              ? 'Đánh giá của tôi (${widget.technicianName})'
+              : 'Đánh giá: ${widget.technicianName}',
+        ),
       ),
-      bottomNavigationBar: (hasBooking && targetBookingId.isNotEmpty)
+      bottomNavigationBar: (!isTechnicianOwner && hasBooking && targetBookingId.isNotEmpty)
           ? SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -153,7 +161,11 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
                           final review = reviewProvider.reviews[index];
                           final isMyReview = (currentUserId.isNotEmpty && review.customerId == currentUserId) ||
                               (widget.bookingId != null && review.bookingId == widget.bookingId);
-                          return _buildReviewCard(review, isMyReview: isMyReview);
+                          return _buildReviewCard(
+                            review,
+                            isMyReview: isMyReview,
+                            isTechnicianOwner: isTechnicianOwner,
+                          );
                         },
                       ),
                   ],
@@ -313,7 +325,11 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
     );
   }
 
-  Widget _buildReviewCard(ReviewModel review, {bool isMyReview = false}) {
+  Widget _buildReviewCard(
+    ReviewModel review, {
+    bool isMyReview = false,
+    bool isTechnicianOwner = false,
+  }) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     final formattedDate = review.createdAt != null
         ? dateFormat.format(review.createdAt!)
@@ -494,7 +510,7 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
             if (review.reply != null && review.reply!.comment.isNotEmpty) ...[
               const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(10),
@@ -511,25 +527,91 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
                           color: AppTheme.primaryColor,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          'Phản hồi từ thợ (${widget.technicianName})',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
+                        Expanded(
+                          child: Text(
+                            isTechnicianOwner
+                                ? 'Phản hồi của bạn'
+                                : 'Phản hồi từ thợ (${widget.technicianName})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryColor,
+                            ),
                           ),
                         ),
+                        if (review.reply?.repliedAt != null)
+                          Text(
+                            DateFormat('dd/MM/yyyy HH:mm')
+                                .format(review.reply!.repliedAt!),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        if (isTechnicianOwner) ...[
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 16),
+                            color: AppTheme.primaryColor,
+                            tooltip: 'Chỉnh sửa phản hồi',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => _openReplySheet(context, review),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              size: 16,
+                            ),
+                            color: Colors.red.shade600,
+                            tooltip: 'Xóa phản hồi',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () =>
+                                _confirmDeleteReply(context, review),
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       review.reply!.comment,
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppTheme.textPrimaryColor,
+                        height: 1.35,
                       ),
                     ),
                   ],
+                ),
+              ),
+            ] else if (isTechnicianOwner) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryColor,
+                    side: BorderSide(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.reply_rounded, size: 15),
+                  label: const Text(
+                    'Phản hồi nhận xét này',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: () => _openReplySheet(context, review),
                 ),
               ),
             ],
@@ -537,6 +619,359 @@ class _TechnicianReviewsScreenState extends State<TechnicianReviewsScreen> {
         ),
       ),
     );
+  }
+
+  /// Mở BottomSheet phản hồi nhận xét (UC-RAT-02)
+  void _openReplySheet(BuildContext context, ReviewModel review) {
+    final auth = context.read<AuthProvider>();
+    final token = auth.token;
+    if (token == null || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập để thực hiện')),
+      );
+      return;
+    }
+
+    final isEditing = review.reply != null && review.reply!.comment.isNotEmpty;
+    final controller = TextEditingController(text: review.reply?.comment ?? '');
+
+    final quickReplies = [
+      'Cảm ơn bạn đã tin tưởng dịch vụ!',
+      'Rất vui được hỗ trợ quý khách!',
+      'Cảm ơn anh/chị nhiều, chúc gia đình thật nhiều sức khỏe!',
+      'HomeFix luôn sẵn sàng phục vụ khi bạn cần!',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final reviewProvider = context.watch<ReviewProvider>();
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom:
+                    MediaQuery.of(bottomSheetContext).viewInsets.bottom + 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isEditing
+                                  ? Icons.edit_note_rounded
+                                  : Icons.reply_rounded,
+                              color: AppTheme.primaryColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              isEditing
+                                  ? 'Chỉnh sửa phản hồi'
+                                  : 'Phản hồi đánh giá',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(bottomSheetContext),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Trích dẫn nhận xét của khách
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                review.customerName,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Row(
+                                children: List.generate(5, (idx) {
+                                  return Icon(
+                                    idx < review.rating.round()
+                                        ? Icons.star_rounded
+                                        : Icons.star_outline_rounded,
+                                    size: 13,
+                                    color: Colors.amber[700],
+                                  );
+                                }),
+                              ),
+                            ],
+                          ),
+                          if (review.comment.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '"${review.comment}"',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                                fontStyle: FontStyle.italic,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Gợi ý phản hồi nhanh
+                    const Text(
+                      'Gợi ý câu trả lời nhanh:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: quickReplies.map((text) {
+                        return ActionChip(
+                          backgroundColor: Colors.blue.shade50,
+                          side: BorderSide(color: Colors.blue.shade100),
+                          label: Text(
+                            text,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                          onPressed: () {
+                            setSheetState(() {
+                              controller.text = text;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Ô nhập phản hồi
+                    TextField(
+                      controller: controller,
+                      maxLines: 4,
+                      minLines: 3,
+                      maxLength: 1000,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Nhập nội dung phản hồi nhận xét của khách hàng...',
+                        hintStyle: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade400,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                            color: AppTheme.primaryColor,
+                            width: 1.5,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Nút gửi phản hồi
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: reviewProvider.isSubmitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.send_rounded, size: 18),
+                        label: Text(
+                          reviewProvider.isSubmitting
+                              ? 'Đang gửi...'
+                              : (isEditing
+                                  ? 'Cập nhật phản hồi'
+                                  : 'Gửi phản hồi'),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: reviewProvider.isSubmitting
+                            ? null
+                            : () async {
+                                final text = controller.text.trim();
+                                if (text.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Vui lòng nhập nội dung phản hồi',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final success =
+                                    await reviewProvider.replyReview(
+                                  token: token,
+                                  reviewId: review.id,
+                                  comment: text,
+                                );
+
+                                if (context.mounted &&
+                                    bottomSheetContext.mounted) {
+                                  if (success) {
+                                    Navigator.pop(bottomSheetContext);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        backgroundColor: Colors.green.shade700,
+                                        content: Text(
+                                          reviewProvider.successMessage ??
+                                              'Phản hồi đánh giá thành công!',
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        backgroundColor: Colors.red.shade700,
+                                        content: Text(
+                                          reviewProvider.errorMessage ??
+                                              'Không thể gửi phản hồi',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Xác nhận xóa phản hồi (UC-RAT-02)
+  Future<void> _confirmDeleteReply(
+    BuildContext context,
+    ReviewModel review,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          title: const Text('Xác nhận xóa phản hồi'),
+          content: const Text(
+            'Bạn có chắc chắn muốn xóa phản hồi này không? Khách hàng sẽ không còn thấy câu trả lời của bạn.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              child: const Text('Xóa'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true && context.mounted) {
+      final auth = context.read<AuthProvider>();
+      final token = auth.token;
+      if (token == null || token.isEmpty) return;
+
+      final success = await context.read<ReviewProvider>().deleteReviewReply(
+            token: token,
+            reviewId: review.id,
+          );
+
+      if (context.mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Colors.green,
+              content: Text('Đã xóa phản hồi thành công'),
+            ),
+          );
+        } else {
+          final error =
+              context.read<ReviewProvider>().errorMessage ?? 'Lỗi xóa phản hồi';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red,
+              content: Text(error),
+            ),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildEmptyState() {

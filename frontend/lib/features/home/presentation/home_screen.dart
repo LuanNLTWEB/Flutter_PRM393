@@ -15,12 +15,14 @@ import '../../technician/presentation/screens/technician_register_screen.dart';
 import '../../technician/presentation/screens/technician_skills_screen.dart';
 import '../../repair_request/presentation/screens/service_category_screen.dart';
 import '../../repair_request/presentation/screens/create_repair_request_screen.dart';
+import '../../repair_request/presentation/screens/customer_request_list_screen.dart';
 import '../../repair_request/data/models/service_category_model.dart';
 import '../../repair_request/presentation/providers/repair_request_provider.dart';
 import '../../quotations/presentation/screens/nearby_requests_screen.dart';
 import '../../notification/presentation/providers/notification_provider.dart';
 import '../../notification/presentation/screens/notification_screen.dart';
 import '../../invoice/presentation/screens/invoices_screen.dart';
+import '../../review/presentation/screens/technician_reviews_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -277,16 +279,61 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (isTech) ...[
                   _buildTechnicianStatusCard(context, auth, techProfile),
                   const SizedBox(height: 12),
-                  // Feed yêu cầu sửa chữa đang mở (UC-QUO-01 / UC-QUO-02)
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const NearbyRequestsScreen(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NearbyRequestsScreen(),
+                            ),
+                          ),
+                          icon: const Icon(Icons.radar_outlined, size: 18),
+                          label: const Text(
+                            'Yêu cầu quanh đây',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
                       ),
-                    ),
-                    icon: const Icon(Icons.radar_outlined),
-                    label: const Text('Xem yêu cầu quanh đây'),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.amber.shade50,
+                            foregroundColor: Colors.amber.shade900,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(color: Colors.amber.shade200),
+                            ),
+                          ),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => TechnicianReviewsScreen(
+                                technicianId: user.id,
+                                technicianName: user.fullName,
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(Icons.rate_review_rounded, size: 18),
+                          label: const Text(
+                            'Đánh giá & Phản hồi',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 18),
                 ],
@@ -457,6 +504,85 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
+
+                // Card danh sách yêu cầu sửa chữa đã tạo (UC-REQ-07)
+                if (!isTech) ...[
+                  InkWell(
+                    key: const Key('home_my_requests_card'),
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CustomerRequestListScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.primaryColor.withValues(alpha: 0.08),
+                            AppTheme.primaryColor.withValues(alpha: 0.02),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.assignment_outlined,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Yêu cầu sửa chữa của bạn',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textPrimaryColor,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Xem các yêu cầu đang mở chờ thợ gửi báo giá',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textSecondaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 16,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ] else ...[
+                  const SizedBox(height: 6),
+                ],
 
                 // Danh mục dịch vụ sửa chữa nổi bật
                 Row(

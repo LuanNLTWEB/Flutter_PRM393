@@ -1,6 +1,7 @@
 const Review = require('../models/Review');
 const User = require('../models/User');
 const RepairRequest = require('../models/RepairRequest');
+const { createNotificationUtil } = require('./notificationController');
 
 // Danh sách các tag đánh giá tiêu chuẩn
 const DEFAULT_REVIEW_TAGS = [
@@ -304,9 +305,9 @@ const getMyReviews = async (req, res) => {
 };
 
 /**
- * @desc    Thợ phản hồi lại nhận xét của khách (UC-RAT-02)
+ * @desc    Thợ / Admin phản hồi lại nhận xét của khách (UC-RAT-02)
  * @route   PUT /api/reviews/:id/reply
- * @access  Private (Thợ sửa)
+ * @access  Private (Thợ sửa hoặc Admin)
  */
 const replyReview = async (req, res) => {
   try {
@@ -320,6 +321,13 @@ const replyReview = async (req, res) => {
       });
     }
 
+    if (comment.trim().length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nội dung phản hồi không được vượt quá 1000 ký tự',
+      });
+    }
+
     const review = await Review.findById(id);
     if (!review) {
       return res.status(404).json({
@@ -328,30 +336,117 @@ const replyReview = async (req, res) => {
       });
     }
 
-    // Chỉ thợ được đánh giá mới có quyền phản hồi
-    if (review.technicianId.toString() !== req.user.id.toString()) {
+    // Chỉ thợ được đánh giá hoặc Admin mới có quyền phản hồi
+    if (
+      review.technicianId.toString() !== req.user.id.toString() &&
+      req.user.role !== 'admin'
+    ) {
       return res.status(403).json({
         success: false,
         message: 'Bạn chỉ có thể phản hồi các đánh giá dành cho chính mình',
       });
     }
 
+    const trimmedComment = comment.trim();
     review.reply = {
-      comment: comment.trim(),
+      comment: trimmedComment,
       repliedAt: new Date(),
     };
 
     await review.save();
 
+    // Bắn thông báo nội bộ cho khách hàng biết thợ đã phản hồi
+    try {
+      const techUser = await User.findById(review.technicianId).select('fullName');
+      const techName = techUser?.fullName || 'Thợ kỹ thuật';
+      const snippet =
+        trimmedComment.length > 50
+          ? `${trimmedComment.substring(0, 50)}...`
+          : trimmedComment;
+
+      await createNotificationUtil({
+        recipient: review.customerId,
+        title: 'Thợ đã phản hồi đánh giá của bạn',
+        message: `${techName} đã phản hồi: "${snippet}"`,
+        type: 'ORDER',
+        data: {
+          reviewId: review._id.toString(),
+          technicianId: review.technicianId.toString(),
+          bookingId: review.bookingId ? review.bookingId.toString() : '',
+        },
+      });
+    } catch (notifErr) {
+      console.error('Lỗi khi gửi thông báo phản hồi review:', notifErr.message);
+    }
+
+    const updatedReview = await Review.findById(review._id)
+      .populate('customerId', 'fullName email')
+      .populate('technicianId', 'fullName email rating reviewCount');
+
     return res.status(200).json({
       success: true,
       message: 'Phản hồi đánh giá thành công',
-      data: review,
+      data: updatedReview,
     });
   } catch (error) {
+    console.error('Lỗi khi phản hồi review:', error);
     return res.status(500).json({
       success: false,
       message: 'Lỗi khi phản hồi đánh giá',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Thợ / Admin xóa phản hồi nhận xét (UC-RAT-02)
+ * @route   DELETE /api/reviews/:id/reply
+ * @access  Private (Thợ sửa hoặc Admin)
+ */
+const deleteReply = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const review = await Review.findById(id);
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đánh giá này',
+      });
+    }
+
+    // Chỉ thợ được đánh giá hoặc Admin mới có quyền xóa phản hồi
+    if (
+      review.technicianId.toString() !== req.user.id.toString() &&
+      req.user.role !== 'admin'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn chỉ có thể xóa phản hồi đánh giá dành cho chính mình',
+      });
+    }
+
+    review.reply = {
+      comment: null,
+      repliedAt: null,
+    };
+
+    await review.save();
+
+    const updatedReview = await Review.findById(review._id)
+      .populate('customerId', 'fullName email')
+      .populate('technicianId', 'fullName email rating reviewCount');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Xóa phản hồi thành công',
+      data: updatedReview,
+    });
+  } catch (error) {
+    console.error('Lỗi khi xóa phản hồi review:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi khi xóa phản hồi đánh giá',
       error: error.message,
     });
   }
@@ -392,4 +487,5 @@ module.exports = {
   getTechnicianReviews,
   getMyReviews,
   replyReview,
+  deleteReply,
 };

@@ -11,14 +11,12 @@ class NearbyRequestResult {
   final int total;
   final int page;
   final int totalPages;
-  final bool hasLocation;
 
   const NearbyRequestResult({
     required this.requests,
     required this.total,
     required this.page,
     required this.totalPages,
-    required this.hasLocation,
   });
 }
 
@@ -50,9 +48,6 @@ class NearbyRequestRemoteDataSource {
     required String token,
     String? categorySlug,
     String? urgency,
-    double? latitude,
-    double? longitude,
-    double? radiusKm,
     int page = 1,
     int limit = 20,
   }) async {
@@ -62,9 +57,6 @@ class NearbyRequestRemoteDataSource {
       if (categorySlug != null && categorySlug.isNotEmpty)
         'categorySlug': categorySlug,
       if (urgency != null && urgency.isNotEmpty) 'urgency': urgency,
-      if (latitude != null) 'lat': latitude.toString(),
-      if (longitude != null) 'lng': longitude.toString(),
-      if (radiusKm != null) 'radiusKm': radiusKm.toString(),
     };
 
     final uri = Uri.parse(ApiEndpoints.nearbyRequests)
@@ -84,7 +76,6 @@ class NearbyRequestRemoteDataSource {
         total: (data['data']?['total'] as num?)?.toInt() ?? requests.length,
         page: (data['data']?['page'] as num?)?.toInt() ?? page,
         totalPages: (data['data']?['totalPages'] as num?)?.toInt() ?? 1,
-        hasLocation: data['data']?['hasLocation'] == true,
       );
     }
     throw Exception(data['message'] ?? 'Không thể tải danh sách yêu cầu');
@@ -114,9 +105,9 @@ class NearbyRequestRemoteDataSource {
   }
   // ══ END UC-QUO-03 ════════════════════════════════════════════════════
 
-  // ── UC-LIC-01: Lịch hẹn & Tiền ả (không thuộc epic Báo giá) ───────────
+  // ── UC-SCH-02: Lịch hẹn & Tiền ả (không thuộc epic Báo giá) ───────────
 
-  /// Thợ xác nhận giờ hẹn (UC-LIC-01)
+  /// Thợ xác nhận giờ hẹn (UC-SCH-02)
   Future<void> confirmAppointment({
     required String token,
     required String requestId,
@@ -132,7 +123,7 @@ class NearbyRequestRemoteDataSource {
     }
   }
 
-  /// Thợ đề xuất khung giờ mới (UC-LIC-01)
+  /// Thợ đề xuất khung giờ mới (UC-SCH-02)
   Future<void> proposeAppointment({
     required String token,
     required String requestId,
@@ -155,7 +146,7 @@ class NearbyRequestRemoteDataSource {
     }
   }
 
-  /// Thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+  /// Thợ bấm "Đang trên đường đến nhà khách" (UC-WRK-01)
   Future<void> markOnTheWay({
     required String token,
     required String requestId,
@@ -191,7 +182,7 @@ class NearbyRequestRemoteDataSource {
     }
   }
 
-  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-04)
   Future<void> markWorking({
     required String token,
     required String requestId,

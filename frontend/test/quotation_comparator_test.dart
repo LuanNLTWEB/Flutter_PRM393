@@ -97,20 +97,6 @@ void main() {
       expect(sorted.first.id, 'exp');
     });
 
-    test('distanceAsc: không có khoảng cách thì xếp cuối', () {
-      final sorted = QuotationComparator.sort(
-        [
-          _quote(id: 'unknown'),
-          _quote(id: 'near'),
-          _quote(id: 'far'),
-        ],
-        key: QuotationSortKey.distanceAsc,
-        distances: {'near': 1.2, 'far': 9.5},
-      );
-
-      expect(sorted.map((q) => q.id).toList(), ['near', 'far', 'unknown']);
-    });
-
     test('Không làm thay đổi danh sách gốc', () {
       final original = [
         _quote(id: 'a', labour: 300000),

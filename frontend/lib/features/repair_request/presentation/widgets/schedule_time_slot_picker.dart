@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_theme.dart';
 
 /// Widget chọn lịch hẹn thợ đến nhà: khách chọn ngày và giờ tùy ý (kể cả giờ lẻ)
@@ -41,7 +42,9 @@ class _ScheduleTimeSlotPickerState extends State<ScheduleTimeSlotPicker> {
       context: context,
       initialDate: _selectedDate ?? firstDate,
       firstDate: firstDate,
-      lastDate: firstDate.add(const Duration(days: ScheduleTimeSlotPicker.maxDaysAhead)),
+      lastDate: firstDate.add(
+        const Duration(days: ScheduleTimeSlotPicker.maxDaysAhead),
+      ),
       helpText: 'CHỌN NGÀY THỢ ĐẾN NHÀ',
       cancelText: 'HỦY',
       confirmText: 'CHỌN',
@@ -76,11 +79,24 @@ class _ScheduleTimeSlotPickerState extends State<ScheduleTimeSlotPicker> {
     return !picked.isAfter(now);
   }
 
+  bool _isTooSoon(TimeOfDay time) {
+    if (!_isToday()) return false;
+    final picked = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      time.hour,
+      time.minute,
+    );
+    return picked.isBefore(DateTime.now().add(const Duration(minutes: 15)));
+  }
+
   Future<void> _pickTime() async {
     if (_selectedDate == null) return;
 
     final now = DateTime.now();
-    TimeOfDay initialTime = _selectedTime ?? const TimeOfDay(hour: 8, minute: 0);
+    TimeOfDay initialTime =
+        _selectedTime ?? const TimeOfDay(hour: 8, minute: 0);
     if (_isToday()) {
       // Làm tròn lên ít nhất 30 phút so với hiện tại làm giờ gợi ý
       final rounded = now.hour * 60 + now.minute + 30;
@@ -98,26 +114,17 @@ class _ScheduleTimeSlotPickerState extends State<ScheduleTimeSlotPicker> {
     );
     if (picked == null) return;
 
-    // Không cho chọn giờ đã qua trong hôm nay
-    if (_isToday()) {
-      final pickedDateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        picked.hour,
-        picked.minute,
-      );
-      if (!pickedDateTime.isAfter(DateTime.now())) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Giờ bạn chọn đã qua, vui lòng chọn giờ khác'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
+    // Đồng bộ với API: lịch hẹn phải cách hiện tại tối thiểu 15 phút.
+    if (_isTooSoon(picked)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Giờ hẹn phải cách hiện tại ít nhất 15 phút'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
+      return;
     }
 
     setState(() => _selectedTime = picked);
@@ -156,15 +163,23 @@ class _ScheduleTimeSlotPickerState extends State<ScheduleTimeSlotPicker> {
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.25)),
+                border: Border.all(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.25),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today_outlined, size: 20, color: AppTheme.primaryColor),
+                  const Icon(
+                    Icons.calendar_today_outlined,
+                    size: 20,
+                    color: AppTheme.primaryColor,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      _selectedDate != null ? _formatDate(_selectedDate!) : 'Chọn ngày thợ đến nhà',
+                      _selectedDate != null
+                          ? _formatDate(_selectedDate!)
+                          : 'Chọn ngày thợ đến nhà',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -174,7 +189,11 @@ class _ScheduleTimeSlotPickerState extends State<ScheduleTimeSlotPicker> {
                       ),
                     ),
                   ),
-                  const Icon(Icons.arrow_drop_down, size: 24, color: AppTheme.primaryColor),
+                  const Icon(
+                    Icons.arrow_drop_down,
+                    size: 24,
+                    color: AppTheme.primaryColor,
+                  ),
                 ],
               ),
             ),
@@ -189,7 +208,10 @@ class _ScheduleTimeSlotPickerState extends State<ScheduleTimeSlotPicker> {
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 key: const Key('schedule_time_picker'),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: _selectedTime != null
                       ? AppTheme.primaryColor.withValues(alpha: 0.06)
@@ -228,7 +250,9 @@ class _ScheduleTimeSlotPickerState extends State<ScheduleTimeSlotPicker> {
                     Icon(
                       Icons.arrow_drop_down,
                       size: 24,
-                      color: _selectedDate != null ? AppTheme.primaryColor : Colors.grey.shade400,
+                      color: _selectedDate != null
+                          ? AppTheme.primaryColor
+                          : Colors.grey.shade400,
                     ),
                   ],
                 ),

@@ -3,16 +3,18 @@ import '../../../../core/theme/app_theme.dart';
 import '../../data/models/repair_request_model.dart';
 import '../../../quotations/presentation/screens/request_quotations_screen.dart';
 
-/// Card hiển thị thông tin và trạng thái một phiếu yêu cầu sửa chữa (UC-REQ-07, 08, 09)
+/// Card hiển thị thông tin và trạng thái một phiếu yêu cầu sửa chữa
 class RequestItemCardWidget extends StatelessWidget {
   final RepairRequestModel request;
   final VoidCallback? onDetailPressed;
+  final VoidCallback? onEditPressed;
   final VoidCallback? onCancelPressed;
 
   const RequestItemCardWidget({
     super.key,
     required this.request,
     this.onDetailPressed,
+    this.onEditPressed,
     this.onCancelPressed,
   });
 
@@ -438,42 +440,69 @@ class RequestItemCardWidget extends StatelessWidget {
 
 
                 // ── Nút Thao tác ──
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if ((request.status == 'OPEN' || request.status == 'QUOTED') &&
-                        onCancelPressed != null) ...[
-                      OutlinedButton.icon(
-                        key: ValueKey('cancel_button_${request.id}'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red.shade700,
-                          side: BorderSide(color: Colors.red.shade300),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          minimumSize: const Size(0, 32),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      if (request.status == 'OPEN' &&
+                          request.quotesCount == 0 &&
+                          onEditPressed != null)
+                        OutlinedButton.icon(
+                          key: ValueKey('edit_button_${request.id}'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.primaryColor,
+                            side: BorderSide(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            minimumSize: const Size(0, 32),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
+                          icon: const Icon(Icons.edit_outlined, size: 14),
+                          label: const Text(
+                            'Chỉnh sửa',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: onEditPressed,
                         ),
-                        icon: const Icon(Icons.cancel_outlined, size: 14),
-                        label: const Text(
-                          'Hủy yêu cầu',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      if ((request.status == 'OPEN' || request.status == 'QUOTED') &&
+                          onCancelPressed != null)
+                        OutlinedButton.icon(
+                          key: ValueKey('cancel_button_${request.id}'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red.shade700,
+                            side: BorderSide(color: Colors.red.shade300),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            minimumSize: const Size(0, 32),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          icon: const Icon(Icons.cancel_outlined, size: 14),
+                          label: const Text(
+                            'Hủy yêu cầu',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: onCancelPressed,
                         ),
-                        onPressed: onCancelPressed,
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          minimumSize: const Size(0, 34),
+                        ),
+                        icon: const Icon(Icons.visibility_outlined, size: 15),
+                        label: const Text('Xem chi tiết', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        onPressed: onDetailPressed,
                       ),
-                      const SizedBox(width: 8),
                     ],
-                    TextButton.icon(
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppTheme.primaryColor,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        minimumSize: const Size(0, 34),
-                      ),
-                      icon: const Icon(Icons.visibility_outlined, size: 15),
-                      label: const Text('Xem chi tiết', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                      onPressed: onDetailPressed,
-                    ),
-                  ],
+                  ),
                 ),
 
               ],

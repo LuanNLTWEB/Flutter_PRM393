@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../../../core/network/api_endpoints.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../repair_request/data/models/service_category_model.dart';
+import '../models/audit_log_model.dart';
 
 class AdminRemoteDataSource {
   final http.Client client;
@@ -325,6 +326,231 @@ class AdminRemoteDataSource {
         };
       } else {
         throw Exception(data['message'] ?? 'Không thể xóa danh mục');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
+  // ==========================================================
+  // GIÁM SÁT ĐƠN HÀNG BỊ TREO & CAN THIỆP VẬN HÀNH (UC-STF-04)
+  // ==========================================================
+
+  /// Lấy danh sách đơn hàng đang mở/bị treo kèm danh sách thợ khả dụng (UC-STF-04)
+  Future<Map<String, dynamic>> getStuckRequests({
+    required String token,
+    String filter = 'ALL',
+    String search = '',
+  }) async {
+    try {
+      final queryParameters = <String, String>{
+        'filter': filter,
+      };
+      if (search.trim().isNotEmpty) {
+        queryParameters['search'] = search.trim();
+      }
+
+      final uri = Uri.parse(ApiEndpoints.adminStuckRequests).replace(
+        queryParameters: queryParameters,
+      );
+
+      final response = await client.get(
+        uri,
+        headers: _headers(token),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return data['data'] as Map<String, dynamic>;
+      } else {
+        throw Exception(
+          data['message'] ?? 'Không thể tải danh sách giám sát đơn hàng',
+        );
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
+  /// Staff/Admin can thiệp hủy đơn hàng bị treo (UC-STF-04)
+  Future<Map<String, dynamic>> staffCancelRequest({
+    required String token,
+    required String requestId,
+    required String reason,
+  }) async {
+    try {
+      final response = await client.put(
+        Uri.parse(ApiEndpoints.adminCancelRequest(requestId)),
+        headers: _headers(token),
+        body: jsonEncode({
+          'reason': reason.trim(),
+        }),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return data;
+      } else {
+        throw Exception(
+          data['message'] ?? 'Không thể can thiệp hủy đơn hàng',
+        );
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
+  /// Staff/Admin điều phối lại thợ khác hoặc mở lại đơn hàng (UC-STF-04)
+  Future<Map<String, dynamic>> staffReassignRequest({
+    required String token,
+    required String requestId,
+    String? newTechnicianId,
+    String mode = 'ASSIGN',
+    String note = '',
+  }) async {
+    try {
+      final response = await client.put(
+        Uri.parse(ApiEndpoints.adminReassignRequest(requestId)),
+        headers: _headers(token),
+        body: jsonEncode({
+          'newTechnicianId': newTechnicianId,
+          'mode': mode,
+          'note': note.trim(),
+        }),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return data;
+      } else {
+        throw Exception(
+          data['message'] ?? 'Không thể điều phối lại đơn hàng',
+        );
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
+  // ==========================================================
+  // THỐNG KÊ BÁO CÁO VẬN HÀNH (UC-STF-05)
+  // ==========================================================
+
+  /// Lấy dữ liệu thống kê báo cáo vận hành: tỷ lệ đơn, doanh thu, năng suất (UC-STF-05)
+  Future<Map<String, dynamic>> getOperationalReport({
+    required String token,
+    String period = 'all',
+  }) async {
+    try {
+      final uri = Uri.parse(ApiEndpoints.adminOperationalReport).replace(
+        queryParameters: {'period': period},
+      );
+
+      final response = await client.get(
+        uri,
+        headers: _headers(token),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return Map<String, dynamic>.from(data['data'] as Map);
+      } else {
+        throw Exception(
+          data['message'] ?? 'Không thể tải báo cáo vận hành',
+        );
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
+  // ==========================================================
+  // NHẬT KÝ HOẠT ĐỘNG & KIỂM DUYỆT (AUDIT LOG)
+  // ==========================================================
+
+  /// Lấy danh sách nhật ký hoạt động của Staff và Admin
+  Future<List<AuditLogModel>> getAuditLogs({
+    required String token,
+    String? role,
+    String? actionGroup,
+    String? search,
+    int page = 1,
+    int limit = 50,
+  }) async {
+    try {
+      final queryParameters = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+      if (role != null && role.isNotEmpty) {
+        queryParameters['role'] = role;
+      }
+      if (actionGroup != null && actionGroup.isNotEmpty) {
+        queryParameters['actionGroup'] = actionGroup;
+      }
+      if (search != null && search.trim().isNotEmpty) {
+        queryParameters['search'] = search.trim();
+      }
+
+      final uri = Uri.parse(ApiEndpoints.adminAuditLogs).replace(
+        queryParameters: queryParameters,
+      );
+
+      final response = await client.get(
+        uri,
+        headers: _headers(token),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        final List<dynamic> logsList = data['data']['logs'] ?? [];
+        return logsList
+            .map((item) => AuditLogModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } else {
+        throw Exception(data['message'] ?? 'Không thể tải nhật ký hoạt động');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến máy chủ: $e');
+    }
+  }
+
+  /// Lấy thống kê số lượng nhật ký hoạt động
+  Future<Map<String, int>> getAuditLogStats({
+    required String token,
+  }) async {
+    try {
+      final response = await client.get(
+        Uri.parse(ApiEndpoints.adminAuditLogStats),
+        headers: _headers(token),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        final statsData = data['data'] as Map<String, dynamic>? ?? {};
+        return {
+          'total': (statsData['total'] as num?)?.toInt() ?? 0,
+          'adminCount': (statsData['adminCount'] as num?)?.toInt() ?? 0,
+          'staffCount': (statsData['staffCount'] as num?)?.toInt() ?? 0,
+          'kycCount': (statsData['kycCount'] as num?)?.toInt() ?? 0,
+          'userCount': (statsData['userCount'] as num?)?.toInt() ?? 0,
+          'complaintCount': (statsData['complaintCount'] as num?)?.toInt() ?? 0,
+          'categoryCount': (statsData['categoryCount'] as num?)?.toInt() ?? 0,
+        };
+      } else {
+        throw Exception(data['message'] ?? 'Không thể tải thống kê nhật ký');
       }
     } catch (e) {
       if (e is Exception) rethrow;

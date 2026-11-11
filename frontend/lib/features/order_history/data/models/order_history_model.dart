@@ -16,6 +16,10 @@ class OrderHistoryModel {
   final String locationAddress;
   final List<String> completionImages;
   final String? paymentMethod;
+
+  /// Tọa độ nhà khách — dùng cho chỉ đường Google Maps (UC-WRK-02)
+  final double? latitude;
+  final double? longitude;
   final DateTime? preferredTime;
   final String appointmentStatus; // PENDING, CONFIRMED, RESCHEDULED
   final DateTime? proposedTime;
@@ -41,6 +45,8 @@ class OrderHistoryModel {
     required this.locationAddress,
     this.completionImages = const [],
     this.paymentMethod,
+    this.latitude,
+    this.longitude,
     this.preferredTime,
     this.appointmentStatus = 'PENDING',
     this.proposedTime,
@@ -71,8 +77,13 @@ class OrderHistoryModel {
     }
 
     String address = 'Chưa cập nhật địa chỉ';
+    double? lat;
+    double? lng;
     if (json['location'] is Map<String, dynamic>) {
-      address = json['location']['address'] ?? 'Chưa cập nhật địa chỉ';
+      final loc = json['location'] as Map<String, dynamic>;
+      address = loc['address'] ?? 'Chưa cập nhật địa chỉ';
+      lat = (loc['latitude'] as num?)?.toDouble();
+      lng = (loc['longitude'] as num?)?.toDouble();
     }
 
     return OrderHistoryModel(
@@ -95,6 +106,8 @@ class OrderHistoryModel {
           ? List<String>.from(json['completionImages'])
           : const [],
       paymentMethod: json['paymentMethod']?.toString(),
+      latitude: lat,
+      longitude: lng,
       preferredTime: json['preferredTime'] != null
           ? DateTime.tryParse(json['preferredTime'].toString())?.toLocal()
           : null,

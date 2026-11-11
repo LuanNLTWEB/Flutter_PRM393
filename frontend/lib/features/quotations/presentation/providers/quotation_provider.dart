@@ -21,7 +21,6 @@ class QuotationProvider extends ChangeNotifier {
 
   // Feed yêu cầu cho Thợ (UC-QUO-01 / UC-QUO-02)
   List<RepairRequestModel> _nearbyRequests = [];
-  bool _hasLocation = false;
 
   // Chi tiết yêu cầu (UC-QUO-03)
   RepairRequestModel? _selectedRequest;
@@ -40,7 +39,6 @@ class QuotationProvider extends ChangeNotifier {
   String? _successMessage;
 
   List<RepairRequestModel> get nearbyRequests => _nearbyRequests;
-  bool get hasLocation => _hasLocation;
   RepairRequestModel? get selectedRequest => _selectedRequest;
   List<QuotationModel> get quotations => _quotations;
   String get requestStatus => _requestStatus;
@@ -71,9 +69,6 @@ class QuotationProvider extends ChangeNotifier {
     required String token,
     String? categorySlug,
     String? urgency,
-    double? latitude,
-    double? longitude,
-    double? radiusKm,
     bool refresh = false,
   }) async {
     if (!refresh && _nearbyRequests.isNotEmpty) return;
@@ -87,12 +82,8 @@ class QuotationProvider extends ChangeNotifier {
         token: token,
         categorySlug: categorySlug,
         urgency: urgency,
-        latitude: latitude,
-        longitude: longitude,
-        radiusKm: radiusKm,
       );
       _nearbyRequests = result.requests;
-      _hasLocation = result.hasLocation;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {
@@ -382,9 +373,9 @@ class QuotationProvider extends ChangeNotifier {
   }
   // END UC-QUO-09
 
-  // UC-LIC-01 / UC-DI-01: Lịch hẹn & đang trên đường (ngoài epic Báo giá)
+  // UC-SCH-02 / UC-DI-01: Lịch hẹn & đang trên đường (ngoài epic Báo giá)
 
-  /// Thợ xác nhận giờ hẹn (UC-LIC-01)
+  /// Thợ xác nhận giờ hẹn (UC-SCH-02)
   Future<bool> confirmAppointment({
     required String token,
     required String requestId,
@@ -420,7 +411,7 @@ class QuotationProvider extends ChangeNotifier {
     }
   }
 
-  /// Thợ đề xuất khung giờ mới (UC-LIC-01)
+  /// Thợ đề xuất khung giờ mới (UC-SCH-02)
   Future<bool> proposeAppointment({
     required String token,
     required String requestId,
@@ -460,7 +451,7 @@ class QuotationProvider extends ChangeNotifier {
     }
   }
 
-  /// Thợ bấm "Đang trên đường đến nhà khách" (UC-DI-01)
+  /// Thợ bấm "Đang trên đường đến nhà khách" (UC-WRK-01)
   Future<bool> markOnTheWay({
     required String token,
     required String requestId,
@@ -516,7 +507,7 @@ class QuotationProvider extends ChangeNotifier {
     }
   }
 
-  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-02)
+  /// Thợ bấm "Bắt đầu sửa chữa" (UC-WRK-04)
   Future<bool> markWorking({
     required String token,
     required String requestId,

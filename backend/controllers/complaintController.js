@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Complaint = require('../models/Complaint');
 const RepairRequest = require('../models/RepairRequest');
 const { createNotificationUtil } = require('./notificationController');
+const { logAudit } = require('./auditLogController');
 
 const activeStatuses = ['RECEIVED', 'IN_REVIEW'];
 const validStatuses = [...activeStatuses, 'RESOLVED', 'REJECTED'];
@@ -205,6 +206,22 @@ const handleComplaint = async (req, res) => {
       message: `Khiếu nại "${complaint.subject}" ${statusLabel}.`,
       type: 'SYSTEM',
       data: { complaintId: complaint._id, requestId: complaint.requestId, status },
+    });
+
+    // Ghi nhận vào Nhật ký hoạt động (Audit Log)
+    const actionTitleMap = {
+      IN_REVIEW: 'Tiếp nhận xử lý khiếu nại',
+      RESOLVED: 'Giải quyết khiếu nại thành công',
+      REJECTED: 'Từ chối giải quyết khiếu nại',
+    };
+    await logAudit({
+      actor: req.user,
+      action: `COMPLAINT_${status}`,
+      actionTitle: actionTitleMap[status] || 'Xử lý khiếu nại',
+      targetType: 'Complaint',
+      targetId: complaint._id,
+      targetName: complaint.subject,
+      details: normalizedNote ? `Biên bản: ${normalizedNote}` : `Cập nhật trạng thái thành ${status}`,
     });
 
     return res.status(200).json({
