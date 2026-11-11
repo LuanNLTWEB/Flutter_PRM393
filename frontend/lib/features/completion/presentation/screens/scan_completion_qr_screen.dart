@@ -191,13 +191,13 @@ class _ScanCompletionQrScreenState extends State<ScanCompletionQrScreen> {
     final input = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Nhập URI nghiệm thu (Test trên PC)'),
+        title: const Text('Nhập mã nghiệm thu thủ công'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Dành cho test trên máy tính hoặc khi camera không thể quét màn hình:',
+              'Dành cho trường hợp camera không thể quét trực tiếp mã QR:',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),

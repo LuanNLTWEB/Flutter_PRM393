@@ -1,7 +1,7 @@
 /**
  * Author: Lam Hoang Phuc (CE191132)
- * Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04
- * Description: Controller quản lý bảng kê chi phí, thanh toán tiền mặt, hóa đơn linh kiện và xác nhận thu tiền
+ * Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04, #UC-PAY-05
+ * Description: Controller quản lý bảng kê chi phí, thanh toán tiền mặt, hóa đơn linh kiện, xác nhận thu tiền và xuất biên nhận điện tử
  */
 const RepairRequest = require('../models/RepairRequest');
 const Quotation = require('../models/Quotation');
@@ -19,7 +19,8 @@ const isAssignedTechnician = (request, quotation, userId) => {
 const getAuthorizedRequest = async (requestId, user) => {
   const request = await RepairRequest.findById(requestId)
     .populate('serviceCategoryId', 'name')
-    .populate('assignedTechnicianId', 'fullName avatar');
+    .populate('assignedTechnicianId', 'fullName avatar phoneNumber')
+    .populate('customerId', 'fullName phoneNumber email');
 
   if (!request) {
     return { error: { status: 404, message: 'Không tìm thấy phiếu yêu cầu sửa chữa' } };
@@ -28,7 +29,7 @@ const getAuthorizedRequest = async (requestId, user) => {
   const quotation = await Quotation.findOne({
     requestId: request._id,
     status: 'ACCEPTED',
-  }).populate('technicianId', 'fullName avatar');
+  }).populate('technicianId', 'fullName avatar phoneNumber');
 
   const customerId = request.customerId?._id ? request.customerId._id : request.customerId;
   const isCustomer = customerId && customerId.toString() === user._id.toString();
@@ -72,6 +73,71 @@ const buildInvoice = (request, quotation) => ({
   paymentStatus: request.paymentStatus || 'UNPAID',
   paidAt: request.paidAt || null,
 });
+
+const buildReceipt = (request, quotation) => {
+  const paidDate = request.paidAt || request.completedAt || new Date();
+  const warrantyDays = 30;
+  const warrantyEndDate = new Date(paidDate.getTime() + warrantyDays * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const isWarrantyActive = now <= warrantyEndDate;
+
+  const idSuffix = request._id.toString().slice(-8).toUpperCase();
+  const receiptCode = `REC-${idSuffix}`;
+  const warrantyCode = `WRT-${idSuffix}`;
+
+  return {
+    receiptCode,
+    warrantyCode,
+    issuedAt: paidDate,
+    requestId: request._id,
+    serviceTitle: request.title,
+    serviceCategoryName: request.serviceCategoryId?.name || 'Dịch vụ sửa chữa',
+    customer: {
+      fullName: request.customerId?.fullName || 'Khách hàng',
+      phoneNumber: request.customerId?.phoneNumber || '',
+      email: request.customerId?.email || '',
+      address: request.location?.address || request.address || 'Tại địa chỉ khách hàng',
+    },
+    technician: {
+      fullName:
+        request.assignedTechnicianId?.fullName ||
+        quotation?.technicianId?.fullName ||
+        'Thợ sửa chữa',
+      phoneNumber:
+        request.assignedTechnicianId?.phoneNumber ||
+        quotation?.technicianId?.phoneNumber ||
+        '',
+      avatar:
+        request.assignedTechnicianId?.avatar ||
+        quotation?.technicianId?.avatar ||
+        '',
+    },
+    financial: {
+      labourCost: quotation ? quotation.labourCost : 0,
+      partsCost: quotation ? quotation.partsCost : 0,
+      totalAmount: quotation ? quotation.total : 0,
+      currency: 'VND',
+      paymentMethod: request.paymentMethod || 'CASH',
+      paymentStatus: request.paymentStatus || 'UNPAID',
+      paidAt: request.paidAt || null,
+    },
+    warranty: {
+      durationDays: warrantyDays,
+      startDate: paidDate,
+      endDate: warrantyEndDate,
+      status: isWarrantyActive ? 'ACTIVE' : 'EXPIRED',
+      statusText: isWarrantyActive ? 'Còn hiệu lực bảo hành' : 'Hết hạn bảo hành',
+      terms: [
+        'Bảo hành 30 ngày cho các hạng mục công việc đã thực hiện và linh kiện thay thế đính kèm biên nhận.',
+        'Miễn phí 100% công sửa lại tại nhà nếu sự cố tương tự phát sinh trong thời gian còn bảo hành.',
+        'Phiếu biên nhận điện tử kiêm bảo hành có giá trị đối soát chính thức trên toàn hệ thống HomeFix.',
+        'Không áp dụng bảo hành nếu thiết bị bị tác động ngoại lực, chập cháy do nguồn điện hoặc tự ý tháo dỡ bởi bên thứ ba.',
+      ],
+    },
+    completionImages: request.completionImages || [],
+    partsInvoiceImages: request.partsInvoiceImages || [],
+  };
+};
 
 const hasCompletionEvidence = (request) =>
   request.status === 'COMPLETED' || (request.completionImages || []).length > 0;
@@ -386,9 +452,64 @@ const confirmPaymentReceived = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Xuất biên nhận thanh toán kiêm phiếu bảo hành dịch vụ điện tử (UC-PAY-05)
+ * @route   GET /api/payments/requests/:id/receipt
+ * @access  Private (Khách hàng chủ đơn, Thợ được gán, Admin/Staff)
+ */
+const getReceipt = async (req, res) => {
+  try {
+    const result = await getAuthorizedRequest(req.params.id, req.user);
+    if (result.error) {
+      return res.status(result.error.status).json({
+        success: false,
+        message: result.error.message,
+      });
+    }
+
+    const { request, quotation } = result;
+
+    if (!quotation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Đơn hàng chưa có báo giá được chốt để xuất biên nhận điện tử',
+      });
+    }
+
+    if (!hasCompletionEvidence(request)) {
+      return res.status(409).json({
+        success: false,
+        message: 'Chưa thể xuất biên nhận: thợ chưa gửi ảnh sau khi sửa',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Lấy biên nhận thanh toán kiêm bảo hành điện tử thành công',
+      data: {
+        receipt: buildReceipt(request, quotation),
+      },
+    });
+  } catch (error) {
+    console.error('getReceipt error:', error.message);
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã phiếu yêu cầu không hợp lệ',
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy biên nhận điện tử',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getInvoice,
   selectPaymentMethod,
   uploadPartsInvoiceImages,
   confirmPaymentReceived,
+  getReceipt,
 };

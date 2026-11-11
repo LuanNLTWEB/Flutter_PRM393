@@ -1,10 +1,11 @@
 /// Author: Lam Hoang Phuc (CE191132)
-/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04
-/// Description: State Management Provider cho hóa đơn và thu tiền mặt
+/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04, #UC-PAY-05
+/// Description: State Management Provider cho hóa đơn, thu tiền mặt và biên nhận điện tử
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../data/datasources/payment_remote_datasource.dart';
+import '../../data/models/electronic_receipt_model.dart';
 import '../../data/models/invoice_model.dart';
 
 class PaymentProvider extends ChangeNotifier {
@@ -14,14 +15,20 @@ class PaymentProvider extends ChangeNotifier {
       : _dataSource = dataSource ?? PaymentRemoteDataSource();
 
   InvoiceModel? _invoice;
+  ElectronicReceiptModel? _receipt;
   bool _isLoading = false;
+  bool _isLoadingReceipt = false;
   bool _isSubmitting = false;
   String? _errorMessage;
+  String? _receiptError;
 
   InvoiceModel? get invoice => _invoice;
+  ElectronicReceiptModel? get receipt => _receipt;
   bool get isLoading => _isLoading;
+  bool get isLoadingReceipt => _isLoadingReceipt;
   bool get isSubmitting => _isSubmitting;
   String? get errorMessage => _errorMessage;
+  String? get receiptError => _receiptError;
 
   Future<void> fetchInvoice({
     required String token,
@@ -41,6 +48,28 @@ class PaymentProvider extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchElectronicReceipt({
+    required String token,
+    required String requestId,
+  }) async {
+    _receipt = null;
+    _isLoadingReceipt = true;
+    _receiptError = null;
+    notifyListeners();
+
+    try {
+      _receipt = await _dataSource.getElectronicReceipt(
+        token: token,
+        requestId: requestId,
+      );
+    } catch (e) {
+      _receiptError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoadingReceipt = false;
       notifyListeners();
     }
   }

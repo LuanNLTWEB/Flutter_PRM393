@@ -108,7 +108,7 @@ class _UploadPartsInvoiceScreenState extends State<UploadPartsInvoiceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hóa đơn linh kiện (UC-PAY-03)'),
+        title: const Text('Hóa đơn linh kiện'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

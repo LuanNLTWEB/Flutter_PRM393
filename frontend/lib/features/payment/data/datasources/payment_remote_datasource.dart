@@ -1,6 +1,6 @@
 /// Author: Lam Hoang Phuc (CE191132)
-/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04
-/// Description: Remote Datasource kết nối API hóa đơn, thanh toán và chứng từ vật tư
+/// Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04, #UC-PAY-05
+/// Description: Remote Datasource kết nối API hóa đơn, thanh toán, chứng từ vật tư và biên nhận điện tử
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -8,6 +8,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/network/api_endpoints.dart';
+import '../models/electronic_receipt_model.dart';
 import '../models/invoice_model.dart';
 
 class PaymentRemoteDataSource {
@@ -127,5 +128,24 @@ class PaymentRemoteDataSource {
       if (invoice is Map<String, dynamic>) return InvoiceModel.fromJson(invoice);
     }
     throw Exception(data['message'] ?? 'Không thể xác nhận thanh toán');
+  }
+
+  Future<ElectronicReceiptModel> getElectronicReceipt({
+    required String token,
+    required String requestId,
+  }) async {
+    final response = await client.get(
+      Uri.parse(ApiEndpoints.electronicReceipt(requestId)),
+      headers: _headers(token),
+    );
+    final data = _decode(response);
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      final receipt = data['data']?['receipt'];
+      if (receipt is Map<String, dynamic>) {
+        return ElectronicReceiptModel.fromJson(receipt);
+      }
+    }
+    throw Exception(data['message'] ?? 'Không thể tải biên nhận điện tử');
   }
 }

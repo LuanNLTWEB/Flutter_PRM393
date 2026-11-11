@@ -1,7 +1,7 @@
 /**
  * Author: Lam Hoang Phuc (CE191132)
- * Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04
- * Description: Định tuyến API thanh toán tiền mặt và chứng từ linh kiện
+ * Use Cases: #UC-PAY-01, #UC-PAY-02, #UC-PAY-03, #UC-PAY-04, #UC-PAY-05
+ * Description: Định tuyến API thanh toán tiền mặt, chứng từ linh kiện và biên nhận điện tử
  */
 const express = require('express');
 const router = express.Router();
@@ -12,6 +12,7 @@ const {
   selectPaymentMethod,
   uploadPartsInvoiceImages,
   confirmPaymentReceived,
+  getReceipt,
 } = require('../controllers/paymentController');
 
 // Tất cả API thanh toán yêu cầu đăng nhập
@@ -22,6 +23,13 @@ router.get(
   '/requests/:id/invoice',
   authorize('user', 'technician', 'staff', 'admin'),
   getInvoice
+);
+
+// Xuất biên nhận thanh toán kiêm phiếu bảo hành điện tử (UC-PAY-05): Khách hàng, Thợ, Staff/Admin
+router.get(
+  '/requests/:id/receipt',
+  authorize('user', 'technician', 'staff', 'admin'),
+  getReceipt
 );
 
 // Khách hàng xác nhận thanh toán tiền mặt tại chỗ (UC-PAY-02)
