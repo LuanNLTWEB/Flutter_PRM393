@@ -11,3 +11,4 @@ void downloadFile({
 void printPage() {
   // Không khả dụng trực tiếp trên native nếu không có thư viện in ấn chuyên dụng
 }
+
